@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Bot, ClipboardList, LayoutGrid, Filter, TrendingUp, Users, Camera, Zap } from "lucide-react";
+import { Sparkles, Bot, ClipboardList, LayoutGrid, Filter, TrendingUp, Users, Camera, Zap, Check } from "lucide-react";
 import heroBg from "@/assets/hero-bg.png";
 
 export const Route = createFileRoute("/")({
@@ -195,6 +195,109 @@ function Index() {
                 </p>
               </article>
             ))}
+          </div>
+        </section>
+
+        <section id="pricing" className="py-16 md:py-24">
+          <div className="mx-auto max-w-3xl text-center">
+            <Badge variant="soft" className="mb-6">
+              <Sparkles className="mr-1.5 h-3 w-3" />
+              Planos
+            </Badge>
+            <h2 className="text-3xl font-bold tracking-tight md:text-5xl">
+              Escolha o plano ideal{" "}
+              <span className="text-gradient-primary">para você</span>
+            </h2>
+            <p className="mt-5 text-lg text-muted-foreground">
+              Comece grátis e evolua quando estiver pronto para escalar sua produção de conteúdo.
+            </p>
+          </div>
+
+          <div className="mx-auto mt-14 grid max-w-5xl gap-6 md:grid-cols-2">
+            {/* Plano Gratuito */}
+            <article className="flex flex-col rounded-2xl border bg-card p-8 shadow-elegant">
+              <div>
+                <Badge variant="soft" className="text-[10px] tracking-widest uppercase">
+                  Gratuito
+                </Badge>
+                <h3 className="mt-4 text-2xl font-bold tracking-tight">Teste grátis</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Experimente por 7 dias, sem compromisso.
+                </p>
+              </div>
+
+              <div className="mt-6 flex items-baseline gap-2">
+                <span className="text-5xl font-bold tracking-tight">R$ 0</span>
+                <span className="text-sm text-muted-foreground">/ 7 dias</span>
+              </div>
+
+              <div className="my-6 h-px bg-border" />
+
+              <ul className="flex-1 space-y-3 text-sm">
+                {[
+                  "Criação de carrosséis automáticos",
+                  "Acesso à plataforma por 7 dias",
+                  "Sem necessidade de cartão de crédito",
+                ].map((feat) => (
+                  <li key={feat} className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <span className="text-foreground">{feat}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Button variant="outline" size="xl" className="mt-8 rounded-full">
+                Começar grátis
+              </Button>
+            </article>
+
+            {/* Plano Premium */}
+            <article className="relative flex flex-col rounded-2xl border-2 border-primary/40 bg-gradient-primary-soft p-8 shadow-primary">
+              <div className="absolute -top-3 right-6">
+                <Badge variant="gradient" className="text-[10px] tracking-widest uppercase">
+                  Mais popular
+                </Badge>
+              </div>
+
+              <div>
+                <Badge variant="soft" className="text-[10px] tracking-widest uppercase">
+                  Premium
+                </Badge>
+                <h3 className="mt-4 text-2xl font-bold tracking-tight">Plano completo</h3>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Tudo o que você precisa para escalar sua presença digital.
+                </p>
+              </div>
+
+              <div className="mt-6 flex items-baseline gap-2">
+                <span className="text-5xl font-bold tracking-tight text-gradient-primary">
+                  R$ 89,90
+                </span>
+                <span className="text-sm text-muted-foreground">/ mês</span>
+              </div>
+
+              <div className="my-6 h-px bg-border" />
+
+              <ul className="flex-1 space-y-3 text-sm">
+                {[
+                  "Acesso a todas as funcionalidades",
+                  "Carrosséis automáticos ilimitados",
+                  "Agentes de IA 24/7",
+                  "Plano de conteúdo completo",
+                  "Plano de funil estratégico",
+                  "Suporte prioritário",
+                ].map((feat) => (
+                  <li key={feat} className="flex items-start gap-2">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                    <span className="text-foreground">{feat}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Button variant="gradient" size="xl" className="mt-8">
+                Assinar Premium
+              </Button>
+            </article>
           </div>
         </section>
       </main>
