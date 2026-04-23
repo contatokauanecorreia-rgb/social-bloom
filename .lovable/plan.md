@@ -1,42 +1,35 @@
 
-## Design System em /design-system
+## Adicionar plano de fundo no hero da landing page
 
-Criar uma rota showcase com todos os componentes shadcn/ui usando uma paleta derivada do gradiente rosa→magenta da imagem.
+Adicionar um background visual atrás do título "Automatize sua presença nas redes sociais" na seção hero do `src/routes/index.tsx`, inspirado no gradiente colorido (laranja, vermelho, magenta, roxo) da imagem de referência enviada.
 
-### 1. Paleta de cores (light mode)
-Atualizar `src/styles.css` com tokens derivados do gradiente `#FF2E63 → #FF1493`:
+### Abordagem
+Criar um background decorativo posicionado absolutamente atrás do conteúdo do hero, usando CSS puro (radial gradients sobrepostos) para reproduzir o efeito de "blobs" coloridos difusos da imagem — sem precisar embedar a imagem como arquivo.
 
-- **Primary**: magenta sólido (~`oklch(0.62 0.27 0)`) — base para botões, links, focus rings
-- **Gradiente principal**: variável `--gradient-primary: linear-gradient(90deg, #FF2E63, #FF1493)` aplicada em CTAs, hero, badges de destaque
-- **Variantes derivadas** (escala 50→900 do magenta) expostas como utilitários: `--primary-50` (rosa muito claro / backgrounds suaves) até `--primary-900` (magenta profundo / hover states)
-- **Accent**: rosa coral mais claro do início do gradiente
-- **Destructive / muted / border / ring**: ajustados para harmonizar com a base rosada
-- **Sombra colorida**: `--shadow-primary` com glow magenta para botões principais (como na imagem de referência)
-- Fundo geral neutro claro (off-white) para o magenta respirar
+### Mudanças
 
-### 2. Botão principal customizado
-Adicionar variantes ao `button.tsx`:
-- `gradient` — fundo com `--gradient-primary`, texto branco, sombra rosa difusa, cantos bem arredondados (rounded-full) — replicando exatamente o botão "Entrar" da imagem
-- `gradient-outline` — borda gradiente, fundo transparente
+**`src/styles.css`** — adicionar nova utility:
+- `--gradient-hero`: composição de 3-4 `radial-gradient` sobrepostos simulando os blobs da imagem:
+  - Blob laranja/amarelo grande à direita (`oklch(0.78 0.18 60)` → transparente)
+  - Blob vermelho/coral no centro-baixo (`oklch(0.65 0.25 25)` → transparente)
+  - Blob magenta/rosa à esquerda-baixo (`oklch(0.65 0.27 350)` → transparente)
+  - Toque de roxo/lilás no canto esquerdo (`oklch(0.70 0.15 300)` → transparente)
+- `@utility bg-gradient-hero` aplicando essa composição
+- Opcional: textura sutil de granulado (noise) via `background-image` SVG inline para replicar o "grain" da imagem
 
-### 3. Página `/design-system`
-Novo arquivo `src/routes/design-system.tsx` em scroll vertical único, com seções uma após a outra:
+**`src/routes/index.tsx`** — modificar a `<section>` do hero:
+- Adicionar `relative overflow-hidden` na section
+- Inserir uma `<div>` absoluta atrás do conteúdo (`absolute inset-0 -z-10 bg-gradient-hero`) com:
+  - `blur-3xl` ou `blur-2xl` para reforçar a difusão
+  - `opacity-60` ou `opacity-70` para o conteúdo permanecer legível sobre o fundo claro
+  - Posicionada de forma que os blobs fiquem concentrados atrás/ao redor do título
+- Garantir que `Badge`, `h1`, parágrafo e botões fiquem com `relative z-10` para aparecerem por cima
 
-1. **Header** — título "Design System", subtítulo da plataforma SaaS, botão gradiente "Entrar" como hero do estilo
-2. **Cores** — swatches da escala primary (50–900), accent, semânticas (background, foreground, muted, border, destructive), e um card grande mostrando o gradiente
-3. **Tipografia** — h1–h6, parágrafo, lead, muted, código inline
-4. **Botões** — todas as variantes (default, gradient, outline, secondary, ghost, link, destructive) × tamanhos (sm, default, lg, icon) + estados disabled/loading
-5. **Inputs & Forms** — Input, Textarea, Select, Checkbox, Radio, Switch, Slider, Label, Form com validação exemplo, InputOTP, Calendar/DatePicker
-6. **Display** — Card, Badge (todas variantes + uma `gradient`), Avatar, Separator, Skeleton, Aspect Ratio, Progress, Table, Chart (exemplo simples)
-7. **Navegação** — Tabs, Breadcrumb, Pagination, Navigation Menu, Menubar, Sidebar (mini exemplo), Command
-8. **Overlays** — Dialog, AlertDialog, Sheet, Drawer, Popover, HoverCard, Tooltip, DropdownMenu, ContextMenu, Accordion, Collapsible, Carousel, Resizable, ScrollArea, Toggle, ToggleGroup
-9. **Feedback** — Alert (todas variantes), Sonner toast (botões disparando exemplos), Progress
+### Resultado visual
+Um halo difuso e colorido (laranja → vermelho → magenta → toques de roxo) emanando atrás do título, mantendo o restante da página limpo. O fundo respeita a identidade rosa/magenta já definida no design system, mas adiciona a riqueza cromática da imagem de referência apenas no hero.
 
-Cada seção em um bloco com título, breve descrição e exemplos interativos lado a lado.
-
-### 4. Acesso
-- Link discreto para `/design-system` no rodapé do `index.tsx` (substituindo o placeholder com uma landing page mínima da plataforma SaaS)
-- Rota acessível diretamente via URL para referência durante desenvolvimento
-
-### 5. Metadata
-`head()` próprio na rota com título "Design System — [Plataforma]" e descrição.
+### Notas técnicas
+- Sem novas dependências
+- Sem importar a imagem como arquivo — gradientes CSS são mais leves e responsivos
+- Conteúdo permanece totalmente acessível (contraste preservado pela opacidade e blur)
+- Funciona bem em mobile (gradientes escalam naturalmente)
