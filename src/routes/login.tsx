@@ -257,6 +257,23 @@ function LoginPage() {
               />
             </div>
 
+            {mode === "signup" && (
+              <div className="grid gap-2">
+                <Label htmlFor="confirmPassword">Repetir senha</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  maxLength={72}
+                />
+              </div>
+            )}
+
             <Button
               type="submit"
               variant="gradient"
