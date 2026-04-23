@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Bot, ClipboardList, LayoutGrid, Filter } from "lucide-react";
+import heroBg from "@/assets/hero-bg.png";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -29,7 +30,8 @@ function Index() {
         <section className="relative flex flex-col items-center py-20 text-center md:py-28">
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[120%] bg-gradient-hero opacity-70 blur-3xl"
+            className="pointer-events-none absolute inset-0 -z-10 bg-no-repeat bg-center bg-contain opacity-90"
+            style={{ backgroundImage: `url(${heroBg})` }}
           />
           <Badge variant="soft" className="mb-6 relative">
             <Sparkles className="mr-1.5 h-3 w-3" />
