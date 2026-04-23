@@ -1,24 +1,18 @@
 
-## Adicionar seção de estatísticas (social proof)
+## Adicionar a imagem anexa como background da seção hero
 
-Inserir uma nova seção logo abaixo de `#features` em `src/routes/index.tsx`, no estilo da imagem de referência: um card único, claro, com 3 colunas separadas por divisórias verticais, números grandes em destaque e legenda discreta abaixo.
+Substituir o gradiente CSS atual (`bg-gradient-hero`) por uma imagem real de gradiente colorido (laranja/vermelho/magenta/roxo com textura granulada), idêntica em estilo ao anexo enviado.
 
-### Conteúdo
-- **+800** — Conteúdos criados
-- **+650** — Contas criadas
-- **+1.000** — Creators satisfeitos
+### Arquivos
+- **`src/assets/hero-bg.png`** — imagem do gradiente já gerada via IA (1024×1024, ~1.4 MB), reproduzindo fielmente o estilo do anexo: blob central laranja-vermelho dominante, blob magenta na parte inferior-esquerda, acento roxo no canto superior-esquerdo e pontos amarelos, tudo sobre fundo branco com grão sutil.
+- **`src/routes/index.tsx`** — alterações:
+  1. Importar a imagem: `import heroBg from "@/assets/hero-bg.png"`.
+  2. Substituir a `<div>` decorativa atual (que usa `bg-gradient-hero` + `blur-3xl`) por uma `<div>` com `background-image: url(heroBg)`, `bg-no-repeat bg-center bg-contain` e `opacity-90`.
+  3. Manter `pointer-events-none absolute inset-0 -z-10` para que a imagem fique atrás do conteúdo sem capturar cliques.
+  4. O conteúdo (Badge, h1, parágrafo, botões) já está com posicionamento correto e permanecerá legível por cima da imagem (as bordas do PNG são brancas e suaves, fundindo com o `bg-background`).
 
-### Estrutura visual
-- Container `rounded-3xl` com `bg-muted/50` (ou `bg-card` com borda) e `shadow-elegant`, com bom padding interno (`py-10 md:py-14`).
-- Grid de 3 colunas em desktop (`md:grid-cols-3`), empilhado em mobile.
-- Divisórias verticais entre colunas em desktop usando `md:border-l border-border` a partir da 2ª coluna (sem borda no mobile).
-- Número grande: `text-4xl md:text-6xl font-bold tracking-tight` — usar `text-gradient-primary` para alinhar com a identidade rosa/magenta da marca (versão diferenciada da imagem original em preto, mas coerente com o design system existente).
-- Legenda: `text-sm md:text-base text-muted-foreground mt-2`.
-- Centralizar conteúdo de cada coluna.
+### Limpeza opcional (não obrigatória)
+- A utility `bg-gradient-hero` em `src/styles.css` deixa de ser usada na home, mas pode permanecer no design system para reutilização futura — não será removida.
 
-### Posicionamento
-- Inserida entre a seção `#features` e o `<footer>`, dentro do `<main className="container ...">`.
-- Margens verticais: `py-12 md:py-16`.
-
-### Arquivo afetado
-- `src/routes/index.tsx` — apenas adicionar o novo `<section>`. Sem novas dependências, sem alterações no design system.
+### Resultado
+A seção hero passa a exibir o gradiente colorido real da imagem de referência atrás do título "Automatize sua presença nas redes sociais", com a textura granulada e a riqueza cromática que o gradiente CSS não consegue reproduzir.
