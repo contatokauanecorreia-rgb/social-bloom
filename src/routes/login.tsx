@@ -31,6 +31,7 @@ function LoginPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -60,6 +61,10 @@ function LoginPage() {
     const passwordParsed = passwordSchema.safeParse(password);
     if (!passwordParsed.success) {
       toast.error(passwordParsed.error.issues[0].message);
+      return;
+    }
+    if (mode === "signup" && password !== confirmPassword) {
+      toast.error("As senhas não coincidem");
       return;
     }
 
@@ -251,6 +256,23 @@ function LoginPage() {
                 maxLength={72}
               />
             </div>
+
+            {mode === "signup" && (
+              <div className="grid gap-2">
+                <Label htmlFor="confirmPassword">Repetir senha</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  maxLength={72}
+                />
+              </div>
+            )}
 
             <Button
               type="submit"
