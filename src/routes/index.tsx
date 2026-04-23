@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Calendar, BarChart3, Zap } from "lucide-react";
+import { Sparkles, Bot, ClipboardList, LayoutGrid, Filter } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -51,22 +51,27 @@ function Index() {
           </div>
         </section>
 
-        <section id="features" className="grid gap-6 py-16 md:grid-cols-3">
+        <section id="features" className="grid gap-6 py-16 md:grid-cols-2 lg:grid-cols-4">
           {[
             {
-              icon: Calendar,
-              title: "Agendamento inteligente",
-              desc: "Programe posts no melhor horário para o seu público.",
+              icon: Bot,
+              title: "Agentes 24/7",
+              desc: "Agentes de IA que trabalham sem parar criando seu plano de conteúdo.",
             },
             {
-              icon: Zap,
-              title: "Geração com IA",
-              desc: "Crie legendas, imagens e variações em segundos.",
+              icon: ClipboardList,
+              title: "Plano de conteúdo",
+              desc: "Organize, visualize e aprove todo o seu calendário dentro da plataforma.",
             },
             {
-              icon: BarChart3,
-              title: "Analytics unificado",
-              desc: "Acompanhe métricas de todas as redes em um painel.",
+              icon: LayoutGrid,
+              title: "Carrosséis automáticos",
+              desc: "Gere carrosséis prontos para publicar com um clique.",
+            },
+            {
+              icon: Filter,
+              title: "Plano de funil",
+              desc: "Estruture jornadas de topo, meio e fundo de funil em minutos.",
             },
           ].map((f) => (
             <div
