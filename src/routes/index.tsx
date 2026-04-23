@@ -1,26 +1,92 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Sparkles, Calendar, BarChart3, Zap } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Index,
 });
 
-// IMPORTANT: Replace this placeholder. For sites with multiple pages (About, Services, Contact, etc.),
-// create separate route files (about.tsx, services.tsx, contact.tsx) — don't put all pages in this file.
-function PlaceholderIndex() {
+function Index() {
   return (
-    <div
-      className="flex min-h-screen items-center justify-center"
-      style={{ backgroundColor: "#fcfbf8" }}
-    >
-      <img
-        data-lovable-blank-page-placeholder="REMOVE_THIS"
-        src="https://cdn.gpteng.co/blank-app-v1.svg"
-        alt="Your app will live here!"
-      />
+    <div className="min-h-screen bg-background">
+      <header className="container mx-auto flex items-center justify-between px-6 py-6">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-gradient-primary shadow-primary" />
+          <span className="text-xl font-bold tracking-tight">Postly</span>
+        </div>
+        <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
+          <a href="#features" className="transition-colors hover:text-foreground">Recursos</a>
+          <a href="#pricing" className="transition-colors hover:text-foreground">Preços</a>
+          <Link to="/design-system" className="transition-colors hover:text-foreground">
+            Design System
+          </Link>
+        </nav>
+        <Button variant="gradient" size="default">Entrar</Button>
+      </header>
+
+      <main className="container mx-auto px-6">
+        <section className="flex flex-col items-center py-20 text-center md:py-28">
+          <Badge variant="soft" className="mb-6">
+            <Sparkles className="mr-1.5 h-3 w-3" />
+            Novo · Geração de conteúdo com IA
+          </Badge>
+          <h1 className="max-w-3xl text-4xl font-bold tracking-tight md:text-6xl">
+            Automatize sua presença nas{" "}
+            <span className="text-gradient-primary">redes sociais</span>
+          </h1>
+          <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
+            Crie, agende e publique conteúdos em todas as suas redes a partir de um único lugar.
+            Deixe a inteligência artificial cuidar do resto.
+          </p>
+          <div className="mt-10 flex flex-col gap-3 sm:flex-row">
+            <Button variant="gradient" size="xl">Começar grátis</Button>
+            <Button variant="outline" size="xl" className="rounded-full">
+              Ver demonstração
+            </Button>
+          </div>
+        </section>
+
+        <section id="features" className="grid gap-6 py-16 md:grid-cols-3">
+          {[
+            {
+              icon: Calendar,
+              title: "Agendamento inteligente",
+              desc: "Programe posts no melhor horário para o seu público.",
+            },
+            {
+              icon: Zap,
+              title: "Geração com IA",
+              desc: "Crie legendas, imagens e variações em segundos.",
+            },
+            {
+              icon: BarChart3,
+              title: "Analytics unificado",
+              desc: "Acompanhe métricas de todas as redes em um painel.",
+            },
+          ].map((f) => (
+            <div
+              key={f.title}
+              className="rounded-2xl border bg-card p-6 shadow-elegant transition-all hover:-translate-y-1 hover:shadow-primary"
+            >
+              <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-primary-soft">
+                <f.icon className="h-6 w-6 text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold">{f.title}</h3>
+              <p className="mt-2 text-sm text-muted-foreground">{f.desc}</p>
+            </div>
+          ))}
+        </section>
+      </main>
+
+      <footer className="border-t mt-16">
+        <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-6 py-8 text-sm text-muted-foreground md:flex-row">
+          <span>© 2026 Postly. Todos os direitos reservados.</span>
+          <Link to="/design-system" className="transition-colors hover:text-foreground">
+            Design System →
+          </Link>
+        </div>
+      </footer>
     </div>
   );
-}
-
-function Index() {
-  return <PlaceholderIndex />;
 }
