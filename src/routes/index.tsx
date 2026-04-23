@@ -86,6 +86,32 @@ function Index() {
             </div>
           ))}
         </section>
+
+        <section className="py-12 md:py-16">
+          <div className="rounded-3xl border bg-muted/40 px-6 py-10 shadow-elegant md:py-14">
+            <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:gap-0">
+              {[
+                { value: "+800", label: "Conteúdos criados" },
+                { value: "+650", label: "Contas criadas" },
+                { value: "+1.000", label: "Creators satisfeitos" },
+              ].map((stat, i) => (
+                <div
+                  key={stat.label}
+                  className={`flex flex-col items-center text-center ${
+                    i > 0 ? "md:border-l md:border-border" : ""
+                  }`}
+                >
+                  <div className="text-4xl font-bold tracking-tight text-gradient-primary md:text-6xl">
+                    {stat.value}
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground md:text-base">
+                    {stat.label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
       </main>
 
       <footer className="border-t mt-16">
