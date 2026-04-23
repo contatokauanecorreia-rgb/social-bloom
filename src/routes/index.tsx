@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Bot, ClipboardList, LayoutGrid, Filter } from "lucide-react";
+import { Sparkles, Bot, ClipboardList, LayoutGrid, Filter, TrendingUp, Users, Camera, Zap } from "lucide-react";
 import heroBg from "@/assets/hero-bg.png";
 
 export const Route = createFileRoute("/")({
@@ -112,6 +112,89 @@ function Index() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section className="py-16 md:py-24">
+          <div className="mx-auto max-w-3xl text-center">
+            <Badge variant="soft" className="mb-6">
+              <TrendingUp className="mr-1.5 h-3 w-3" />
+              Para quem vive de conteúdo
+            </Badge>
+            <h2 className="text-3xl font-bold tracking-tight md:text-5xl">
+              Constância sem depender{" "}
+              <span className="text-gradient-primary">de ninguém</span>
+            </h2>
+            <p className="mt-5 text-lg text-muted-foreground">
+              Social medias, UGC creators e criadores de conteúdo estão postando mais, faturando
+              mais e trabalhando menos com a Postly.
+            </p>
+          </div>
+
+          <div className="mt-14 grid gap-6 md:grid-cols-3">
+            {[
+              {
+                icon: Users,
+                tag: "Social Media",
+                stat: "63%",
+                context:
+                  "dos social medias freelancers faturam menos de R$ 3 mil por mês.",
+                benefit:
+                  "Não é falta de talento — é falta de sistema. Com a Postly você atende mais clientes, em menos tempo, sem depender de agência.",
+                source: "MLabs · Panorama de profissionais de mídias sociais",
+              },
+              {
+                icon: Camera,
+                tag: "UGC Creator",
+                stat: "+67%",
+                context:
+                  "de crescimento no número de influenciadores no Brasil em apenas 1 ano.",
+                benefit:
+                  "Marcas contratam quem tem processo, portfólio e consistência. A Postly entrega roteiro, fluxo de postagens e mídia kit prontos para você se posicionar como profissional.",
+                source: "Mundo do Marketing · Creator Economy 2025",
+              },
+              {
+                icon: Zap,
+                tag: "Criadores de conteúdo",
+                stat: "15h → 3h",
+                context:
+                  "é o tempo semanal que um criador com IA e processo gasta — vs. quem faz tudo no improviso.",
+                benefit:
+                  "Centralize roteiro, carrossel, calendário e funil em uma só plataforma. Economize horas por semana e produza com a consistência que o algoritmo recompensa.",
+                source: "Treinamentos AF · IA para conteúdo 2026",
+              },
+            ].map((card) => (
+              <article
+                key={card.tag}
+                className="flex flex-col rounded-2xl border bg-card p-8 shadow-elegant"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-primary-soft">
+                    <card.icon className="h-4 w-4 text-primary" />
+                  </div>
+                  <Badge variant="soft" className="text-[10px] tracking-widest uppercase">
+                    {card.tag}
+                  </Badge>
+                </div>
+
+                <h3 className="mt-6 text-5xl font-bold tracking-tight text-gradient-primary md:text-6xl">
+                  {card.stat}
+                </h3>
+                <p className="mt-3 text-base leading-snug text-foreground">
+                  {card.context}
+                </p>
+
+                <div className="my-6 h-px bg-border" />
+
+                <p className="flex-1 text-sm leading-relaxed text-muted-foreground">
+                  {card.benefit}
+                </p>
+
+                <p className="mt-6 border-t border-border/60 pt-4 text-xs text-muted-foreground/70">
+                  Fonte: {card.source}
+                </p>
+              </article>
+            ))}
           </div>
         </section>
       </main>
