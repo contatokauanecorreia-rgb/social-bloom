@@ -174,3 +174,12 @@
 @utility shadow-elegant {
   box-shadow: var(--shadow-elegant);
 }
+
+@utility bg-gradient-hero {
+  background-image:
+    radial-gradient(closest-side at 75% 35%, oklch(0.80 0.18 65 / 0.85), transparent 70%),
+    radial-gradient(closest-side at 60% 70%, oklch(0.65 0.26 25 / 0.75), transparent 70%),
+    radial-gradient(closest-side at 30% 80%, oklch(0.68 0.27 350 / 0.75), transparent 70%),
+    radial-gradient(closest-side at 20% 50%, oklch(0.72 0.13 300 / 0.55), transparent 70%),
+    radial-gradient(closest-side at 10% 15%, oklch(0.70 0.22 35 / 0.55), transparent 65%);
+}
