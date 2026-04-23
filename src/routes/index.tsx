@@ -26,8 +26,12 @@ function Index() {
       </header>
 
       <main className="container mx-auto px-6">
-        <section className="flex flex-col items-center py-20 text-center md:py-28">
-          <Badge variant="soft" className="mb-6">
+        <section className="relative flex flex-col items-center py-20 text-center md:py-28">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[120%] bg-gradient-hero opacity-70 blur-3xl"
+          />
+          <Badge variant="soft" className="mb-6 relative">
             <Sparkles className="mr-1.5 h-3 w-3" />
             Novo · Geração de conteúdo com IA
           </Badge>
