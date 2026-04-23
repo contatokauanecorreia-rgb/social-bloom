@@ -23,7 +23,9 @@ function Index() {
             Design System
           </Link>
         </nav>
-        <Button variant="gradient" size="default">Entrar</Button>
+        <Button asChild variant="gradient" size="default">
+          <Link to="/login">Entrar</Link>
+        </Button>
       </header>
 
       <main className="container mx-auto px-6">
