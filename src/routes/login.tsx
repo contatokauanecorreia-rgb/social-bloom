@@ -31,6 +31,7 @@ function LoginPage() {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -60,6 +61,10 @@ function LoginPage() {
     const passwordParsed = passwordSchema.safeParse(password);
     if (!passwordParsed.success) {
       toast.error(passwordParsed.error.issues[0].message);
+      return;
+    }
+    if (mode === "signup" && password !== confirmPassword) {
+      toast.error("As senhas não coincidem");
       return;
     }
 
