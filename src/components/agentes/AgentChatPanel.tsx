@@ -281,9 +281,6 @@ export function AgentChatPanel({
             <AgentAvatar agent={agent} size="lg" className="mb-4 h-20 w-20 text-xl" />
             <h3 className="text-lg font-semibold">{agent.name}</h3>
             <p className="mt-1 text-sm text-muted-foreground">{agent.description}</p>
-            <div className="mt-6 rounded-2xl bg-muted px-5 py-3 text-sm">
-              <MessageBubble role="assistant" content={agent.greeting} />
-            </div>
           </div>
         ) : (
           <div className="mx-auto flex max-w-3xl flex-col gap-3">
