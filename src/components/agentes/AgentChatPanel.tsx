@@ -297,9 +297,31 @@ export function AgentChatPanel({
           </div>
         ) : (
           <div className="mx-auto flex max-w-3xl flex-col gap-3">
-            {messages.map((m) => (
-              <MessageBubble key={m.id} role={m.role} content={m.content || "..."} />
-            ))}
+            {(() => {
+              // index of the last assistant message (only show CTAs there, when streaming finished)
+              let lastAssistantIdx = -1;
+              for (let i = messages.length - 1; i >= 0; i--) {
+                if (messages[i].role === "assistant") {
+                  lastAssistantIdx = i;
+                  break;
+                }
+              }
+              return messages.map((m, idx) => {
+                const showActions =
+                  !streaming &&
+                  idx === lastAssistantIdx &&
+                  m.role === "assistant" &&
+                  hasIdeaKeywords(m.content);
+                return (
+                  <MessageBubble
+                    key={m.id}
+                    role={m.role}
+                    content={m.content || "..."}
+                    actions={showActions ? <IdeaActions /> : undefined}
+                  />
+                );
+              });
+            })()}
             {streaming && (
               <div className="flex justify-start">
                 <div className="flex items-center gap-1 rounded-2xl rounded-bl-md bg-muted px-4 py-3">
