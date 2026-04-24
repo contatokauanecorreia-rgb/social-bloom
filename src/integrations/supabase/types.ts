@@ -14,6 +14,80 @@ export type Database = {
   }
   public: {
     Tables: {
+      content_posts: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          position: number
+          status: string
+          tags: string[]
+          title: string
+          updated_at: string
+          user_id: string
+          week_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          position?: number
+          status?: string
+          tags?: string[]
+          title: string
+          updated_at?: string
+          user_id: string
+          week_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          position?: number
+          status?: string
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          user_id?: string
+          week_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "content_posts_week_id_fkey"
+            columns: ["week_id"]
+            isOneToOne: false
+            referencedRelation: "content_weeks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_weeks: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          position: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          position?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          position?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
