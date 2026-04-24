@@ -117,10 +117,7 @@ export function AgentChatPanel({
       content: text,
     });
 
-    // Add placeholder assistant message
     const assistantId = crypto.randomUUID();
-    setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
-
     let assistantSoFar = "";
     const controller = new AbortController();
     abortRef.current = controller;
@@ -152,7 +149,6 @@ export function AgentChatPanel({
         if (resp.status === 429) toast.error("Muitas requisições. Aguarde um instante.");
         else if (resp.status === 402) toast.error("Créditos esgotados.");
         else toast.error(errBody.error ?? "Erro ao falar com o agente");
-        setMessages((prev) => prev.filter((m) => m.id !== assistantId));
         setStreaming(false);
         return;
       }
@@ -185,11 +181,6 @@ export function AgentChatPanel({
             const delta = parsed.choices?.[0]?.delta?.content;
             if (typeof delta === "string" && delta.length > 0) {
               assistantSoFar += delta;
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId ? { ...m, content: assistantSoFar } : m,
-                ),
-              );
             }
           } catch {
             buffer = line + "\n" + buffer;
@@ -199,6 +190,26 @@ export function AgentChatPanel({
       }
 
       if (assistantSoFar) {
+        // Split into chunks by double newline (paragraphs)
+        const chunks = assistantSoFar
+          .split(/\n{2,}/)
+          .map((c) => c.trim())
+          .filter((c) => c.length > 0);
+
+        const finalChunks = chunks.length > 0 ? chunks : [assistantSoFar.trim()];
+
+        // Reveal one bubble at a time with a small typing delay
+        for (let i = 0; i < finalChunks.length; i++) {
+          const chunk = finalChunks[i];
+          // Typing delay proportional to length, capped between 350ms and 1400ms
+          const delay = Math.min(1400, Math.max(350, chunk.length * 18));
+          await new Promise((r) => setTimeout(r, delay));
+          setMessages((prev) => [
+            ...prev,
+            { id: `${assistantId}-${i}`, role: "assistant", content: chunk },
+          ]);
+        }
+
         await supabase.from("agent_messages").insert({
           conversation_id: convoId,
           user_id: userId,
@@ -209,8 +220,6 @@ export function AgentChatPanel({
           .from("agent_conversations")
           .update({ last_message_at: new Date().toISOString() })
           .eq("id", convoId);
-      } else {
-        setMessages((prev) => prev.filter((m) => m.id !== assistantId));
       }
     } catch (err: unknown) {
       if ((err as Error)?.name !== "AbortError") {
@@ -287,14 +296,15 @@ export function AgentChatPanel({
             {messages.map((m) => (
               <MessageBubble key={m.id} role={m.role} content={m.content || "..."} />
             ))}
-            {streaming && messages[messages.length - 1]?.role === "assistant" &&
-              !messages[messages.length - 1]?.content && (
-                <div className="flex justify-start">
-                  <div className="rounded-2xl rounded-bl-md bg-muted px-4 py-2.5">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  </div>
+            {streaming && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-1 rounded-2xl rounded-bl-md bg-muted px-4 py-3">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.3s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.15s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60" />
                 </div>
-              )}
+              </div>
+            )}
           </div>
         )}
       </div>
