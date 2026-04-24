@@ -1,3 +1,8 @@
+import surImg from "@/assets/agents/sur.jpg";
+import kiukaImg from "@/assets/agents/kiuka.jpg";
+import kimoImg from "@/assets/agents/kimo.jpg";
+import roxyImg from "@/assets/agents/roxy.jpg";
+
 export type AgentId = "sur" | "kiuka" | "kimo" | "roxy";
 
 export type Agent = {
@@ -7,6 +12,7 @@ export type Agent = {
   description: string;
   initials: string;
   accent: string; // tailwind gradient (from-X to-Y)
+  avatar: string;
   greeting: string;
 };
 
