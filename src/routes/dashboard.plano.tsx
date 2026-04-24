@@ -15,7 +15,7 @@ import type { ContentPost, ContentWeek } from "@/lib/content-types";
 export const Route = createFileRoute("/dashboard/plano")({
   head: () => ({
     meta: [
-      { title: "Plano de conteúdo — Postly" },
+      { title: "Planner de conteúdo — Postly" },
       { name: "description", content: "Organize seus posts por semana." },
     ],
   }),
@@ -231,7 +231,7 @@ function PlanoPage() {
     <PageContainer wide>
       <Badge variant="soft" className="mb-3 w-fit">Conteúdo</Badge>
       <PageHeader
-        title="Plano de conteúdo"
+        title="Planner de conteúdo"
         description="Organize seus posts por semana, com tags livres e filtros."
         actions={
           <>
