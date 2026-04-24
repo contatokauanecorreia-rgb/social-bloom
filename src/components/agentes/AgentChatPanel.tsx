@@ -10,8 +10,8 @@ import { OnlineDot } from "./OnlineDot";
 import { MessageBubble } from "./MessageBubble";
 import { IdeaActions } from "./IdeaActions";
 
-const IDEA_KEYWORDS = /\b(carross[eé]is?|[âa]ngulos?|ideias?|conte[úu]do|t[íi]tulos?|dire[çc][ãa]o)\b/i;
-const hasIdeaKeywords = (text: string) => IDEA_KEYWORDS.test(text);
+const IDEA_TRIGGER = /qual\s+desses\s+caminhos\s+faz\s+mais\s+sentido\s+pra\s+voc[êe]\s+agora\??/i;
+const hasIdeaKeywords = (text: string) => IDEA_TRIGGER.test(text);
 
 type ChatMessage = {
   id: string;
