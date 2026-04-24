@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
+import { zodValidator, fallback } from "@tanstack/zod-adapter";
+import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
 import { AgentList } from "@/components/agentes/AgentList";
 import { AgentChatPanel } from "@/components/agentes/AgentChatPanel";
@@ -8,17 +10,25 @@ import { AGENTS, type Agent, type AgentId, getAgent } from "@/lib/agents";
 
 const STORAGE_KEY = "postly:last-agent";
 
+const agentIds = AGENTS.map((a) => a.id) as [AgentId, ...AgentId[]];
+
+const searchSchema = z.object({
+  agent: fallback(z.enum(agentIds).optional(), undefined),
+});
+
 export const Route = createFileRoute("/dashboard/agentes")({
   head: () => ({ meta: [{ title: "Criar conteúdo — Postly" }] }),
+  validateSearch: zodValidator(searchSchema),
   component: AgentesPage,
 });
 
 function AgentesPage() {
   const navigate = useNavigate();
+  const search = Route.useSearch();
   const [userId, setUserId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Agent>(AGENTS[0]);
 
-  // Restore last agent from localStorage
+  // Restore last agent from localStorage on mount
   useEffect(() => {
     if (typeof window === "undefined") return;
     const last = window.localStorage.getItem(STORAGE_KEY) as AgentId | null;
@@ -27,6 +37,22 @@ function AgentesPage() {
       if (agent) setSelected(agent);
     }
   }, []);
+
+  // React to ?agent=<id> query param: switch agent and clear the URL param
+  useEffect(() => {
+    if (!search.agent) return;
+    const agent = getAgent(search.agent);
+    if (!agent) return;
+    setSelected(agent);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, agent.id);
+    }
+    navigate({
+      to: "/dashboard/agentes",
+      search: {},
+      replace: true,
+    });
+  }, [search.agent, navigate]);
 
   useEffect(() => {
     let active = true;

@@ -1,17 +1,11 @@
-import { useNavigate, useRouter } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 
 export function IdeaActions() {
   const navigate = useNavigate();
-  const router = useRouter();
 
   const goToKiuka = () => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("postly:last-agent", "kiuka");
-    }
-    navigate({ to: "/dashboard/agentes" }).then(() => {
-      router.invalidate();
-    });
+    navigate({ to: "/dashboard/agentes", search: { agent: "kiuka" } });
   };
 
   const goToPlanner = () => {
