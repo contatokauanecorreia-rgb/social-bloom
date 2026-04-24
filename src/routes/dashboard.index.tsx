@@ -56,9 +56,9 @@ function DashboardHome() {
   }, []);
 
   const shortcuts = [
-    { to: "/dashboard/plano", icon: ClipboardList, title: "Plano de conteúdo", desc: "Organize seus posts por semana." },
-    { to: "/dashboard/carrosseis", icon: LayoutGrid, title: "Carrosséis", desc: "Em breve: gerador automático." },
-    { to: "/dashboard/agentes", icon: Bot, title: "Agentes 24/7", desc: "Em breve: IA respondendo por você." },
+    { to: "/dashboard/agentes", icon: Bot, title: "Criar conteúdo", desc: "Em breve: IA gerando seus posts." },
+    { to: "/dashboard/plano", icon: ClipboardList, title: "Planner de conteúdo", desc: "Organize seus posts por semana." },
+    { to: "/dashboard/carrosseis", icon: LayoutGrid, title: "Gerar carrosséis", desc: "Em breve: gerador automático." },
     { to: "/dashboard/configuracoes", icon: Settings, title: "Configurações", desc: "Perfil e preferências." },
   ] as const;
 
@@ -67,7 +67,7 @@ function DashboardHome() {
       <Badge variant="soft" className="mb-3 w-fit">Dashboard</Badge>
       <PageHeader
         title={`Olá, ${name} 👋`}
-        description="Bem-vindo ao seu painel. Comece organizando seus posts no Plano de Conteúdo."
+        description="Bem-vindo ao seu painel. Comece criando conteúdo ou organizando seu planner."
       />
 
       <section className="mb-10 grid gap-4 sm:grid-cols-3">
