@@ -13,6 +13,11 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as DashboardPlanoRouteImport } from './routes/dashboard.plano'
+import { Route as DashboardConfiguracoesRouteImport } from './routes/dashboard.configuracoes'
+import { Route as DashboardCarrosseisRouteImport } from './routes/dashboard.carrosseis'
+import { Route as DashboardAgentesRouteImport } from './routes/dashboard.agentes'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -34,37 +39,103 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DashboardIndexRoute = DashboardIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardPlanoRoute = DashboardPlanoRouteImport.update({
+  id: '/plano',
+  path: '/plano',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardConfiguracoesRoute = DashboardConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardCarrosseisRoute = DashboardCarrosseisRouteImport.update({
+  id: '/carrosseis',
+  path: '/carrosseis',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardAgentesRoute = DashboardAgentesRouteImport.update({
+  id: '/agentes',
+  path: '/agentes',
+  getParentRoute: () => DashboardRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/design-system': typeof DesignSystemRoute
   '/login': typeof LoginRoute
+  '/dashboard/agentes': typeof DashboardAgentesRoute
+  '/dashboard/carrosseis': typeof DashboardCarrosseisRoute
+  '/dashboard/configuracoes': typeof DashboardConfiguracoesRoute
+  '/dashboard/plano': typeof DashboardPlanoRoute
+  '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
   '/design-system': typeof DesignSystemRoute
   '/login': typeof LoginRoute
+  '/dashboard/agentes': typeof DashboardAgentesRoute
+  '/dashboard/carrosseis': typeof DashboardCarrosseisRoute
+  '/dashboard/configuracoes': typeof DashboardConfiguracoesRoute
+  '/dashboard/plano': typeof DashboardPlanoRoute
+  '/dashboard': typeof DashboardIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/dashboard': typeof DashboardRoute
+  '/dashboard': typeof DashboardRouteWithChildren
   '/design-system': typeof DesignSystemRoute
   '/login': typeof LoginRoute
+  '/dashboard/agentes': typeof DashboardAgentesRoute
+  '/dashboard/carrosseis': typeof DashboardCarrosseisRoute
+  '/dashboard/configuracoes': typeof DashboardConfiguracoesRoute
+  '/dashboard/plano': typeof DashboardPlanoRoute
+  '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/dashboard' | '/design-system' | '/login'
+  fullPaths:
+    | '/'
+    | '/dashboard'
+    | '/design-system'
+    | '/login'
+    | '/dashboard/agentes'
+    | '/dashboard/carrosseis'
+    | '/dashboard/configuracoes'
+    | '/dashboard/plano'
+    | '/dashboard/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dashboard' | '/design-system' | '/login'
-  id: '__root__' | '/' | '/dashboard' | '/design-system' | '/login'
+  to:
+    | '/'
+    | '/design-system'
+    | '/login'
+    | '/dashboard/agentes'
+    | '/dashboard/carrosseis'
+    | '/dashboard/configuracoes'
+    | '/dashboard/plano'
+    | '/dashboard'
+  id:
+    | '__root__'
+    | '/'
+    | '/dashboard'
+    | '/design-system'
+    | '/login'
+    | '/dashboard/agentes'
+    | '/dashboard/carrosseis'
+    | '/dashboard/configuracoes'
+    | '/dashboard/plano'
+    | '/dashboard/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  DashboardRoute: typeof DashboardRoute
+  DashboardRoute: typeof DashboardRouteWithChildren
   DesignSystemRoute: typeof DesignSystemRoute
   LoginRoute: typeof LoginRoute
 }
@@ -99,15 +170,79 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/dashboard/': {
+      id: '/dashboard/'
+      path: '/'
+      fullPath: '/dashboard/'
+      preLoaderRoute: typeof DashboardIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/plano': {
+      id: '/dashboard/plano'
+      path: '/plano'
+      fullPath: '/dashboard/plano'
+      preLoaderRoute: typeof DashboardPlanoRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/configuracoes': {
+      id: '/dashboard/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/dashboard/configuracoes'
+      preLoaderRoute: typeof DashboardConfiguracoesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/carrosseis': {
+      id: '/dashboard/carrosseis'
+      path: '/carrosseis'
+      fullPath: '/dashboard/carrosseis'
+      preLoaderRoute: typeof DashboardCarrosseisRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/agentes': {
+      id: '/dashboard/agentes'
+      path: '/agentes'
+      fullPath: '/dashboard/agentes'
+      preLoaderRoute: typeof DashboardAgentesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
   }
 }
 
+interface DashboardRouteChildren {
+  DashboardAgentesRoute: typeof DashboardAgentesRoute
+  DashboardCarrosseisRoute: typeof DashboardCarrosseisRoute
+  DashboardConfiguracoesRoute: typeof DashboardConfiguracoesRoute
+  DashboardPlanoRoute: typeof DashboardPlanoRoute
+  DashboardIndexRoute: typeof DashboardIndexRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardAgentesRoute: DashboardAgentesRoute,
+  DashboardCarrosseisRoute: DashboardCarrosseisRoute,
+  DashboardConfiguracoesRoute: DashboardConfiguracoesRoute,
+  DashboardPlanoRoute: DashboardPlanoRoute,
+  DashboardIndexRoute: DashboardIndexRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  DashboardRoute: DashboardRoute,
+  DashboardRoute: DashboardRouteWithChildren,
   DesignSystemRoute: DesignSystemRoute,
   LoginRoute: LoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { createStart } from '@tanstack/react-start'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+  }
+}
