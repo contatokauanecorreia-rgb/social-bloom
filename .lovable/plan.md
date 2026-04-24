@@ -1,84 +1,147 @@
+## Dashboard estilo Notion + Plano de Conteúdo Kanban por semana
 
-## Adicionar seção "Como a Postly impacta cada nicho"
+### Visão geral
 
-Inserir uma nova seção logo abaixo da seção de estatísticas (`+800 / +650 / +1.000`) e antes do `<footer>` em `src/routes/index.tsx`. A seção apresenta um dado alarmante para cada perfil de usuário (Social Media Freelancer, UGC Creator, Criador de Conteúdo) seguido do benefício direto da plataforma.
+- **Sidebar fixa à esquerda** (estilo Notion): logo Postly no topo, lista de tópicos (Início, Plano de conteúdo, Carrosséis, Agentes, Configurações) com ícones + labels. Colapsável para modo "ícone".
+- **Área central**: cada tópico abre uma página com largura limitada e centralizada (estilo Notion: `max-w-5xl mx-auto px-8 py-10`), título grande no topo e conteúdo abaixo.
+- **Modal centralizado** ao clicar em qualquer card de post (Dialog do shadcn) com todos os campos editáveis.
 
-### Estrutura da seção
+### Estrutura de rotas (TanStack Router)
 
-```text
-┌──────────────────────────────────────────────────────────────┐
-│  Badge: Para quem vive de conteúdo                           │
-│  H2: Constância sem depender de ninguém                      │
-│  Subtítulo curto                                             │
-│                                                              │
-│  ┌────────────┐  ┌────────────┐  ┌────────────┐              │
-│  │ SOCIAL     │  │ UGC        │  │ CRIADORES  │              │
-│  │ MEDIA      │  │ CREATOR    │  │            │              │
-│  │            │  │            │  │            │              │
-│  │ +63%       │  │ +75%       │  │ 15h → 3h   │              │
-│  │ (rosa, XL) │  │ (rosa, XL) │  │ (rosa, XL) │              │
-│  │            │  │            │  │            │              │
-│  │ frase      │  │ frase      │  │ frase      │              │
-│  │ contexto   │  │ contexto   │  │ contexto   │              │
-│  │            │  │            │  │            │              │
-│  │ Benefício  │  │ Benefício  │  │ Benefício  │              │
-│  │ Postly     │  │ Postly     │  │ Postly     │              │
-│  │            │  │            │  │            │              │
-│  │ Fonte ↗    │  │ Fonte ↗    │  │ Fonte ↗    │              │
-│  └────────────┘  └────────────┘  └────────────┘              │
-└──────────────────────────────────────────────────────────────┘
+```
+src/routes/
+  dashboard.tsx                 → layout (Sidebar + Outlet, guarda de auth)
+  dashboard.index.tsx           → /dashboard (boas-vindas + atalhos)
+  dashboard.plano.tsx           → /dashboard/plano (Kanban por semana)
+  dashboard.carrosseis.tsx      → /dashboard/carrosseis (placeholder)
+  dashboard.agentes.tsx         → /dashboard/agentes (placeholder)
+  dashboard.configuracoes.tsx   → /dashboard/configuracoes (perfil + sair)
 ```
 
-### Conteúdo dos 3 cards
+### Layout
 
-**Card 1 — Social Media Freelancer**
-- Tag: `SOCIAL MEDIA`
-- Número/dado: `63%`
-- Contexto: "dos social medias freelancers faturam menos de R$ 3k/mês."
-- Benefício: "Não é falta de talento — é falta de sistema. Com a Postly, você atende mais clientes, em menos tempo, sem depender de agência."
-- Fonte: `MLabs · Panorama de profissionais de mídias sociais`
+```text
+┌───────────────────────────────────────────────────────────┐
+│ [hamb]                                  email   [sair]    │
+├──────────┬────────────────────────────────────────────────┤
+│ Postly   │                                                │
+│          │           ┌──────────────────────────┐         │
+│ Inicio   │           │                          │         │
+│ Plano    │           │   Conteudo centralizado  │         │
+│ Carross  │           │    (max-w-5xl, py-10)    │         │
+│ Agentes  │           │                          │         │
+│ Config   │           └──────────────────────────┘         │
+│          │                                                │
+└──────────┴────────────────────────────────────────────────┘
+```
 
-**Card 2 — UGC Creator**
-- Tag: `UGC CREATOR`
-- Número/dado: `+67%`
-- Contexto: "de crescimento no número de influenciadores no Brasil em apenas 1 ano."
-- Benefício: "Marcas contratam quem tem processo, portfólio e consistência. A Postly entrega roteiro, fluxo de postagens e mídia kit prontos."
-- Fonte: `Mundo do Marketing · Creator Economy 2025`
+### Plano de Conteúdo — Kanban por semana
 
-**Card 3 — Criadores de Conteúdo**
-- Tag: `CRIADORES DE CONTEÚDO`
-- Número/dado: `15h → 3h`
-- Contexto: "é o tempo semanal que um criador com IA e processo gasta — vs. quem faz no improviso."
-- Benefício: "Centralize roteiro, carrossel, calendário e funil em uma só plataforma. Economize horas e produza com consistência."
-- Fonte: `Treinamentos AF · IA para conteúdo 2026`
+Página `/dashboard/plano`:
 
-### Estilo visual (alinhado ao design system existente)
+1. **Header**: título "Plano de conteúdo" + botão "Nova semana" + botão "Novo post".
+2. **Barra de filtros**:
+   - Input de busca por texto (título e conteúdo do card).
+   - Chips de **tags** dinâmicos: a barra mostra todas as tags já usadas pelo usuário; clicando em uma chip ela é ativada (toggle) e o quadro filtra para mostrar só cards com aquela tag. Várias chips ativas = filtro AND.
+   - Botão "Limpar filtros" quando houver alguma chip ativa.
+3. **Quadro Kanban** com rolagem horizontal: uma coluna por semana criada pelo usuário.
 
-- Container externo: `py-16 md:py-24`.
-- Header da seção: `Badge variant="soft"` com ícone `TrendingUp`, `<h2 className="text-3xl md:text-5xl font-bold tracking-tight">` e parágrafo `text-muted-foreground`.
-- Grid: `grid gap-6 md:grid-cols-3`.
-- Cada card:
-  - `rounded-2xl border bg-card p-8 shadow-elegant flex flex-col`
-  - Tag: `Badge variant="soft" className="text-[10px] tracking-widest uppercase w-fit"`
-  - Número: `text-5xl md:text-6xl font-bold text-gradient-primary mt-6`
-  - Contexto: `text-base text-foreground mt-3 leading-snug`
-  - Divisor: `<div className="my-6 h-px bg-border" />`
-  - Benefício: `text-sm text-muted-foreground leading-relaxed flex-1`
-  - Fonte (rodapé): `text-xs text-muted-foreground/70 mt-6 pt-4 border-t border-border/60`
+#### Coluna (semana)
 
-### Ícones (lucide-react, já usado)
+- Título editável inline (clica e renomeia, ex: "Semana 1", "Lançamento", "Black Friday").
+- Menu no header da coluna: Renomear / Excluir semana (com `AlertDialog` de confirmação — exclui também os posts da semana).
+- Lista de cards verticalmente.
+- Botão "+ Novo post" no fim da coluna.
 
-Adicionar ao import existente: `TrendingUp, Users, Camera, Zap` (1 ícone discreto por card, opcional, ao lado da tag).
+#### Card
 
-### Arquivos afetados
+Visual inspirado no anexo:
+- Título em negrito.
+- Lista de tags coloridas abaixo (cores geradas deterministicamente a partir do texto da tag — assim "Reels" sempre tem a mesma cor).
+- Click no card abre **Modal centralizado** com edição completa.
 
-- **`src/routes/index.tsx`** — único arquivo alterado:
-  1. Estender o import de `lucide-react` com os ícones acima.
-  2. Adicionar a nova `<section>` entre a seção de estatísticas e o `<footer>`, dentro do `<main className="container ...">`.
+#### Modal "Editar post" (centralizado, estilo Notion)
+
+- Título grande editável (textarea sem borda, autoexpansível).
+- **Semana** (Select com semanas existentes + opção "Criar nova").
+- **Tags** (input multi-tag livre): usuário digita qualquer texto e pressiona Enter para adicionar. Pode ter quantas quiser. Cada tag aparece como chip removível. Sem lista pré-definida — total liberdade.
+- **Notas** (Textarea grande, opcional).
+- **Status** (Select: Planejado / Publicado).
+- Footer: botão "Excluir" (vermelho, à esquerda) + "Salvar" (à direita).
+
+Salvamento: imediato ao clicar "Salvar" (mostra toast).
+
+### Backend (migrations)
+
+Duas tabelas, ambas com RLS por `user_id`.
+
+**`content_weeks`** — colunas do Kanban
+- `id`, `user_id` (NOT NULL), `name` (text NOT NULL), `position` (int NOT NULL — ordena as colunas), `created_at`, `updated_at`.
+
+**`content_posts`**
+- `id`, `user_id` (NOT NULL)
+- `week_id` (uuid NOT NULL, REFERENCES content_weeks ON DELETE CASCADE)
+- `title` (text NOT NULL)
+- `tags` (text[] NOT NULL DEFAULT '{}') — array de tags livres
+- `notes` (text)
+- `status` (text NOT NULL DEFAULT 'planned' CHECK in 'planned','published')
+- `position` (int NOT NULL — ordena cards dentro da semana)
+- `created_at`, `updated_at`
+
+Policies (ambas tabelas, todas `to authenticated`, `auth.uid() = user_id`):
+SELECT, INSERT, UPDATE, DELETE.
+
+Triggers `update_updated_at_column` reaproveitando a função existente.
+
+Index: `(user_id, position)` em `content_weeks`; `(user_id, week_id, position)` em `content_posts`; GIN em `tags` para busca rápida por tag.
+
+### Validação (Zod)
+
+```ts
+const weekSchema = z.object({
+  name: z.string().trim().min(1).max(60),
+});
+
+const postSchema = z.object({
+  title: z.string().trim().min(1).max(200),
+  week_id: z.string().uuid(),
+  tags: z.array(z.string().trim().min(1).max(40)).max(15),
+  notes: z.string().trim().max(2000).optional(),
+  status: z.enum(['planned','published']),
+});
+```
+
+### Componentes a criar
+
+- `src/components/dashboard/AppSidebar.tsx`
+- `src/components/dashboard/DashboardTopbar.tsx`
+- `src/components/dashboard/PageContainer.tsx` (wrapper centralizado max-w-5xl)
+- `src/components/plano/WeekColumn.tsx`
+- `src/components/plano/PostCard.tsx`
+- `src/components/plano/PostDialog.tsx` (modal de edição)
+- `src/components/plano/TagInput.tsx` (input multi-tag livre)
+- `src/components/plano/TagChip.tsx` (chip colorido — cor derivada do hash do texto)
+- `src/lib/tag-color.ts` (função `tagColor(label)` que devolve classe tailwind a partir de paleta fixa de 8 cores soft)
+
+### Página inicial da dashboard (`/dashboard`)
+
+- Saudação "Olá, {nome}" + 3 cards-resumo (total semanas, total posts planejados, próxima publicação).
+- 4 cards de atalho linkando para as subpáginas.
+
+### Configurações (`/dashboard/configuracoes`)
+
+- Editar `display_name`, `avatar_url`. Botão "Sair da conta".
 
 ### Notas técnicas
 
-- Sem novas dependências.
-- Sem alterações em `src/styles.css` — todas as utilities (`text-gradient-primary`, `shadow-elegant`, `bg-gradient-primary-soft`) já existem.
-- Totalmente responsivo: 1 coluna em mobile, 3 colunas em `md:` para cima.
-- Acessibilidade: hierarquia `h2` na seção, cards são `<article>` com `<h3>` interno para o número/headline.
+- shadcn `Sidebar`, `Dialog`, `AlertDialog`, `Select`, `Popover`, `Textarea`, `Badge`, `Input`, `Button` (todos já presentes).
+- Cores das tags: paleta de 8 (rose, amber, lime, emerald, sky, indigo, violet, fuchsia) com variantes `bg-X-100 text-X-800 dark:bg-X-900/40 dark:text-X-200`. Função `hash(text) % 8` escolhe a cor — mesma tag sempre tem a mesma cor.
+- Drag-and-drop **não** está nesta entrega (ordenação será por botões "para cima/baixo" no menu do card). Pode ser adicionado depois.
+- Sem edge functions; tudo via supabase client com RLS.
+
+### Fora do escopo
+
+- Drag-and-drop entre semanas (próxima iteração).
+- Gerador de carrosséis com IA (próxima).
+- Configuração dos agentes 24/7 (próxima).
+- Compartilhar quadro / colaboração multi-usuário.
