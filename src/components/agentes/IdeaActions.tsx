@@ -36,7 +36,7 @@ export function IdeaActions() {
         className="h-8 rounded-full text-xs"
         onClick={goToPlanner}
       >
-        📅 Adicionar ao Planner
+        📅 Salvar no Planner
       </Button>
     </div>
   );
