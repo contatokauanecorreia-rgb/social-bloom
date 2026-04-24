@@ -117,10 +117,7 @@ export function AgentChatPanel({
       content: text,
     });
 
-    // Add placeholder assistant message
     const assistantId = crypto.randomUUID();
-    setMessages((prev) => [...prev, { id: assistantId, role: "assistant", content: "" }]);
-
     let assistantSoFar = "";
     const controller = new AbortController();
     abortRef.current = controller;
