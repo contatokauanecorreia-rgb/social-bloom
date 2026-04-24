@@ -1,12 +1,15 @@
+import type { ReactNode } from "react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 
 export function MessageBubble({
   role,
   content,
+  actions,
 }: {
   role: "user" | "assistant";
   content: string;
+  actions?: ReactNode;
 }) {
   const isUser = role === "user";
   return (
@@ -22,9 +25,12 @@ export function MessageBubble({
         {isUser ? (
           <p className="whitespace-pre-wrap leading-relaxed">{content}</p>
         ) : (
-          <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-strong:text-foreground prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-code:rounded prose-code:bg-foreground/10 prose-code:px-1 prose-code:py-0.5 prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
-            <ReactMarkdown>{content}</ReactMarkdown>
-          </div>
+          <>
+            <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-p:leading-relaxed prose-strong:text-foreground prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-foreground prose-code:rounded prose-code:bg-foreground/10 prose-code:px-1 prose-code:py-0.5 prose-code:text-xs prose-code:before:content-none prose-code:after:content-none">
+              <ReactMarkdown>{content}</ReactMarkdown>
+            </div>
+            {actions}
+          </>
         )}
       </div>
     </div>
