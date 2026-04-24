@@ -24,7 +24,16 @@ export function AgentAvatar({
         className,
       )}
     >
-      {agent.initials}
+      {agent.avatar ? (
+        <img
+          src={agent.avatar}
+          alt={agent.name}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      ) : (
+        agent.initials
+      )}
     </div>
   );
 }
