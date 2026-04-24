@@ -1,45 +1,36 @@
-## Objetivo
-Quando a resposta de qualquer agente contiver palavras-chave relacionadas a ideias de conteúdo (`carrossel`, `ângulo`, `ideia`, `conteúdo`, `título`, `direção`), exibir, **apenas no último balão** daquela resposta, dois CTAs:
+# Navegação tipada para KIÜKA via search param
 
-- **✦ Criar carrossel com KIÜKA** → grava `postly:last-agent = "kiuka"` no `localStorage` e navega para `/dashboard/agentes` (a página já restaura o agente salvo e abre o chat com a KIÜKA).
-- **📅 Adicionar ao Planner** → navega para `/dashboard/plano` (rota já existente; `/planner-de-conteudo` não existe).
+## Contexto
+Hoje `IdeaActions` grava `localStorage` e navega para `/dashboard/agentes`. Se o usuário **já está** nessa rota, o componente não remonta e o agente não troca.
 
 ## Mudanças
 
-### 1. `src/components/agentes/MessageBubble.tsx`
-- Adicionar prop opcional `actions?: React.ReactNode` renderizada **abaixo** do conteúdo do balão (apenas para `role === "assistant"`).
-- Manter API e estilos atuais inalterados.
-
-### 2. Novo arquivo `src/components/agentes/IdeaActions.tsx`
-- Componente client com dois `Button` (variant `outline`, size `sm`, `rounded-full`):
-  - **✦ Criar carrossel com KIÜKA** — `onClick`: `localStorage.setItem("postly:last-agent", "kiuka")` + `navigate({ to: "/dashboard/agentes" })` + `router.invalidate()` para forçar o efeito de restauração rodar de novo (caso já esteja na rota).
-  - **📅 Adicionar ao Planner** — `onClick`: `navigate({ to: "/dashboard/plano" })`.
-- Usa `useNavigate` de `@tanstack/react-router`.
-- Layout: `flex flex-wrap gap-2 mt-3 pt-3 border-t border-border/40`.
-
-### 3. `src/components/agentes/AgentChatPanel.tsx`
-- Adicionar helper puro no topo do arquivo:
+### 1. `src/components/agentes/IdeaActions.tsx`
+- Botão **✦ Criar carrossel com KIÜKA** passa a navegar com search param tipado:
   ```ts
-  const IDEA_KEYWORDS = /\b(carross[eé]is?|[âa]ngulos?|ideias?|conte[úu]do|t[íi]tulos?|dire[çc][ãa]o)\b/i;
-  const hasIdeaKeywords = (text: string) => IDEA_KEYWORDS.test(text);
+  navigate({ to: "/dashboard/agentes", search: { agent: "kiuka" } });
   ```
-- Na renderização da lista de mensagens, calcular o índice do **último balão assistant** da resposta atual e, se o `content` desse balão casar com `IDEA_KEYWORDS`, passar `<IdeaActions />` para a prop `actions` do `MessageBubble` correspondente.
-  - Implementação: percorrer `messages` e identificar o último item com `role === "assistant"`. Renderizar `IdeaActions` somente nele (independente do agente atual — escopo confirmado pelo usuário).
-- Não exibir os CTAs enquanto `streaming === true` ainda estiver entregando chunks subsequentes — só após o ciclo de chunks terminar (i.e., quando o último item da lista deixou de receber novos irmãos). Como cada chunk vira um novo balão e o último balão da resposta é sempre o "último assistant" no array, basta ocultar os CTAs enquanto `streaming === true`.
+- Remove a escrita direta em `localStorage` (a página de destino cuida disso).
+- Botão **📅 Salvar no Planner** continua indo para `/dashboard/plano`.
 
-## Detalhes de UX
-- Match de palavras-chave é **case-insensitive** e cobre variações comuns (plurais, acentos): `carrossel/carrosséis`, `ângulo/angulos`, `ideia/ideias`, `conteúdo/conteudo`, `título/titulos`, `direção/direcao`.
-- CTAs aparecem **apenas no último balão assistant** e **só após o streaming terminar**.
-- Funcionam para qualquer agente (não só SUR), conforme decidido.
+### 2. `src/routes/dashboard.agentes.tsx`
+- Adicionar `validateSearch` com Zod + `@tanstack/zod-adapter`:
+  ```ts
+  const searchSchema = z.object({
+    agent: fallback(z.enum(agentIds), undefined).optional(),
+  });
+  ```
+- Novo `useEffect` que reage a `search.agent`: seleciona o agente, persiste em `localStorage` e limpa a URL com `navigate({ search: {}, replace: true })`.
+- Mantém o effect existente de restaurar `localStorage` no mount.
 
-## Sem alterações em
-- `supabase/functions/agent-chat/index.ts`
-- `src/lib/agents.ts`
-- Banco de dados / RLS
-- `dashboard.plano.tsx` (já existe)
+### 3. Dependência
+- Instalar `@tanstack/zod-adapter` (zod já está instalado).
 
-## Validação manual após implementar
-1. No chat com SUR, fazer pergunta que gere resposta com "ideias" ou "ângulos" → CTAs aparecem **só no último balão**.
-2. Clicar em "Criar carrossel com KIÜKA" → vai para `/dashboard/agentes` com KIÜKA selecionada.
-3. Clicar em "Adicionar ao Planner" → vai para `/dashboard/plano`.
-4. Resposta sem palavras-chave (ex: SUR fazendo pergunta de descoberta como "O que você faz hoje?") → **sem CTAs**.
+## Resultado
+- De qualquer rota → clicar KIÜKA → vai para `/dashboard/agentes?agent=kiuka` → seleciona KIÜKA → URL fica limpa.
+- Já em `/dashboard/agentes` com SUR ativo → clicar KIÜKA → URL muda → effect detecta → troca para KIÜKA → URL limpa. ✅
+
+## Sem mudanças
+- System prompt do SUR (já atualizado anteriormente).
+- Trigger das CTAs (regex da frase final, já implementado).
+- Escopo das CTAs (continua disponível em qualquer agente).
