@@ -231,7 +231,7 @@ function PlanoPage() {
     <PageContainer wide>
       <Badge variant="soft" className="mb-3 w-fit">Conteúdo</Badge>
       <PageHeader
-        title="Plano de conteúdo"
+        title="Planner de conteúdo"
         description="Organize seus posts por semana, com tags livres e filtros."
         actions={
           <>
