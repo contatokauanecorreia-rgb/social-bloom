@@ -296,14 +296,15 @@ export function AgentChatPanel({
             {messages.map((m) => (
               <MessageBubble key={m.id} role={m.role} content={m.content || "..."} />
             ))}
-            {streaming && messages[messages.length - 1]?.role === "assistant" &&
-              !messages[messages.length - 1]?.content && (
-                <div className="flex justify-start">
-                  <div className="rounded-2xl rounded-bl-md bg-muted px-4 py-2.5">
-                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  </div>
+            {streaming && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-1 rounded-2xl rounded-bl-md bg-muted px-4 py-3">
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.3s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60 [animation-delay:-0.15s]" />
+                  <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/60" />
                 </div>
-              )}
+              </div>
+            )}
           </div>
         )}
       </div>
