@@ -1,15 +1,21 @@
-# Substituir avatar da ROXY STUDIO
+# Substituir avatares de 3 agentes
 
 ## Objetivo
-Trocar a imagem do agente ROXY STUDIO pela nova imagem enviada (`3-2.jpg`).
+Trocar as imagens dos agentes KIÜKA, SUR e KIMO pelos novos gradientes enviados. ROXY STUDIO permanece inalterada.
 
-## Alterações
-1. Sobrescrever `src/assets/agents/roxy.jpg` copiando `user-uploads://3-2.jpg` para esse caminho.
+## Alterações (apenas assets, sem mudanças em código)
 
-## Sem alterações de código
-- `src/lib/agents.ts` continua importando `roxyImg from "@/assets/agents/roxy.jpg"`.
-- `AgentAvatar.tsx` segue renderizando a imagem normalmente.
-- O Vite faz hot-reload do novo asset automaticamente.
+| Agente | Origem | Destino (sobrescreve) |
+|---|---|---|
+| **KIÜKA** | `user-uploads://1-2.jpg` | `src/assets/agents/kiuka.jpg` |
+| **SUR** | `user-uploads://2-2.jpg` | `src/assets/agents/sur.jpg` |
+| **KIMO** | `user-uploads://4-2.jpg` | `src/assets/agents/kimo.jpg` |
+| **ROXY STUDIO** | — | mantém atual ✓ |
+
+## Sem mudanças em código
+- `src/lib/agents.ts` continua importando dos mesmos caminhos.
+- `AgentAvatar.tsx` segue renderizando normalmente.
+- Vite recarrega os novos assets automaticamente.
 
 ## Resultado
-A ROXY STUDIO passa a exibir o novo avatar (gradiente rosa/laranja sobre fundo escuro) tanto na lista lateral quanto no header do chat, alinhado ao seu accent (`from-rose-500 via-red-500 to-amber-500`).
+Os três agentes passam a exibir os novos gradientes na lista lateral e no header do chat.
