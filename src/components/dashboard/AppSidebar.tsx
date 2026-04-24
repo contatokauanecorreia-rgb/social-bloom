@@ -3,13 +3,20 @@ import { Home, ClipboardList, LayoutGrid, Bot, Settings, ChevronLeft, ChevronRig
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
-const items = [
+type SidebarItem = {
+  to: "/dashboard" | "/dashboard/plano" | "/dashboard/carrosseis" | "/dashboard/agentes" | "/dashboard/configuracoes";
+  label: string;
+  icon: typeof Home;
+  exact?: boolean;
+};
+
+const items: SidebarItem[] = [
   { to: "/dashboard", label: "Início", icon: Home, exact: true },
   { to: "/dashboard/plano", label: "Plano de conteúdo", icon: ClipboardList },
   { to: "/dashboard/carrosseis", label: "Carrosséis", icon: LayoutGrid },
   { to: "/dashboard/agentes", label: "Agentes 24/7", icon: Bot },
   { to: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
-] as const;
+];
 
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
