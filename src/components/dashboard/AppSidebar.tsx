@@ -12,9 +12,9 @@ type SidebarItem = {
 
 const items: SidebarItem[] = [
   { to: "/dashboard", label: "Início", icon: Home, exact: true },
-  { to: "/dashboard/plano", label: "Plano de conteúdo", icon: ClipboardList },
-  { to: "/dashboard/carrosseis", label: "Carrosséis", icon: LayoutGrid },
-  { to: "/dashboard/agentes", label: "Agentes 24/7", icon: Bot },
+  { to: "/dashboard/agentes", label: "Criar conteúdo", icon: Bot },
+  { to: "/dashboard/plano", label: "Planner de conteúdo", icon: ClipboardList },
+  { to: "/dashboard/carrosseis", label: "Gerar carrosséis", icon: LayoutGrid },
   { to: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
 ];
 

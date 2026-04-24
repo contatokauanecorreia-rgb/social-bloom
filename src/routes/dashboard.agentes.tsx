@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Bot } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/agentes")({
-  head: () => ({ meta: [{ title: "Agentes 24/7 — Postly" }] }),
+  head: () => ({ meta: [{ title: "Criar conteúdo — Postly" }] }),
   component: AgentesPage,
 });
 
@@ -13,8 +13,8 @@ function AgentesPage() {
     <PageContainer>
       <Badge variant="soft" className="mb-3 w-fit">Em breve</Badge>
       <PageHeader
-        title="Agentes 24/7"
-        description="IA respondendo seus clientes a qualquer hora."
+        title="Criar conteúdo"
+        description="Gere roteiros, legendas e ideias de posts com IA."
       />
       <div className="rounded-xl border border-dashed bg-card/40 p-12 text-center">
         <Bot className="mx-auto h-10 w-10 text-muted-foreground" />

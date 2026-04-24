@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { LayoutGrid } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/carrosseis")({
-  head: () => ({ meta: [{ title: "Carrosséis — Postly" }] }),
+  head: () => ({ meta: [{ title: "Gerar carrosséis — Postly" }] }),
   component: CarrosseisPage,
 });
 
@@ -13,7 +13,7 @@ function CarrosseisPage() {
     <PageContainer>
       <Badge variant="soft" className="mb-3 w-fit">Em breve</Badge>
       <PageHeader
-        title="Carrosséis"
+        title="Gerar carrosséis"
         description="Geração automática de carrosséis com IA."
       />
       <div className="rounded-xl border border-dashed bg-card/40 p-12 text-center">

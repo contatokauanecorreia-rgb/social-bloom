@@ -15,7 +15,7 @@ import type { ContentPost, ContentWeek } from "@/lib/content-types";
 export const Route = createFileRoute("/dashboard/plano")({
   head: () => ({
     meta: [
-      { title: "Plano de conteúdo — Postly" },
+      { title: "Planner de conteúdo — Postly" },
       { name: "description", content: "Organize seus posts por semana." },
     ],
   }),
