@@ -1,7 +1,12 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { PageContainer, PageHeader } from "@/components/dashboard/PageContainer";
-import { Badge } from "@/components/ui/badge";
-import { Bot } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { AgentList } from "@/components/agentes/AgentList";
+import { AgentChatPanel } from "@/components/agentes/AgentChatPanel";
+import { AGENTS, type Agent, type AgentId, getAgent } from "@/lib/agents";
+
+const STORAGE_KEY = "postly:last-agent";
 
 export const Route = createFileRoute("/dashboard/agentes")({
   head: () => ({ meta: [{ title: "Criar conteúdo — Postly" }] }),
@@ -9,20 +14,77 @@ export const Route = createFileRoute("/dashboard/agentes")({
 });
 
 function AgentesPage() {
-  return (
-    <PageContainer>
-      <Badge variant="soft" className="mb-3 w-fit">Em breve</Badge>
-      <PageHeader
-        title="Criar conteúdo"
-        description="Gere roteiros, legendas e ideias de posts com IA."
-      />
-      <div className="rounded-xl border border-dashed bg-card/40 p-12 text-center">
-        <Bot className="mx-auto h-10 w-10 text-muted-foreground" />
-        <h3 className="mt-4 text-lg font-semibold">Em construção</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Em breve: configure agentes para atendimento automático.
-        </p>
+  const navigate = useNavigate();
+  const [userId, setUserId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Agent>(AGENTS[0]);
+
+  // Restore last agent from localStorage
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const last = window.localStorage.getItem(STORAGE_KEY) as AgentId | null;
+    if (last) {
+      const agent = getAgent(last);
+      if (agent) setSelected(agent);
+    }
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      if (!data.session) {
+        navigate({ to: "/login" });
+        return;
+      }
+      setUserId(data.session.user.id);
+    });
+    return () => {
+      active = false;
+    };
+  }, [navigate]);
+
+  const handleSelect = (agent: Agent) => {
+    setSelected(agent);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(STORAGE_KEY, agent.id);
+    }
+  };
+
+  if (!userId) {
+    return (
+      <div className="flex h-[calc(100vh-3.5rem)] items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
-    </PageContainer>
+    );
+  }
+
+  return (
+    <div className="grid h-[calc(100vh-3.5rem)] grid-cols-1 md:grid-cols-[320px_1fr]">
+      <aside className="hidden border-r bg-card/40 md:block">
+        <AgentList selectedId={selected.id} onSelect={handleSelect} />
+      </aside>
+
+      {/* Mobile: dropdown to switch agent */}
+      <div className="flex items-center gap-2 border-b bg-card/40 px-4 py-2 md:hidden">
+        <select
+          value={selected.id}
+          onChange={(e) => {
+            const a = getAgent(e.target.value);
+            if (a) handleSelect(a);
+          }}
+          className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+        >
+          {AGENTS.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name} — {a.role}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <main className="min-w-0 overflow-hidden">
+        <AgentChatPanel agent={selected} userId={userId} />
+      </main>
+    </div>
   );
 }
