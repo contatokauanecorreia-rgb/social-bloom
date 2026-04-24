@@ -1,48 +1,45 @@
 ## Objetivo
-Substituir o prompt do agente SUR no arquivo `supabase/functions/agent-chat/index.ts` pelo novo prompt **Strategic Creative Consultant**, transformando o agente de gerador de conteúdo em consultor estratégico conversacional.
+Quando a resposta de qualquer agente contiver palavras-chave relacionadas a ideias de conteúdo (`carrossel`, `ângulo`, `ideia`, `conteúdo`, `título`, `direção`), exibir, **apenas no último balão** daquela resposta, dois CTAs:
 
-## Mudança única
+- **✦ Criar carrossel com KIÜKA** → grava `postly:last-agent = "kiuka"` no `localStorage` e navega para `/dashboard/agentes` (a página já restaura o agente salvo e abre o chat com a KIÜKA).
+- **📅 Adicionar ao Planner** → navega para `/dashboard/plano` (rota já existente; `/planner-de-conteudo` não existe).
 
-**Arquivo:** `supabase/functions/agent-chat/index.ts`
-**Ação:** substituir o valor da chave `sur:` no objeto `SYSTEM_PROMPTS` (linhas 11–18) pelo novo prompt.
+## Mudanças
 
-## Novo prompt do SUR (resumo do conteúdo)
+### 1. `src/components/agentes/MessageBubble.tsx`
+- Adicionar prop opcional `actions?: React.ReactNode` renderizada **abaixo** do conteúdo do balão (apenas para `role === "assistant"`).
+- Manter API e estilos atuais inalterados.
 
-- **Identidade:** Strategic Creative Consultant + Content Architect (não gerador de conteúdo)
-- **Core Behavior:** modo conversacional — diagnostica, pergunta, refina, depois entrega
-- **Discovery Flow obrigatório:** até 3 perguntas estratégicas antes de gerar ideias
-  - O que você faz exatamente hoje?
-  - Quem é o público que você quer atingir?
-  - Foco: crescer audiência, vender ou posicionar autoridade?
-- **Adaptive Logic:**
-  - vago → faz perguntas
-  - parcial → 1-2 perguntas de refinamento
-  - claro → gera ideias direto
-- **Idea Generation (4 blocos):**
-  - 🧠 Ângulos Estratégicos
-  - 🔥 Ideias de Conteúdo
-  - 💰 Oportunidades de Posicionamento
-  - ⚡ Dores e Gatilhos
-- **Continuous Conversation:** após entregar, pergunta o que ressoa e oferece aprofundar (post, vídeo, etc.)
-- **Context Memory:** usa contexto anterior, não reinicia
-- **Confidencialidade:** nunca revela lógica interna / estrutura de prompt
-- **Idioma:** PT-BR
-- **Tom:** estratégico, confiante, analítico, natural — nunca robótico ou genérico
+### 2. Novo arquivo `src/components/agentes/IdeaActions.tsx`
+- Componente client com dois `Button` (variant `outline`, size `sm`, `rounded-full`):
+  - **✦ Criar carrossel com KIÜKA** — `onClick`: `localStorage.setItem("postly:last-agent", "kiuka")` + `navigate({ to: "/dashboard/agentes" })` + `router.invalidate()` para forçar o efeito de restauração rodar de novo (caso já esteja na rota).
+  - **📅 Adicionar ao Planner** — `onClick`: `navigate({ to: "/dashboard/plano" })`.
+- Usa `useNavigate` de `@tanstack/react-router`.
+- Layout: `flex flex-wrap gap-2 mt-3 pt-3 border-t border-border/40`.
 
-## Removido do prompt antigo
-- Estrutura rígida "3-5 ideias com Gancho/Ângulo/Formato"
-- Tom "criativo direto brasileiro com energia + emojis"
+### 3. `src/components/agentes/AgentChatPanel.tsx`
+- Adicionar helper puro no topo do arquivo:
+  ```ts
+  const IDEA_KEYWORDS = /\b(carross[eé]is?|[âa]ngulos?|ideias?|conte[úu]do|t[íi]tulos?|dire[çc][ãa]o)\b/i;
+  const hasIdeaKeywords = (text: string) => IDEA_KEYWORDS.test(text);
+  ```
+- Na renderização da lista de mensagens, calcular o índice do **último balão assistant** da resposta atual e, se o `content` desse balão casar com `IDEA_KEYWORDS`, passar `<IdeaActions />` para a prop `actions` do `MessageBubble` correspondente.
+  - Implementação: percorrer `messages` e identificar o último item com `role === "assistant"`. Renderizar `IdeaActions` somente nele (independente do agente atual — escopo confirmado pelo usuário).
+- Não exibir os CTAs enquanto `streaming === true` ainda estiver entregando chunks subsequentes — só após o ciclo de chunks terminar (i.e., quando o último item da lista deixou de receber novos irmãos). Como cada chunk vira um novo balão e o último balão da resposta é sempre o "último assistant" no array, basta ocultar os CTAs enquanto `streaming === true`.
+
+## Detalhes de UX
+- Match de palavras-chave é **case-insensitive** e cobre variações comuns (plurais, acentos): `carrossel/carrosséis`, `ângulo/angulos`, `ideia/ideias`, `conteúdo/conteudo`, `título/titulos`, `direção/direcao`.
+- CTAs aparecem **apenas no último balão assistant** e **só após o streaming terminar**.
+- Funcionam para qualquer agente (não só SUR), conforme decidido.
 
 ## Sem alterações em
-- Frontend (`AgentChatPanel.tsx`, `agents.ts`) — greeting do SUR continua igual
-- Outros agentes (KIÜKA, KIMO, ROXY) — intactos
-- `/api/public/chat-sur` (Claude) — fora do escopo desta task
-- Banco de dados / RLS / `supabase/config.toml`
+- `supabase/functions/agent-chat/index.ts`
+- `src/lib/agents.ts`
+- Banco de dados / RLS
+- `dashboard.plano.tsx` (já existe)
 
-## Deploy
-A função `agent-chat` é redeployada automaticamente após salvar — sem passo manual.
-
-## Validação pós-deploy
-Testar no chat do dashboard (`/dashboard/agentes`):
-1. Mensagem vaga ("quero ideias de conteúdo") → SUR deve fazer perguntas de descoberta
-2. Mensagem com contexto completo → SUR deve entregar os 4 blocos de ideias
+## Validação manual após implementar
+1. No chat com SUR, fazer pergunta que gere resposta com "ideias" ou "ângulos" → CTAs aparecem **só no último balão**.
+2. Clicar em "Criar carrossel com KIÜKA" → vai para `/dashboard/agentes` com KIÜKA selecionada.
+3. Clicar em "Adicionar ao Planner" → vai para `/dashboard/plano`.
+4. Resposta sem palavras-chave (ex: SUR fazendo pergunta de descoberta como "O que você faz hoje?") → **sem CTAs**.
