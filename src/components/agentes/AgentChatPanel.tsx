@@ -8,6 +8,10 @@ import type { Agent } from "@/lib/agents";
 import { AgentAvatar } from "./AgentAvatar";
 import { OnlineDot } from "./OnlineDot";
 import { MessageBubble } from "./MessageBubble";
+import { IdeaActions } from "./IdeaActions";
+
+const IDEA_KEYWORDS = /\b(carross[eé]is?|[âa]ngulos?|ideias?|conte[úu]do|t[íi]tulos?|dire[çc][ãa]o)\b/i;
+const hasIdeaKeywords = (text: string) => IDEA_KEYWORDS.test(text);
 
 type ChatMessage = {
   id: string;
