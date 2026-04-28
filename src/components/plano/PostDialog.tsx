@@ -104,19 +104,66 @@ export function PostDialog({
   const [status, setStatus] = useState<PostStatus>("planned");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const noteRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const focusLastRef = useRef(false);
+  const hydratedRef = useRef(false);
 
+  // Hidrata estado ao abrir, restaurando rascunho local se existir e for mais novo
   useEffect(() => {
-    if (!open) return;
-    setTitle(post?.title ?? "");
-    setWeekId(post?.week_id ?? defaultWeekId ?? weeks[0]?.id ?? "");
-    setTags(post?.tags ?? []);
+    if (!open) {
+      hydratedRef.current = false;
+      return;
+    }
+    const baseTitle = post?.title ?? "";
+    const baseWeek = post?.week_id ?? defaultWeekId ?? weeks[0]?.id ?? "";
+    const baseTags = post?.tags ?? [];
     const raw = post?.notes ?? "";
-    const blocks = raw ? raw.split(/\n\n---\n\n/) : [""];
-    setNoteBlocks(blocks.length ? blocks : [""]);
-    setStatus(post?.status ?? "planned");
+    const baseBlocks = raw ? raw.split(/\n\n---\n\n/) : [""];
+    const baseStatus: PostStatus = post?.status ?? "planned";
+
+    const draft = readDraft(post?.id);
+    if (draft) {
+      setTitle(draft.title);
+      setWeekId(draft.weekId || baseWeek);
+      setTags(draft.tags);
+      setNoteBlocks(draft.noteBlocks.length ? draft.noteBlocks : [""]);
+      setStatus(draft.status);
+      setDraftRestored(true);
+      setSavedAt(draft.savedAt);
+    } else {
+      setTitle(baseTitle);
+      setWeekId(baseWeek);
+      setTags(baseTags);
+      setNoteBlocks(baseBlocks.length ? baseBlocks : [""]);
+      setStatus(baseStatus);
+      setDraftRestored(false);
+      setSavedAt(null);
+    }
+    // marca como hidratado no próximo tick para não disparar autosave
+    requestAnimationFrame(() => {
+      hydratedRef.current = true;
+    });
   }, [open, post, defaultWeekId, weeks]);
+
+  // Autosave em localStorage com debounce
+  useEffect(() => {
+    if (!open || !hydratedRef.current) return;
+    const handle = window.setTimeout(() => {
+      const payload: DraftPayload = {
+        title,
+        weekId,
+        tags,
+        noteBlocks,
+        status,
+        savedAt: Date.now(),
+      };
+      writeDraft(post?.id, payload);
+      setSavedAt(payload.savedAt);
+    }, 500);
+    return () => window.clearTimeout(handle);
+  }, [open, post?.id, title, weekId, tags, noteBlocks, status]);
 
   useEffect(() => {
     if (focusLastRef.current) {
