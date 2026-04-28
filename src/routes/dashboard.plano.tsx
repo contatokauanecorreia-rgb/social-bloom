@@ -49,6 +49,14 @@ function PlanoPage() {
   const [editingPost, setEditingPost] = useState<ContentPost | null>(null);
   const [defaultWeekId, setDefaultWeekId] = useState<string | undefined>();
 
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [dragSnapshot, setDragSnapshot] = useState<ContentPost[] | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
   const loadAll = useCallback(async (uid: string) => {
     const [w, p] = await Promise.all([
       supabase
