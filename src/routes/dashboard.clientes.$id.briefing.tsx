@@ -159,25 +159,27 @@ function BriefingPage() {
     const ageLabel = AGES.find((a) => a.id === form.age)?.label ?? "";
 
     const { error } = await supabase.from("client_briefings").upsert(
-      {
-        client_id: clientId,
-        user_id: session.user.id,
-        tone_of_voice: personaLabel
-          ? `${personaLabel} · ${FORMALITY_LABELS[form.formality - 1]}`
-          : FORMALITY_LABELS[form.formality - 1],
-        target_audience: [
-          ageLabel,
-          form.pains.trim() && `Dores: ${form.pains.trim()}`,
-          form.dreams.trim() && `Sonhos: ${form.dreams.trim()}`,
-        ]
-          .filter(Boolean)
-          .join(". "),
-        content_pillars: form.personality,
-        goals: goalLabel ? [goalLabel] : [],
-        dos: form.dos,
-        donts: form.donts,
-        extra: form as unknown as Record<string, unknown>,
-      },
+      [
+        {
+          client_id: clientId,
+          user_id: session.user.id,
+          tone_of_voice: personaLabel
+            ? `${personaLabel} · ${FORMALITY_LABELS[form.formality - 1]}`
+            : FORMALITY_LABELS[form.formality - 1],
+          target_audience: [
+            ageLabel,
+            form.pains.trim() && `Dores: ${form.pains.trim()}`,
+            form.dreams.trim() && `Sonhos: ${form.dreams.trim()}`,
+          ]
+            .filter(Boolean)
+            .join(". "),
+          content_pillars: form.personality,
+          goals: goalLabel ? [goalLabel] : [],
+          dos: form.dos,
+          donts: form.donts,
+          extra: form as unknown as Record<string, unknown>,
+        },
+      ],
       { onConflict: "client_id" },
     );
     setSaving(false);
