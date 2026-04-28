@@ -1,83 +1,100 @@
-# Perfil do Cliente — Aba "Visão geral"
+# Briefing inteligente — stepper de 5 etapas
 
-Reformular a página `/clientes/:id` para usar 5 abas e transformar o conteúdo da aba inicial em um painel de visão geral com métricas, perfil da marca, personalidade e contexto de IA.
+Reescrever `src/routes/dashboard.clientes.$id.briefing.tsx` como um wizard com 5 etapas, gerador de prompt e persistência no banco existente.
 
-## 1. Atualizar layout `src/routes/dashboard.clientes.$id.tsx`
+## Stepper
 
-Expandir as abas atuais (Perfil | Briefing | Aprovação) para as 5 solicitadas:
+Topo da página:
+- **Pills clicáveis** com numeração — concluídas (verde + ✓), ativa (gradient primary), pendentes (outline). Clicar volta/avança livremente.
+- **Barra `<Progress>`** com % `(step+1)/5 * 100`.
+- Etapas: `Identidade · Tom de voz · Público · Objetivos · Revisão`.
 
-- **Visão geral** → `/dashboard/clientes/$id` (índice)
-- **Briefing** → `/dashboard/clientes/$id/briefing` (já existe)
-- **Conteúdos** → `/dashboard/clientes/$id/conteudos` (placeholder)
-- **Aprovação** → `/dashboard/clientes/$id/aprovacao` (já existe)
-- **Precificação** → `/dashboard/clientes/$id/precificacao` (placeholder)
+Rodapé: botões `Voltar` (outline) e `Próximo` (gradient). Na etapa 5 vira **`Salvar briefing`**.
 
-Renomear o rótulo "Perfil" para "Visão geral". Manter o header atual (avatar com iniciais, nome, badge de status) e adicionar logo abaixo do nome: **segmento** (`company` como fallback) e **"Cliente desde {data}"** formatada a partir de `created_at` (incluir esse campo no SELECT).
+## Estado único
 
-Criar dois arquivos placeholder mínimos (apenas Card "Em breve"), pois sem eles a navegação por `<Link to="...">` quebra a tipagem do TanStack Router:
-- `src/routes/dashboard.clientes.$id.conteudos.tsx`
-- `src/routes/dashboard.clientes.$id.precificacao.tsx`
-
-## 2. Reescrever `src/routes/dashboard.clientes.$id.index.tsx` (Visão geral)
-
-Substituir o formulário atual por um painel composto por 4 blocos verticais:
-
-### a) Grid de 4 métricas
-Cards com ícone + label + número grande + sublabel:
-- **Posts no mês** (FileText)
-- **Aprovados** (CheckCircle, verde)
-- **Em revisão** (Clock, âmbar)
-- **Taxa de aprovação** (TrendingUp, %)
-
-Layout: `grid grid-cols-2 lg:grid-cols-4 gap-4`. Valores derivados (mock por enquanto, a partir do briefing/posts ainda não conectados): 0/0/0/0 quando não há dados, com hint "Nenhum conteúdo registrado ainda."
-
-### b) Seção "Perfil da marca"
-Card com 4 campos read-only em grid 2 colunas, populados a partir de `client_briefings`:
-- **Nicho** ← `clients.company` (ou campo de briefing se preferir)
-- **Tom de voz** ← `tone_of_voice`
-- **Público-alvo** ← `target_audience`
-- **Objetivo principal** ← primeiro item de `goals[]`
-
-Cada campo mostra valor ou "—" + texto leve "Adicione no briefing" se vazio.
-
-### c) Seção "Personalidade da marca"
-Duas linhas de chips:
-- **Faça (verde)** ← `dos[]` renderizadas como `bg-emerald-50 text-emerald-700 border-emerald-200`
-- **Evite (vermelho)** ← `donts[]` como `bg-rose-50 text-rose-700 border-rose-200`
-
-Empty state: "Defina personalidade no briefing".
-
-### d) Bloco "Contexto da IA"
-Card com `Textarea readOnly` (font-mono, ~8 linhas) exibindo um prompt montado a partir do briefing:
-
-```
-Você está criando conteúdo para {nome} ({nicho}).
-Público-alvo: {target_audience}
-Tom de voz: {tone_of_voice}
-Pilares: {content_pillars.join(", ")}
-Objetivos: {goals.join(", ")}
-Sempre: {dos.join(", ")}
-Nunca: {donts.join(", ")}
+```ts
+type Form = {
+  name; segment; personality: string[];                       // etapa 1
+  formality: 1-5; persona; dos: string[]; donts: string[];    // etapa 2
+  age; pains; dreams;                                          // etapa 3
+  goal; competitors: [string,string,string]; frequency;       // etapa 4
+};
 ```
 
-Header do card com ícone Sparkles + descrição: "Esse contexto é injetado automaticamente em todas as gerações para esse cliente." Botão `Copy` no canto.
+Hidratação no mount: 2 queries paralelas — `clients.name` + `client_briefings.{tone_of_voice, target_audience, dos, donts, goals, content_pillars, extra}`. O `extra` (jsonb já existente) carrega as respostas brutas do wizard, garantindo que ao reabrir o briefing tudo volta exatamente como estava.
 
-### e) CTA final
-Botão `gradient` "Editar briefing" → `<Link to="/dashboard/clientes/$id/briefing" params={{ id }}>`.
+## Etapa 1 — Identidade
 
-## 3. Carregamento de dados
+- Input "Nome do cliente".
+- Grid 3 colunas de cards clicáveis (segmento): Saúde e beleza · Alimentação · Serviços locais · Educação · E-commerce · Outro.
+- `TagInput` "Personalidade em 3 palavras".
 
-Single `useEffect` faz duas queries em paralelo (`Promise.all`):
-- `clients` (name, company, status)
-- `client_briefings` (tone_of_voice, target_audience, content_pillars, goals, dos, donts) via `.eq("client_id", id).maybeSingle()`
+## Etapa 2 — Tom de voz
 
-Loader: `Loader2` centralizado. Briefing pode ser `null` → todos os campos mostram empty state, prompt mostra placeholder "Preencha o briefing para gerar o contexto da IA."
+- `Slider` 1–5 de Formalidade com label dinâmico (Muito informal → Muito formal).
+- Cards 2×2 "A marca se parece com…": Amiga especialista / Autoridade / Aspiracional / Popular (com hint).
+- Dois `TagInput`:
+  - "Palavras que a marca USA" — wrapper com `bg-emerald-50 border-emerald-200`.
+  - "O que a marca NUNCA deve dizer" — wrapper com `bg-rose-50 border-rose-200`.
+  - (TagInput existente não aceita className por chip; o tom verde/vermelho vem do container ao redor — resultado visual idêntico.)
 
-## Arquivos afetados
+## Etapa 3 — Público
 
-- `src/routes/dashboard.clientes.$id.tsx` — atualizar tabs (5 itens) + header com data
-- `src/routes/dashboard.clientes.$id.index.tsx` — reescrever como Visão geral
-- `src/routes/dashboard.clientes.$id.conteudos.tsx` — novo (placeholder)
-- `src/routes/dashboard.clientes.$id.precificacao.tsx` — novo (placeholder)
+- Cards 4 colunas: 18–24 / 25–35 / 36–45 / 46+.
+- 2 `Textarea`: "maiores dores" e "o que sonha em alcançar".
 
-Sem mudanças de banco — usa `clients` e `client_briefings` existentes. O formulário de edição de contato anterior é removido (movido conceitualmente para Briefing/Configurações no futuro).
+## Etapa 4 — Objetivos
+
+- Cards 2×2: Gerar agendamentos / Crescer o perfil / Construir autoridade / Vender produto. Cada um traz uma instrução de CTA associada (usada no contexto da IA).
+- 3 `Input` para `@perfil` de concorrentes.
+- Cards 4 colunas de frequência: 1–2x / 3–4x / 5–6x / 7x+ por semana.
+
+## Etapa 5 — Revisão
+
+- **Bloco destacado** com `border-2 border-blue-200 bg-blue-50/60`, ícone Sparkles, título "Contexto gerado para a IA", texto **em itálico** com o prompt montado.
+- Grid 2×2 de resumo: Segmento / Público (faixa etária) / Tom de voz (persona) / Objetivo.
+
+### Geração do contexto
+
+`useMemo` recalcula o prompt a cada mudança:
+
+```
+Você está criando conteúdo para {nome}, {segmento} voltado a pessoas de {faixa}.
+A marca tem personalidade {personality}.
+Tom de voz: {persona} ({formalidade}).
+Use sempre: {dos}.
+Nunca use: {donts}.
+Dores do público: {pains}
+Sonhos do público: {dreams}
+O objetivo de cada conteúdo é {goal}. {cta_instrucao_baseada_no_objetivo}
+```
+
+CTA por objetivo:
+- Agendamentos → "Inclua sempre uma chamada para agendamento (link na bio, WhatsApp ou DM)."
+- Crescer perfil → "Termine os conteúdos com um gancho que estimule salvar, compartilhar ou comentar."
+- Autoridade → "Sempre que possível, traga dados, fontes ou exemplos práticos."
+- Vender → "Conduza o leitor para a oferta com prova social e CTA claro de compra."
+
+## Salvar
+
+Ao clicar **Salvar briefing**:
+1. `UPDATE clients SET name` se o nome mudou.
+2. `UPSERT client_briefings` mapeando o wizard nas colunas existentes:
+   - `tone_of_voice` ← `"{persona} · {formalidade}"`
+   - `target_audience` ← `"{faixa} anos. Dores: {pains}. Sonhos: {dreams}"`
+   - `content_pillars` ← `personality[]`
+   - `goals` ← `[goalLabel]`
+   - `dos`, `donts` ← arrays diretos
+   - `extra` ← objeto `Form` completo (para reidratação fiel)
+3. `toast.success` + `navigate({ to: "/dashboard/clientes/$id", params: { id } })`.
+
+A aba "Visão geral" já lê desses campos, então o contexto da IA aparece lá imediatamente após salvar.
+
+## Sem mudanças de banco
+
+Todas as colunas necessárias (`tone_of_voice`, `target_audience`, `content_pillars`, `goals`, `dos`, `donts`, `extra` jsonb) já existem em `client_briefings`.
+
+## Arquivo afetado
+
+- `src/routes/dashboard.clientes.$id.briefing.tsx` — reescrito por completo.
