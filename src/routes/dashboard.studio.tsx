@@ -17,7 +17,7 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/dashboard/studio")({
-  head: () => ({ meta: [{ title: "Criar conteúdo — Postly" }] }),
+  head: () => ({ meta: [{ title: "Studio de conteúdo — Postly" }] }),
   validateSearch: zodValidator(searchSchema),
   component: AgentesPage,
 });

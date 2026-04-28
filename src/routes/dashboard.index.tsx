@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { PageContainer, PageHeader } from "@/components/dashboard/PageContainer";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, LayoutGrid, Bot, Settings, ArrowRight } from "lucide-react";
+import { ClipboardList, LayoutGrid, Sparkles, Users, Calculator, ArrowRight } from "lucide-react";
 
 export const Route = createFileRoute("/dashboard/")({
   head: () => ({
@@ -56,10 +56,11 @@ function DashboardHome() {
   }, []);
 
   const shortcuts = [
-    { to: "/dashboard/agentes", icon: Bot, title: "Criar conteúdo", desc: "Em breve: IA gerando seus posts." },
+    { to: "/dashboard/studio", icon: Sparkles, title: "Studio de conteúdo", desc: "Crie posts com a ajuda dos agentes IA." },
     { to: "/dashboard/plano", icon: ClipboardList, title: "Planner de conteúdo", desc: "Organize seus posts por semana." },
+    { to: "/dashboard/clientes", icon: Users, title: "Hub de clientes", desc: "Gerencie clientes e briefings." },
     { to: "/dashboard/carrosseis", icon: LayoutGrid, title: "Gerar carrosséis", desc: "Em breve: gerador automático." },
-    { to: "/dashboard/configuracoes", icon: Settings, title: "Configurações", desc: "Perfil e preferências." },
+    { to: "/dashboard/precificacao", icon: Calculator, title: "Precificação", desc: "Calcule o valor dos seus pacotes." },
   ] as const;
 
   return (

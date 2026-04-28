@@ -1,21 +1,62 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Home, ClipboardList, LayoutGrid, Bot, Settings, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Home,
+  ClipboardList,
+  LayoutGrid,
+  Sparkles,
+  Settings,
+  Users,
+  Calculator,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
 type SidebarItem = {
-  to: "/dashboard" | "/dashboard/plano" | "/dashboard/carrosseis" | "/dashboard/agentes" | "/dashboard/configuracoes";
+  to:
+    | "/dashboard"
+    | "/dashboard/studio"
+    | "/dashboard/plano"
+    | "/dashboard/carrosseis"
+    | "/dashboard/clientes"
+    | "/dashboard/precificacao"
+    | "/dashboard/configuracoes";
   label: string;
   icon: typeof Home;
   exact?: boolean;
 };
 
-const items: SidebarItem[] = [
-  { to: "/dashboard", label: "Início", icon: Home, exact: true },
-  { to: "/dashboard/agentes", label: "Criar conteúdo", icon: Bot },
-  { to: "/dashboard/plano", label: "Planner de conteúdo", icon: ClipboardList },
-  { to: "/dashboard/carrosseis", label: "Gerar carrosséis", icon: LayoutGrid },
-  { to: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
+type SidebarSection = {
+  label: string;
+  items: SidebarItem[];
+};
+
+const sections: SidebarSection[] = [
+  {
+    label: "Início",
+    items: [{ to: "/dashboard", label: "Dashboard", icon: Home, exact: true }],
+  },
+  {
+    label: "Criar",
+    items: [
+      { to: "/dashboard/studio", label: "Studio de conteúdo", icon: Sparkles },
+      { to: "/dashboard/plano", label: "Planner de conteúdo", icon: ClipboardList },
+      { to: "/dashboard/carrosseis", label: "Gerar carrosséis", icon: LayoutGrid },
+    ],
+  },
+  {
+    label: "Clientes",
+    items: [{ to: "/dashboard/clientes", label: "Hub de clientes", icon: Users }],
+  },
+  {
+    label: "Negócio",
+    items: [{ to: "/dashboard/precificacao", label: "Precificação", icon: Calculator }],
+  },
+  {
+    label: "Conta",
+    items: [{ to: "/dashboard/configuracoes", label: "Configurações", icon: Settings }],
+  },
 ];
 
 export function AppSidebar() {
@@ -45,36 +86,45 @@ export function AppSidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto p-2">
-        <ul className="flex flex-col gap-0.5">
-          {items.map((item) => {
-            const active = item.exact
-              ? pathname === item.to
-              : pathname === item.to || pathname.startsWith(item.to + "/");
-            const Icon = item.icon;
-            return (
-              <li key={item.to}>
-                <Link
-                  to={item.to}
-                  className={cn(
-                    "group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-                    active && "bg-accent text-foreground",
-                    collapsed && "justify-center px-0",
-                  )}
-                  title={collapsed ? item.label : undefined}
-                >
-                  <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
-                </Link>
-              </li>
-            );
-          })}
+        <ul className="flex flex-col gap-3">
+          {sections.map((section) => (
+            <li key={section.label}>
+              {!collapsed && (
+                <div className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  {section.label}
+                </div>
+              )}
+              <ul className="flex flex-col gap-0.5">
+                {section.items.map((item) => {
+                  const active = item.exact
+                    ? pathname === item.to
+                    : pathname === item.to || pathname.startsWith(item.to + "/");
+                  const Icon = item.icon;
+                  return (
+                    <li key={item.to}>
+                      <Link
+                        to={item.to}
+                        className={cn(
+                          "group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                          active && "bg-accent text-foreground",
+                          collapsed && "justify-center px-0",
+                        )}
+                        title={collapsed ? item.label : undefined}
+                      >
+                        <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
+                        {!collapsed && <span className="truncate">{item.label}</span>}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </li>
+          ))}
         </ul>
       </nav>
 
       {!collapsed && (
-        <div className="border-t p-3 text-[11px] text-muted-foreground/70">
-          Postly · v1
-        </div>
+        <div className="border-t p-3 text-[11px] text-muted-foreground/70">Postly · v1</div>
       )}
     </aside>
   );
