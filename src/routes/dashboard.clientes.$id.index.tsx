@@ -148,7 +148,7 @@ function VisaoGeralCliente() {
               </div>
               <div className={cn("mt-1.5 text-2xl font-bold tabular-nums", m.tone)}>
                 {m.value}
-                {"suffix" in m && typeof m.value === "number" ? m.suffix : ""}
+                {"suffix" in m && typeof m.value === "number" ? (m as { suffix: string }).suffix : ""}
               </div>
             </div>
           );
