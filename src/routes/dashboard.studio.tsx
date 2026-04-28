@@ -48,7 +48,7 @@ function AgentesPage() {
       window.localStorage.setItem(STORAGE_KEY, agent.id);
     }
     navigate({
-      to: "/dashboard/agentes",
+      to: "/dashboard/studio",
       search: {},
       replace: true,
     });
