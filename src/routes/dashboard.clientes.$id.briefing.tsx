@@ -177,7 +177,7 @@ function BriefingPage() {
           goals: goalLabel ? [goalLabel] : [],
           dos: form.dos,
           donts: form.donts,
-          extra: form as unknown as Record<string, unknown>,
+          extra: form as unknown as never,
         },
       ],
       { onConflict: "client_id" },
