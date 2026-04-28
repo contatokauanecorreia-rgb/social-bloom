@@ -10,6 +10,20 @@ import { PageContainer, PageHeader } from "@/components/dashboard/PageContainer"
 import { WeekColumn } from "@/components/plano/WeekColumn";
 import { TagChip } from "@/components/plano/TagChip";
 import { PostDialog, type PostDialogValue } from "@/components/plano/PostDialog";
+import { PostCard } from "@/components/plano/PostCard";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCorners,
+  type DragStartEvent,
+  type DragOverEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import type { ContentPost, ContentWeek } from "@/lib/content-types";
 
 export const Route = createFileRoute("/dashboard/plano")({
