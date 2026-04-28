@@ -241,6 +241,12 @@ export function PostDialog({
             className="resize-none border-0 px-0 text-2xl font-bold tracking-tight shadow-none focus-visible:ring-0 md:text-3xl"
           />
 
+          {draftRestored && (
+            <div className="-mt-2 flex items-center gap-2 rounded-md border border-dashed bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              <Check className="h-3.5 w-3.5 text-primary" />
+              <span>Rascunho restaurado de onde você parou.</span>
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">
