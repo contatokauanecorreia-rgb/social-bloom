@@ -1,116 +1,76 @@
-## Plano — Reescrita de `/dashboard/precificacao` (Calculadora interativa)
+## Plano — Seletor "Para qual cliente?" + Contexto ativo
 
-A página atual é um montador de "pacote por entregáveis" (presets Starter/Pro/Premium, custos fixos, margem). Vou substituí-la pela calculadora descrita na especificação: inputs por slider/checkbox à esquerda, resultado em destaque à direita, e tabela comparativa por cliente abaixo. A rota interna por cliente (`/clientes/:id/precificacao`) permanece como está (placeholder).
+Adicionar o seletor de cliente nas duas superfícies de criação que existem hoje (Studio de agentes e Gerar carrosséis), reusando um componente único. Sem backend, dados mock compartilhados, design system existente.
 
-### Arquivo afetado
-- `src/routes/dashboard.precificacao.tsx` — reescrito por completo. Sem mudanças de banco, sem novas dependências (usa `Slider`, `Input`, `Checkbox`, `Card`, `Badge`, `Button`, `Table` já existentes).
+### Arquivos novos
 
-### Layout
-
-```text
-┌──────────────────────────────────────────────────────────────────┐
-│  Badge "Negócio"                                                 │
-│  H1: Calculadora de precificação                                 │
-│  Sub: Simule seu valor ideal por cliente em segundos.            │
-├──────────────────────────────┬───────────────────────────────────┤
-│ ESQUERDA  (inputs)           │ DIREITA  (resultado, sticky)      │
-│                              │                                   │
-│ • Clientes ativos    [1–20]  │  R$ 1.870 / cliente · mês         │
-│ • Posts por cliente  [4–30]  │  ─────────────────────────        │
-│ • Horas por post     [.5–3]  │  Total mensal   R$ 9.350          │
-│ • Valor hora (R$)    input   │  Total anual    R$ 112.200        │
-│ • Extras (4 checkboxes)      │  48 horas/mês de trabalho         │
-│                              │  Custo/hora implícito: R$ 38,96   │
-└──────────────────────────────┴───────────────────────────────────┘
-┌──────────────────────────────────────────────────────────────────┐
-│ Tabela comparativa (5 clientes mock)                             │
-│ Cliente | Posts/mês | Cobrado hoje (edit) | Sugerido | Δ         │
-└──────────────────────────────────────────────────────────────────┘
-```
-
-Grid: `lg:grid-cols-[1fr_380px]`. O painel de resultado usa `lg:sticky lg:top-6`.
-
-### Estado e fórmulas
-
-Estado único em `useState`:
+**1. `src/lib/client-context.ts`** — fonte única dos briefings mock.
 ```ts
-{
-  clients: 5,            // slider 1–20
-  postsPerClient: 12,    // slider 4–30
-  hoursPerPost: 1.5,     // slider 0.5–3, step 0.5
-  hourlyRate: 80,        // input numérico (R$)
-  extras: { stories: true, reels: true, report: false, meeting: false },
-  overrides: Record<clientId, number | null>,  // valor cobrado hoje editável
-}
+export type ClientBriefing = {
+  id: string; name: string; segment: string;
+  toneOfVoice: string; objective: string;
+  keywords: string[]; alwaysUse: string[]; neverUse: string[];
+};
+export const CLIENT_BRIEFINGS: ClientBriefing[] = [
+  { id: "studio-bela-forma", name: "Studio Bela Forma", segment: "Saúde e beleza",
+    toneOfVoice: "Acolhedor e especialista", objective: "Atrair agendamentos de avaliação",
+    keywords: ["autoestima","rotina","resultado real"],
+    alwaysUse: ["você","cuidado","transformação"],
+    neverUse: ["milagre","barato","promoção relâmpago"] },
+  { id: "restaurante-folha-verde", name: "Restaurante Folha Verde", segment: "Alimentação",
+    toneOfVoice: "Casual e afetivo", objective: "Aumentar reservas no fim de semana",
+    keywords: ["fresco","do dia","feito à mão"],
+    alwaysUse: ["nosso","casa","sabor"],
+    neverUse: ["industrial","fast food","congelado"] },
+  { id: "academia-forcaviva", name: "Academia ForçaViva", segment: "Fitness",
+    toneOfVoice: "Energético e direto", objective: "Captar matrículas para a próxima turma",
+    keywords: ["evolução","constância","comunidade"],
+    alwaysUse: ["bora","treino","meta"],
+    neverUse: ["preguiça","desistir","impossível"] },
+];
+export function getClientBriefing(id: string | null | undefined) { /* find by id */ }
 ```
+Os IDs batem com os mocks já usados em `dashboard.clientes.index.tsx`.
 
-Cálculo por cliente (memoizado):
-```ts
-const baseHours = postsPerClient * hoursPerPost;        // horas/mês por cliente
-const baseValue = baseHours * hourlyRate;               // R$ base
-let multiplier = 1;
-if (extras.stories) multiplier += 0.20;
-if (extras.reels)   multiplier += 0.30;
-let perClient = baseValue * multiplier;
-if (extras.report)  perClient += 150;
-if (extras.meeting) perClient += 200;
+**2. `src/components/clientes/ClientContextBar.tsx`** — componente reutilizável.
+- Topo: label "Para qual cliente?" + `<Select>` (shadcn) com opção "Sem cliente (genérico)" + 3 clientes do mock.
+- Quando há cliente selecionado, renderiza um card destacado:
+  - Borda `border-primary/30`, fundo `bg-gradient-primary-soft`.
+  - Header com ícone `Sparkles` + texto "Contexto ativo · a IA vai usar este briefing".
+  - Nome do cliente + `Badge` do segmento.
+  - Grid responsivo (`sm:grid-cols-3`) com **Tom de voz**, **Objetivo**, **Palavras-chave** (chips).
+  - Linha extra (sm:grid-cols-2): **Sempre usar** (chips emerald) e **Nunca usar** (chips rose).
+- Prop `variant="compact"` reduz padding e omite o bloco "sempre/nunca usar" — usado no header do Studio onde o espaço é menor.
+- Props: `value: string | null`, `onChange: (id: string | null) => void`, `variant?`.
 
-const monthlyTotal  = perClient * clients;
-const yearlyTotal   = monthlyTotal * 12;
-const hoursMonthAll = baseHours * clients;
-const implicitRate  = perClient / baseHours;            // R$/h efetivo
+### Arquivos editados
+
+**3. `src/routes/dashboard.studio.tsx`** — adicionar barra de contexto entre o header e o `AgentChatPanel` no layout desktop (e acima do select de agente no mobile).
+- Estado local `const [clientId, setClientId] = useState<string | null>(null)`.
+- Persistir em localStorage com chave `postly:active-client` (mesmo padrão do `STORAGE_KEY` do agente).
+- Inserir `<ClientContextBar value={clientId} onChange={setClientId} variant="compact" className="border-b bg-card/40 px-5 py-3" />` no topo da `<main>`, antes do `AgentChatPanel`.
+- O `AgentChatPanel` continua intacto (sem mudança de assinatura). O contexto é apenas visual nesta etapa — a integração real com a edge function fica para depois (registrado como TODO em comentário).
+
+**4. `src/routes/dashboard.carrosseis.tsx`** — substituir o conteúdo placeholder mantendo `PageHeader` e mensagem "em construção", com a barra de contexto acima:
+```tsx
+<PageContainer>
+  <Badge variant="soft" className="mb-3 w-fit">Em breve</Badge>
+  <PageHeader title="Gerar carrosséis" description="Geração automática de carrosséis com IA." />
+  <ClientContextBar value={clientId} onChange={setClientId} className="mb-6" />
+  <div className="rounded-xl border border-dashed ..."> ...placeholder existente... </div>
+</PageContainer>
 ```
+Mesmo padrão de localStorage (`postly:active-client`) para que a escolha sincronize entre Studio e Carrosseis.
 
-Formatação BR via `Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })`.
+### O que NÃO muda
+- `AgentChatPanel`, `AgentList`, `AgentAvatar`, edge function `agent-chat`, schema do banco — nenhum toque.
+- Sidebar, rotas existentes, cards de cliente do hub.
+- Nenhuma migração nem nova dependência (usa `@/components/ui/select` já presente).
 
-### Inputs (coluna esquerda)
+### Responsividade
+- Seletor e card empilham em mobile (`flex-col` → `sm:flex-row`).
+- Grid interno do briefing colapsa para 1 coluna no mobile.
 
-Cada bloco em um `Card` com `CardHeader` (label + valor atual à direita) + `CardContent` com o controle.
-
-1. **Clientes ativos** — `Slider` `min=1 max=20 step=1`. Header mostra `5 clientes`.
-2. **Posts por cliente / mês** — `Slider` `min=4 max=30 step=1`. Header `12 posts`.
-3. **Horas por post** — `Slider` `min=0.5 max=3 step=0.5`. Header `1.5h`.
-4. **Valor hora desejado** — `Input type="number" min=0`, prefixo `R$` via wrapper.
-5. **Extras incluídos** — 4 `Checkbox` com label e o impacto à direita (`+20%`, `+30%`, `+R$ 150/cliente`, `+R$ 200/cliente`). Layout 2 colunas em `sm:`.
-
-### Resultado (coluna direita)
-
-Card `border-primary/30 bg-gradient-primary-soft`:
-- Linha pequena uppercase: `Valor sugerido por cliente / mês`
-- Número grande: `text-5xl font-bold text-gradient-primary tabular-nums` (ex.: `R$ 1.870`)
-- Separador
-- Duas linhas em grid 2 colunas: `Total mensal` e `Total anual` (valores grandes mas menores que o principal)
-- Bloco de breakdown muted:
-  - `48h/mês de trabalho total` (`hoursMonthAll`)
-  - `Custo por hora implícito: R$ 38,96`
-
-Botão secundário no rodapé: `Copiar resumo` (copia texto formatado para clipboard, com toast). Sem export PDF para manter escopo.
-
-### Tabela comparativa
-
-`Card` separado abaixo do grid principal.
-- 5 clientes mock fixos (nome + posts/mês iniciais), independentes dos sliders globais para servirem de base de comparação:
-  ```ts
-  const MOCK_CLIENTS = [
-    { id: "c1", name: "Bela Forma Estética", posts: 16, currentCharged: 1200 },
-    { id: "c2", name: "Padaria Trigo de Ouro", posts: 8, currentCharged: 600 },
-    { id: "c3", name: "Studio Pilates Vita", posts: 12, currentCharged: 900 },
-    { id: "c4", name: "Dr. Lucas Odonto", posts: 10, currentCharged: 1500 },
-    { id: "c5", name: "Brechó Manu", posts: 6, currentCharged: 400 },
-  ];
-  ```
-- Colunas: **Cliente** · **Posts/mês** · **Cobrado hoje** (input numérico editável, override em estado) · **Sugerido** · **Δ** (badge verde se positivo, vermelho se negativo, formatado com sinal).
-- "Sugerido" por linha usa as mesmas fórmulas de extras/hourlyRate, mas com `posts` da própria linha (ignorando `postsPerClient` global) → mostra como o pricing atual da calculadora se aplicaria àquele cliente real.
-- Linha de rodapé com totais (somatório de cobrado hoje vs somatório sugerido + delta total).
-
-### Detalhes visuais
-
-- `PageContainer wide`, mesmo padrão das outras páginas do dashboard.
-- `Badge variant="soft"` "Negócio" + `PageHeader` (sem actions, ou só `Calculator` icon decorativo no título).
-- Sem persistência em localStorage (calculadora é exploratória); mantenho assim para evitar conflito com a chave `postly:pricing-state` antiga.
-- Sem chamadas de rede, sem tabelas novas no banco.
-
-### Fora do escopo
-- Salvar simulações por usuário (não pedido).
-- Export PDF (não pedido).
-- Integração com tabela `clients` real — usamos mock conforme padrão das outras páginas internas ainda em mock.
+### Acessibilidade / i18n
+- Todos os textos em pt-BR.
+- Label associado ao select; placeholder e itens em pt-BR; opção "Sem cliente (genérico)".
