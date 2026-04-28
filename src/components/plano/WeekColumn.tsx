@@ -1,5 +1,8 @@
 import { useState, type KeyboardEvent } from "react";
 import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -28,6 +31,7 @@ export function WeekColumn({
   onDelete,
   onAddPost,
   onOpenPost,
+  dndDisabled = false,
 }: {
   week: ContentWeek;
   posts: ContentPost[];
@@ -35,7 +39,13 @@ export function WeekColumn({
   onDelete: (id: string) => Promise<void>;
   onAddPost: (weekId: string) => void;
   onOpenPost: (post: ContentPost) => void;
+  dndDisabled?: boolean;
 }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `week-${week.id}`,
+    data: { type: "week", weekId: week.id },
+    disabled: dndDisabled,
+  });
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState(week.name);
   const [confirmDelete, setConfirmDelete] = useState(false);
