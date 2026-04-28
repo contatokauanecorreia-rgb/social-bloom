@@ -348,7 +348,12 @@ export function PostDialog({
                 </Button>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3">
+              {savedAt && (
+                <span className="hidden text-xs text-muted-foreground sm:inline">
+                  Rascunho salvo automaticamente
+                </span>
+              )}
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
                 Cancelar
               </Button>
