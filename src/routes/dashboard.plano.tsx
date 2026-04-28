@@ -474,6 +474,8 @@ function PlanoPage() {
                   onDelete={handleDeleteWeek}
                   onAddPost={openNewPost}
                   onOpenPost={openEditPost}
+                  onDuplicatePost={handleDuplicatePost}
+                  onDeletePost={(p) => handleDeletePost(p.id)}
                   dndDisabled={hasFilters}
                 />
               ))}
