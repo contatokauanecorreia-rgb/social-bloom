@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2, Loader2, Plus, X } from "lucide-react";
 import { TagInput } from "./TagInput";
 import type { ContentPost, ContentWeek, PostStatus } from "@/lib/content-types";
 
@@ -59,30 +59,59 @@ export function PostDialog({
   const [title, setTitle] = useState("");
   const [weekId, setWeekId] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [notes, setNotes] = useState("");
+  const [noteBlocks, setNoteBlocks] = useState<string[]>([""]);
   const [status, setStatus] = useState<PostStatus>("planned");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const noteRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
+  const focusLastRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
     setTitle(post?.title ?? "");
     setWeekId(post?.week_id ?? defaultWeekId ?? weeks[0]?.id ?? "");
     setTags(post?.tags ?? []);
-    setNotes(post?.notes ?? "");
+    const raw = post?.notes ?? "";
+    const blocks = raw ? raw.split(/\n\n---\n\n/) : [""];
+    setNoteBlocks(blocks.length ? blocks : [""]);
     setStatus(post?.status ?? "planned");
   }, [open, post, defaultWeekId, weeks]);
+
+  useEffect(() => {
+    if (focusLastRef.current) {
+      const last = noteRefs.current[noteBlocks.length - 1];
+      last?.focus();
+      focusLastRef.current = false;
+    }
+  }, [noteBlocks.length]);
+
+  const updateBlock = (index: number, value: string) => {
+    setNoteBlocks((prev) => prev.map((b, i) => (i === index ? value : b)));
+  };
+
+  const addBlock = () => {
+    focusLastRef.current = true;
+    setNoteBlocks((prev) => [...prev, ""]);
+  };
+
+  const removeBlock = (index: number) => {
+    setNoteBlocks((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
+  };
 
   const handleSave = async () => {
     if (!title.trim() || !weekId) return;
     setSaving(true);
     try {
+      const serializedNotes = noteBlocks
+        .map((b) => b.trim())
+        .filter(Boolean)
+        .join("\n\n---\n\n");
       await onSave({
         id: post?.id,
         title: title.trim(),
         week_id: weekId,
         tags,
-        notes: notes.trim(),
+        notes: serializedNotes,
         status,
       });
       onOpenChange(false);
