@@ -192,17 +192,50 @@ export function PostDialog({
             <TagInput value={tags} onChange={setTags} />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
               Notas
             </Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Roteiro, ideias, hooks..."
-              rows={5}
-            />
+            <div className="space-y-2">
+              {noteBlocks.map((block, index) => (
+                <div key={index} className="group relative">
+                  <Textarea
+                    ref={(el) => {
+                      noteRefs.current[index] = el;
+                    }}
+                    value={block}
+                    onChange={(e) => updateBlock(index, e.target.value)}
+                    placeholder={index === 0 ? "Roteiro, ideias, hooks..." : "Mais notas..."}
+                    rows={4}
+                    className={noteBlocks.length > 1 ? "pr-10" : undefined}
+                  />
+                  {noteBlocks.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeBlock(index)}
+                      className="absolute right-2 top-2 h-7 w-7 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+                      aria-label="Remover bloco"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={addBlock}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Plus className="h-4 w-4" />
+              Adicionar bloco
+            </Button>
           </div>
+
 
           <DialogFooter className="!justify-between">
             <div>
