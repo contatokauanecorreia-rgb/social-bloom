@@ -202,6 +202,8 @@ export function PostDialog({
         notes: serializedNotes,
         status,
       });
+      clearDraft(post?.id);
+      setDraftRestored(false);
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -213,6 +215,7 @@ export function PostDialog({
     setSaving(true);
     try {
       await onDelete(post.id);
+      clearDraft(post.id);
       setConfirmDelete(false);
       onOpenChange(false);
     } finally {
