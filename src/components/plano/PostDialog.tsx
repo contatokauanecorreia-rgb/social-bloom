@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Loader2, Plus, X } from "lucide-react";
+import { Trash2, Loader2, Plus, X, Check } from "lucide-react";
 import { TagInput } from "./TagInput";
 import type { ContentPost, ContentWeek, PostStatus } from "@/lib/content-types";
 
@@ -38,6 +38,47 @@ export type PostDialogValue = {
   notes: string;
   status: PostStatus;
 };
+
+type DraftPayload = {
+  title: string;
+  weekId: string;
+  tags: string[];
+  noteBlocks: string[];
+  status: PostStatus;
+  savedAt: number;
+};
+
+const DRAFT_PREFIX = "postly:plano:draft:";
+const draftKey = (postId?: string) => `${DRAFT_PREFIX}${postId ?? "new"}`;
+
+function readDraft(postId?: string): DraftPayload | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(draftKey(postId));
+    if (!raw) return null;
+    return JSON.parse(raw) as DraftPayload;
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(postId: string | undefined, payload: DraftPayload) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(draftKey(postId), JSON.stringify(payload));
+  } catch {
+    // ignore quota errors
+  }
+}
+
+function clearDraft(postId?: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(draftKey(postId));
+  } catch {
+    // ignore
+  }
+}
 
 export function PostDialog({
   open,
@@ -63,19 +104,66 @@ export function PostDialog({
   const [status, setStatus] = useState<PostStatus>("planned");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const noteRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
   const focusLastRef = useRef(false);
+  const hydratedRef = useRef(false);
 
+  // Hidrata estado ao abrir, restaurando rascunho local se existir e for mais novo
   useEffect(() => {
-    if (!open) return;
-    setTitle(post?.title ?? "");
-    setWeekId(post?.week_id ?? defaultWeekId ?? weeks[0]?.id ?? "");
-    setTags(post?.tags ?? []);
+    if (!open) {
+      hydratedRef.current = false;
+      return;
+    }
+    const baseTitle = post?.title ?? "";
+    const baseWeek = post?.week_id ?? defaultWeekId ?? weeks[0]?.id ?? "";
+    const baseTags = post?.tags ?? [];
     const raw = post?.notes ?? "";
-    const blocks = raw ? raw.split(/\n\n---\n\n/) : [""];
-    setNoteBlocks(blocks.length ? blocks : [""]);
-    setStatus(post?.status ?? "planned");
+    const baseBlocks = raw ? raw.split(/\n\n---\n\n/) : [""];
+    const baseStatus: PostStatus = post?.status ?? "planned";
+
+    const draft = readDraft(post?.id);
+    if (draft) {
+      setTitle(draft.title);
+      setWeekId(draft.weekId || baseWeek);
+      setTags(draft.tags);
+      setNoteBlocks(draft.noteBlocks.length ? draft.noteBlocks : [""]);
+      setStatus(draft.status);
+      setDraftRestored(true);
+      setSavedAt(draft.savedAt);
+    } else {
+      setTitle(baseTitle);
+      setWeekId(baseWeek);
+      setTags(baseTags);
+      setNoteBlocks(baseBlocks.length ? baseBlocks : [""]);
+      setStatus(baseStatus);
+      setDraftRestored(false);
+      setSavedAt(null);
+    }
+    // marca como hidratado no próximo tick para não disparar autosave
+    requestAnimationFrame(() => {
+      hydratedRef.current = true;
+    });
   }, [open, post, defaultWeekId, weeks]);
+
+  // Autosave em localStorage com debounce
+  useEffect(() => {
+    if (!open || !hydratedRef.current) return;
+    const handle = window.setTimeout(() => {
+      const payload: DraftPayload = {
+        title,
+        weekId,
+        tags,
+        noteBlocks,
+        status,
+        savedAt: Date.now(),
+      };
+      writeDraft(post?.id, payload);
+      setSavedAt(payload.savedAt);
+    }, 500);
+    return () => window.clearTimeout(handle);
+  }, [open, post?.id, title, weekId, tags, noteBlocks, status]);
 
   useEffect(() => {
     if (focusLastRef.current) {
@@ -114,6 +202,8 @@ export function PostDialog({
         notes: serializedNotes,
         status,
       });
+      clearDraft(post?.id);
+      setDraftRestored(false);
       onOpenChange(false);
     } finally {
       setSaving(false);
@@ -125,6 +215,7 @@ export function PostDialog({
     setSaving(true);
     try {
       await onDelete(post.id);
+      clearDraft(post.id);
       setConfirmDelete(false);
       onOpenChange(false);
     } finally {
@@ -150,6 +241,12 @@ export function PostDialog({
             className="resize-none border-0 px-0 text-2xl font-bold tracking-tight shadow-none focus-visible:ring-0 md:text-3xl"
           />
 
+          {draftRestored && (
+            <div className="-mt-2 flex items-center gap-2 rounded-md border border-dashed bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              <Check className="h-3.5 w-3.5 text-primary" />
+              <span>Rascunho restaurado de onde você parou.</span>
+            </div>
+          )}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -251,7 +348,12 @@ export function PostDialog({
                 </Button>
               )}
             </div>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-3">
+              {savedAt && (
+                <span className="hidden text-xs text-muted-foreground sm:inline">
+                  Rascunho salvo automaticamente
+                </span>
+              )}
               <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>
                 Cancelar
               </Button>
