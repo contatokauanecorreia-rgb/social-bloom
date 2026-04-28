@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Loader2 } from "lucide-react";
+import { Trash2, Loader2, Plus, X } from "lucide-react";
 import { TagInput } from "./TagInput";
 import type { ContentPost, ContentWeek, PostStatus } from "@/lib/content-types";
 
@@ -59,30 +59,59 @@ export function PostDialog({
   const [title, setTitle] = useState("");
   const [weekId, setWeekId] = useState("");
   const [tags, setTags] = useState<string[]>([]);
-  const [notes, setNotes] = useState("");
+  const [noteBlocks, setNoteBlocks] = useState<string[]>([""]);
   const [status, setStatus] = useState<PostStatus>("planned");
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const noteRefs = useRef<Array<HTMLTextAreaElement | null>>([]);
+  const focusLastRef = useRef(false);
 
   useEffect(() => {
     if (!open) return;
     setTitle(post?.title ?? "");
     setWeekId(post?.week_id ?? defaultWeekId ?? weeks[0]?.id ?? "");
     setTags(post?.tags ?? []);
-    setNotes(post?.notes ?? "");
+    const raw = post?.notes ?? "";
+    const blocks = raw ? raw.split(/\n\n---\n\n/) : [""];
+    setNoteBlocks(blocks.length ? blocks : [""]);
     setStatus(post?.status ?? "planned");
   }, [open, post, defaultWeekId, weeks]);
+
+  useEffect(() => {
+    if (focusLastRef.current) {
+      const last = noteRefs.current[noteBlocks.length - 1];
+      last?.focus();
+      focusLastRef.current = false;
+    }
+  }, [noteBlocks.length]);
+
+  const updateBlock = (index: number, value: string) => {
+    setNoteBlocks((prev) => prev.map((b, i) => (i === index ? value : b)));
+  };
+
+  const addBlock = () => {
+    focusLastRef.current = true;
+    setNoteBlocks((prev) => [...prev, ""]);
+  };
+
+  const removeBlock = (index: number) => {
+    setNoteBlocks((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== index)));
+  };
 
   const handleSave = async () => {
     if (!title.trim() || !weekId) return;
     setSaving(true);
     try {
+      const serializedNotes = noteBlocks
+        .map((b) => b.trim())
+        .filter(Boolean)
+        .join("\n\n---\n\n");
       await onSave({
         id: post?.id,
         title: title.trim(),
         week_id: weekId,
         tags,
-        notes: notes.trim(),
+        notes: serializedNotes,
         status,
       });
       onOpenChange(false);
@@ -163,17 +192,50 @@ export function PostDialog({
             <TagInput value={tags} onChange={setTags} />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label className="text-xs uppercase tracking-wider text-muted-foreground">
               Notas
             </Label>
-            <Textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Roteiro, ideias, hooks..."
-              rows={5}
-            />
+            <div className="space-y-2">
+              {noteBlocks.map((block, index) => (
+                <div key={index} className="group relative">
+                  <Textarea
+                    ref={(el) => {
+                      noteRefs.current[index] = el;
+                    }}
+                    value={block}
+                    onChange={(e) => updateBlock(index, e.target.value)}
+                    placeholder={index === 0 ? "Roteiro, ideias, hooks..." : "Mais notas..."}
+                    rows={4}
+                    className={noteBlocks.length > 1 ? "pr-10" : undefined}
+                  />
+                  {noteBlocks.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => removeBlock(index)}
+                      className="absolute right-2 top-2 h-7 w-7 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100 focus-visible:opacity-100"
+                      aria-label="Remover bloco"
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={addBlock}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <Plus className="h-4 w-4" />
+              Adicionar bloco
+            </Button>
           </div>
+
 
           <DialogFooter className="!justify-between">
             <div>

@@ -1,71 +1,55 @@
 ## Objetivo
 
-Permitir arrastar os cards de post entre as colunas (semanas) do Planner de conteúdo, com reordenação dentro da mesma semana — comportamento estilo Notion/Trello, com persistência no banco.
+No diálogo de edição de post (Plano de Conteúdo), substituir o campo único de **Notas** por uma lista de **blocos de notas** que o usuário pode adicionar/remover livremente, com um botão **"+ Adicionar bloco"** abaixo da lista — semelhante a blocos de texto do Notion.
 
-## Biblioteca
+## Como vai funcionar
 
-Adicionar **`@dnd-kit/core`**, **`@dnd-kit/sortable`** e **`@dnd-kit/utilities`** (padrão moderno, acessível, suporta teclado e toque, funciona bem com shadcn). Não há lib de DnD instalada hoje.
+- Cada bloco é um `Textarea` independente, empilhado verticalmente.
+- Acima/à direita de cada bloco aparece um botão discreto de remover (ícone de lixeira ou "X") — só aparece no hover, para não poluir.
+- Abaixo do último bloco, um botão **"+ Adicionar bloco de notas"** (variant `ghost`, com ícone `Plus`) cria um novo bloco vazio e foca nele.
+- Sempre há pelo menos 1 bloco visível (mesmo vazio). Não é possível remover o último bloco — apenas limpar o conteúdo.
+- Blocos vazios são descartados ao salvar.
 
-## Mudanças
+## Persistência (sem migração de banco)
 
-### 1. `src/components/plano/PostCard.tsx`
-- Tornar o card "sortable": usar `useSortable({ id: post.id })`.
-- Aplicar `transform`, `transition`, `setNodeRef` e listeners de arraste no botão.
-- Estado visual durante o drag: opacidade reduzida + leve elevação (sombra/anel).
-- Manter o `onClick` para abrir o `PostDialog` (clique simples continua editando; o DnD usa um `activationConstraint` de distância de 6px para não conflitar).
+A coluna `notes` no banco continua sendo `text`. Os blocos são serializados/deserializados usando um separador estável:
 
-### 2. `src/components/plano/WeekColumn.tsx`
-- Envolver a lista de posts em `<SortableContext items={postIds} strategy={verticalListSortingStrategy}>`.
-- Tornar a coluna inteira um "droppable" (via `useDroppable` no container da lista) para permitir soltar em colunas vazias.
-- Destaque visual quando um card está sobre a coluna (ex.: borda primária + fundo levemente tingido).
+- **Separador:** `\n\n---\n\n` (linha em branco + `---` + linha em branco — formato Markdown padrão de divisor, fácil de visualizar até em export futuro).
+- **Salvar:** `blocks.map(b => b.trim()).filter(Boolean).join("\n\n---\n\n")` → string ou `null` se vazio.
+- **Carregar:** `(post.notes ?? "").split(/\n\n---\n\n/)` → array; se vazio, inicia com `[""]`.
+- Posts antigos com uma única nota continuam funcionando: viram um único bloco.
 
-### 3. `src/routes/dashboard.plano.tsx`
-- Envolver o board em `<DndContext>` com:
-  - sensores: Pointer (distância 6px) + Keyboard.
-  - `collisionDetection: closestCorners`.
-  - `onDragStart` → guarda o `activeId` para mostrar `DragOverlay` com o card "fantasma".
-  - `onDragOver` → se o item entrou em outra coluna, faz update otimista do `week_id` localmente para o card seguir o cursor entre colunas.
-  - `onDragEnd` → calcula a ordem final, atualiza `position` de todos os afetados e persiste.
-- `DragOverlay` renderiza uma cópia do `PostCard` levemente rotacionada/elevada enquanto arrasta.
+Sem mudança no schema, sem migração, totalmente retrocompatível.
 
-### 4. Persistência (Supabase)
-- Após `onDragEnd`, recomputar `position` (0..n) de todos os posts da(s) coluna(s) afetada(s).
-- Atualizar em paralelo via `Promise.all` de `supabase.from("content_posts").update({ week_id, position }).eq("id", ...)` para cada item alterado (apenas os que mudaram de posição ou semana).
-- Em caso de erro: reverter o estado local para o snapshot anterior e mostrar `toast.error`.
-- Update **otimista**: a UI atualiza instantaneamente; o banco sincroniza em background.
+## Arquivos alterados
 
-### 5. Compatibilidade com filtros
-- DnD fica desabilitado quando há filtro de busca/tag ativo (`hasFilters === true`) — reordenar com lista filtrada gera ambiguidade de `position`. Mostrar tooltip discreto: "Limpe os filtros para reordenar".
+### `src/components/plano/PostDialog.tsx`
+- Trocar `const [notes, setNotes] = useState("")` por `const [noteBlocks, setNoteBlocks] = useState<string[]>([""])`.
+- No `useEffect` de inicialização: parsear `post?.notes` com o split acima (ou `[""]` se vazio/null).
+- Adicionar handlers: `addBlock()`, `removeBlock(index)`, `updateBlock(index, value)`.
+- No `handleSave`: serializar com `.filter(Boolean).join(...)` e enviar como `notes` no payload (mantém o tipo `string` em `PostDialogValue` — nenhuma mudança em quem consome).
+- JSX: substituir o `<Textarea>` único por um `map` sobre `noteBlocks`, cada um com:
+  - Um `Textarea` (`rows={4}`).
+  - Um botão de remover no canto superior direito (visível em `hover` no container, ou sempre se houver mais de 1 bloco), desabilitado quando `noteBlocks.length === 1`.
+- Abaixo da lista, botão `<Button variant="ghost" size="sm" onClick={addBlock}><Plus /> Adicionar bloco</Button>`.
+- O Label "NOTAS" continua aparecendo uma vez no topo da seção.
 
-## Detalhes técnicos
+### Nada mais muda
+- `src/routes/dashboard.plano.tsx`: nenhuma alteração — continua recebendo/enviando `notes: string` para o Supabase.
+- `src/lib/content-types.ts`: `notes: string | null` permanece.
+- Filtro de busca (`p.notes ?? ""` em `dashboard.plano.tsx:105`) continua funcionando — busca no texto inteiro, incluindo separadores.
 
-```tsx
-// dashboard.plano.tsx (esqueleto)
-<DndContext
-  sensors={useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor)
-  )}
-  collisionDetection={closestCorners}
-  onDragStart={handleDragStart}
-  onDragOver={handleDragOver}
-  onDragEnd={handleDragEnd}
->
-  {weeks.map(w => <WeekColumn ... />)}
-  <DragOverlay>{activePost && <PostCard post={activePost} onClick={() => {}} />}</DragOverlay>
-</DndContext>
-```
+## Detalhes de UX
 
-```tsx
-// onDragEnd — calcula nova posição e persiste só o que mudou
-const moved = posts.filter(p => snapshot.find(s => s.id === p.id && (s.position !== p.position || s.week_id !== p.week_id)));
-await Promise.all(moved.map(p =>
-  supabase.from("content_posts").update({ week_id: p.week_id, position: p.position }).eq("id", p.id)
-));
-```
+- Espaçamento entre blocos: `space-y-2`.
+- Botão de remover: `variant="ghost"`, `size="icon"`, `className="h-7 w-7 text-muted-foreground hover:text-destructive"`, posicionado com `absolute top-2 right-2` em um container `relative` (ou inline acima do textarea — defino na implementação para ficar limpo).
+- Ao adicionar um bloco, focar automaticamente o novo `Textarea` (via `ref` no último item).
+- Placeholder do primeiro bloco: `"Roteiro, ideias, hooks..."`. Dos blocos seguintes: `"Mais notas..."`.
 
 ## Fora do escopo
-- Arrastar **colunas (semanas)** para reordenar — fica para um próximo passo se quiser.
-- Multi-seleção de cards.
+
+- Reordenar blocos por drag-and-drop (pode vir depois se quiser estilo Notion completo).
+- Tipos diferentes de bloco (checklist, citação, etc.) — só texto por enquanto.
+- Migração para uma tabela `post_note_blocks` separada — desnecessária para o caso atual.
 
 Posso implementar?
