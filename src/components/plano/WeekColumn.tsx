@@ -139,6 +139,8 @@ export function WeekColumn({
               key={p.id}
               post={p}
               onClick={() => onOpenPost(p)}
+              onDuplicate={onDuplicatePost}
+              onDelete={onDeletePost}
               draggable={!dndDisabled}
             />
           ))}
