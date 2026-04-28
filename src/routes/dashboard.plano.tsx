@@ -241,6 +241,115 @@ function PlanoPage() {
 
   const hasFilters = search.trim() !== "" || activeTags.length > 0;
 
+  const activePost = activeId ? posts.find((p) => p.id === activeId) ?? null : null;
+
+  const findContainer = (id: string): string | null => {
+    if (weeks.some((w) => `week-${w.id}` === id)) return id.replace(/^week-/, "");
+    const post = posts.find((p) => p.id === id);
+    return post?.week_id ?? null;
+  };
+
+  const handleDragStart = (e: DragStartEvent) => {
+    setActiveId(String(e.active.id));
+    setDragSnapshot(posts);
+  };
+
+  const handleDragOver = (e: DragOverEvent) => {
+    const { active, over } = e;
+    if (!over) return;
+    const activeIdStr = String(active.id);
+    const overIdStr = String(over.id);
+
+    const activeContainer = findContainer(activeIdStr);
+    const overContainer = findContainer(overIdStr);
+    if (!activeContainer || !overContainer || activeContainer === overContainer) return;
+
+    setPosts((prev) => {
+      const activeItem = prev.find((p) => p.id === activeIdStr);
+      if (!activeItem) return prev;
+      const without = prev.filter((p) => p.id !== activeIdStr);
+      const overItems = without.filter((p) => p.week_id === overContainer);
+      const overIndex = overItems.findIndex((p) => p.id === overIdStr);
+      const insertAt = overIndex >= 0 ? overIndex : overItems.length;
+
+      const otherWeeks = without.filter((p) => p.week_id !== overContainer);
+      const newOverItems = [
+        ...overItems.slice(0, insertAt),
+        { ...activeItem, week_id: overContainer },
+        ...overItems.slice(insertAt),
+      ];
+      return [...otherWeeks, ...newOverItems];
+    });
+  };
+
+  const handleDragEnd = async (e: DragEndEvent) => {
+    const { active, over } = e;
+    setActiveId(null);
+    if (!over) {
+      setDragSnapshot(null);
+      return;
+    }
+    const activeIdStr = String(active.id);
+    const overIdStr = String(over.id);
+    const overContainer = findContainer(overIdStr);
+    if (!overContainer) {
+      setDragSnapshot(null);
+      return;
+    }
+
+    // Reordenação dentro do mesmo container
+    let nextPosts = posts;
+    const activeItem = posts.find((p) => p.id === activeIdStr);
+    if (!activeItem) {
+      setDragSnapshot(null);
+      return;
+    }
+
+    if (activeItem.week_id === overContainer && activeIdStr !== overIdStr) {
+      const containerItems = posts.filter((p) => p.week_id === overContainer);
+      const oldIndex = containerItems.findIndex((p) => p.id === activeIdStr);
+      const newIndex = containerItems.findIndex((p) => p.id === overIdStr);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reordered = arrayMove(containerItems, oldIndex, newIndex);
+        nextPosts = [...posts.filter((p) => p.week_id !== overContainer), ...reordered];
+        setPosts(nextPosts);
+      }
+    }
+
+    // Recalcula positions de todas as semanas afetadas
+    const snapshot = dragSnapshot ?? [];
+    const normalized: ContentPost[] = [];
+    for (const w of weeks) {
+      const items = nextPosts.filter((p) => p.week_id === w.id);
+      items.forEach((p, idx) => normalized.push({ ...p, position: idx }));
+    }
+
+    const changed = normalized.filter((p) => {
+      const prev = snapshot.find((s) => s.id === p.id);
+      return !prev || prev.week_id !== p.week_id || prev.position !== p.position;
+    });
+
+    setPosts(normalized);
+    setDragSnapshot(null);
+
+    if (changed.length === 0) return;
+
+    const results = await Promise.all(
+      changed.map((p) =>
+        supabase
+          .from("content_posts")
+          .update({ week_id: p.week_id, position: p.position })
+          .eq("id", p.id),
+      ),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed?.error) {
+      toast.error("Falha ao salvar a ordem. Revertendo.");
+      setPosts(snapshot);
+    }
+  };
+
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center py-24">
