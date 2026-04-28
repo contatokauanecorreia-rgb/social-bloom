@@ -422,29 +422,53 @@ function PlanoPage() {
           </Button>
         </div>
       ) : (
-        <div className="-mx-6 overflow-x-auto px-6 pb-4 md:-mx-10 md:px-10">
-          <div className="flex min-h-[60vh] gap-3">
-            {weeks.map((w) => (
-              <WeekColumn
-                key={w.id}
-                week={w}
-                posts={postsByWeek.get(w.id) ?? []}
-                onRename={handleRenameWeek}
-                onDelete={handleDeleteWeek}
-                onAddPost={openNewPost}
-                onOpenPost={openEditPost}
-              />
-            ))}
-            <button
-              type="button"
-              onClick={handleAddWeek}
-              className="flex h-12 w-72 shrink-0 items-center justify-center gap-2 rounded-xl border border-dashed text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <Plus className="h-4 w-4" />
-              Nova semana
-            </button>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => {
+            if (dragSnapshot) setPosts(dragSnapshot);
+            setActiveId(null);
+            setDragSnapshot(null);
+          }}
+        >
+          {hasFilters && (
+            <p className="mb-2 text-xs text-muted-foreground">
+              Limpe os filtros para reordenar arrastando.
+            </p>
+          )}
+          <div className="-mx-6 overflow-x-auto px-6 pb-4 md:-mx-10 md:px-10">
+            <div className="flex min-h-[60vh] gap-3">
+              {weeks.map((w) => (
+                <WeekColumn
+                  key={w.id}
+                  week={w}
+                  posts={postsByWeek.get(w.id) ?? []}
+                  onRename={handleRenameWeek}
+                  onDelete={handleDeleteWeek}
+                  onAddPost={openNewPost}
+                  onOpenPost={openEditPost}
+                  dndDisabled={hasFilters}
+                />
+              ))}
+              <button
+                type="button"
+                onClick={handleAddWeek}
+                className="flex h-12 w-72 shrink-0 items-center justify-center gap-2 rounded-xl border border-dashed text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Plus className="h-4 w-4" />
+                Nova semana
+              </button>
+            </div>
           </div>
-        </div>
+          <DragOverlay>
+            {activePost ? (
+              <PostCard post={activePost} onClick={() => {}} draggable={false} isOverlay />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
 
       <PostDialog
