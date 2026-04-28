@@ -23,6 +23,8 @@ import { Route as AprovarTokenRouteImport } from './routes/aprovar.$token'
 import { Route as DashboardClientesIndexRouteImport } from './routes/dashboard.clientes.index'
 import { Route as DashboardClientesIdRouteImport } from './routes/dashboard.clientes.$id'
 import { Route as DashboardClientesIdIndexRouteImport } from './routes/dashboard.clientes.$id.index'
+import { Route as DashboardClientesIdPrecificacaoRouteImport } from './routes/dashboard.clientes.$id.precificacao'
+import { Route as DashboardClientesIdConteudosRouteImport } from './routes/dashboard.clientes.$id.conteudos'
 import { Route as DashboardClientesIdBriefingRouteImport } from './routes/dashboard.clientes.$id.briefing'
 import { Route as DashboardClientesIdAprovacaoRouteImport } from './routes/dashboard.clientes.$id.aprovacao'
 
@@ -97,6 +99,18 @@ const DashboardClientesIdIndexRoute =
     path: '/',
     getParentRoute: () => DashboardClientesIdRoute,
   } as any)
+const DashboardClientesIdPrecificacaoRoute =
+  DashboardClientesIdPrecificacaoRouteImport.update({
+    id: '/precificacao',
+    path: '/precificacao',
+    getParentRoute: () => DashboardClientesIdRoute,
+  } as any)
+const DashboardClientesIdConteudosRoute =
+  DashboardClientesIdConteudosRouteImport.update({
+    id: '/conteudos',
+    path: '/conteudos',
+    getParentRoute: () => DashboardClientesIdRoute,
+  } as any)
 const DashboardClientesIdBriefingRoute =
   DashboardClientesIdBriefingRouteImport.update({
     id: '/briefing',
@@ -126,6 +140,8 @@ export interface FileRoutesByFullPath {
   '/dashboard/clientes/': typeof DashboardClientesIndexRoute
   '/dashboard/clientes/$id/aprovacao': typeof DashboardClientesIdAprovacaoRoute
   '/dashboard/clientes/$id/briefing': typeof DashboardClientesIdBriefingRoute
+  '/dashboard/clientes/$id/conteudos': typeof DashboardClientesIdConteudosRoute
+  '/dashboard/clientes/$id/precificacao': typeof DashboardClientesIdPrecificacaoRoute
   '/dashboard/clientes/$id/': typeof DashboardClientesIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -142,6 +158,8 @@ export interface FileRoutesByTo {
   '/dashboard/clientes': typeof DashboardClientesIndexRoute
   '/dashboard/clientes/$id/aprovacao': typeof DashboardClientesIdAprovacaoRoute
   '/dashboard/clientes/$id/briefing': typeof DashboardClientesIdBriefingRoute
+  '/dashboard/clientes/$id/conteudos': typeof DashboardClientesIdConteudosRoute
+  '/dashboard/clientes/$id/precificacao': typeof DashboardClientesIdPrecificacaoRoute
   '/dashboard/clientes/$id': typeof DashboardClientesIdIndexRoute
 }
 export interface FileRoutesById {
@@ -161,6 +179,8 @@ export interface FileRoutesById {
   '/dashboard/clientes/': typeof DashboardClientesIndexRoute
   '/dashboard/clientes/$id/aprovacao': typeof DashboardClientesIdAprovacaoRoute
   '/dashboard/clientes/$id/briefing': typeof DashboardClientesIdBriefingRoute
+  '/dashboard/clientes/$id/conteudos': typeof DashboardClientesIdConteudosRoute
+  '/dashboard/clientes/$id/precificacao': typeof DashboardClientesIdPrecificacaoRoute
   '/dashboard/clientes/$id/': typeof DashboardClientesIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -181,6 +201,8 @@ export interface FileRouteTypes {
     | '/dashboard/clientes/'
     | '/dashboard/clientes/$id/aprovacao'
     | '/dashboard/clientes/$id/briefing'
+    | '/dashboard/clientes/$id/conteudos'
+    | '/dashboard/clientes/$id/precificacao'
     | '/dashboard/clientes/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -197,6 +219,8 @@ export interface FileRouteTypes {
     | '/dashboard/clientes'
     | '/dashboard/clientes/$id/aprovacao'
     | '/dashboard/clientes/$id/briefing'
+    | '/dashboard/clientes/$id/conteudos'
+    | '/dashboard/clientes/$id/precificacao'
     | '/dashboard/clientes/$id'
   id:
     | '__root__'
@@ -215,6 +239,8 @@ export interface FileRouteTypes {
     | '/dashboard/clientes/'
     | '/dashboard/clientes/$id/aprovacao'
     | '/dashboard/clientes/$id/briefing'
+    | '/dashboard/clientes/$id/conteudos'
+    | '/dashboard/clientes/$id/precificacao'
     | '/dashboard/clientes/$id/'
   fileRoutesById: FileRoutesById
 }
@@ -326,6 +352,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardClientesIdIndexRouteImport
       parentRoute: typeof DashboardClientesIdRoute
     }
+    '/dashboard/clientes/$id/precificacao': {
+      id: '/dashboard/clientes/$id/precificacao'
+      path: '/precificacao'
+      fullPath: '/dashboard/clientes/$id/precificacao'
+      preLoaderRoute: typeof DashboardClientesIdPrecificacaoRouteImport
+      parentRoute: typeof DashboardClientesIdRoute
+    }
+    '/dashboard/clientes/$id/conteudos': {
+      id: '/dashboard/clientes/$id/conteudos'
+      path: '/conteudos'
+      fullPath: '/dashboard/clientes/$id/conteudos'
+      preLoaderRoute: typeof DashboardClientesIdConteudosRouteImport
+      parentRoute: typeof DashboardClientesIdRoute
+    }
     '/dashboard/clientes/$id/briefing': {
       id: '/dashboard/clientes/$id/briefing'
       path: '/briefing'
@@ -346,12 +386,16 @@ declare module '@tanstack/react-router' {
 interface DashboardClientesIdRouteChildren {
   DashboardClientesIdAprovacaoRoute: typeof DashboardClientesIdAprovacaoRoute
   DashboardClientesIdBriefingRoute: typeof DashboardClientesIdBriefingRoute
+  DashboardClientesIdConteudosRoute: typeof DashboardClientesIdConteudosRoute
+  DashboardClientesIdPrecificacaoRoute: typeof DashboardClientesIdPrecificacaoRoute
   DashboardClientesIdIndexRoute: typeof DashboardClientesIdIndexRoute
 }
 
 const DashboardClientesIdRouteChildren: DashboardClientesIdRouteChildren = {
   DashboardClientesIdAprovacaoRoute: DashboardClientesIdAprovacaoRoute,
   DashboardClientesIdBriefingRoute: DashboardClientesIdBriefingRoute,
+  DashboardClientesIdConteudosRoute: DashboardClientesIdConteudosRoute,
+  DashboardClientesIdPrecificacaoRoute: DashboardClientesIdPrecificacaoRoute,
   DashboardClientesIdIndexRoute: DashboardClientesIdIndexRoute,
 }
 

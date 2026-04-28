@@ -25,6 +25,7 @@ type ClientHeader = {
   name: string;
   company: string | null;
   status: string;
+  created_at: string;
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -44,7 +45,7 @@ function ClientLayout() {
     let active = true;
     supabase
       .from("clients")
-      .select("id, name, company, status")
+      .select("id, name, company, status, created_at")
       .eq("id", id)
       .maybeSingle()
       .then(({ data }) => {
@@ -57,10 +58,21 @@ function ClientLayout() {
     };
   }, [id]);
 
-  const tabs: Array<{ to: "/dashboard/clientes/$id" | "/dashboard/clientes/$id/briefing" | "/dashboard/clientes/$id/aprovacao"; label: string; exact?: boolean }> = [
-    { to: "/dashboard/clientes/$id", label: "Perfil", exact: true },
+  const tabs: Array<{
+    to:
+      | "/dashboard/clientes/$id"
+      | "/dashboard/clientes/$id/briefing"
+      | "/dashboard/clientes/$id/conteudos"
+      | "/dashboard/clientes/$id/aprovacao"
+      | "/dashboard/clientes/$id/precificacao";
+    label: string;
+    exact?: boolean;
+  }> = [
+    { to: "/dashboard/clientes/$id", label: "Visão geral", exact: true },
     { to: "/dashboard/clientes/$id/briefing", label: "Briefing" },
+    { to: "/dashboard/clientes/$id/conteudos", label: "Conteúdos" },
     { to: "/dashboard/clientes/$id/aprovacao", label: "Aprovação" },
+    { to: "/dashboard/clientes/$id/precificacao", label: "Precificação" },
   ];
 
   const mockToken = `${id.slice(0, 8)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -110,9 +122,17 @@ function ClientLayout() {
               <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{client.name}</h1>
               <Badge variant="soft">{STATUS_LABEL[client.status] ?? client.status}</Badge>
             </div>
-            {client.company && (
-              <p className="text-sm text-muted-foreground">{client.company}</p>
-            )}
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted-foreground">
+              {client.company && <span>{client.company}</span>}
+              {client.company && <span className="text-muted-foreground/40">•</span>}
+              <span>
+                Cliente desde{" "}
+                {new Date(client.created_at).toLocaleDateString("pt-BR", {
+                  month: "long",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
           </div>
         </div>
         <Button variant="gradient-outline" onClick={() => setLinkOpen(true)}>
