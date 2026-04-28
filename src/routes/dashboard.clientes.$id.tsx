@@ -57,11 +57,11 @@ function ClientLayout() {
     };
   }, [id]);
 
-  const tabs = [
+  const tabs: Array<{ to: "/dashboard/clientes/$id" | "/dashboard/clientes/$id/briefing" | "/dashboard/clientes/$id/aprovacao"; label: string; exact?: boolean }> = [
     { to: "/dashboard/clientes/$id", label: "Perfil", exact: true },
     { to: "/dashboard/clientes/$id/briefing", label: "Briefing" },
     { to: "/dashboard/clientes/$id/aprovacao", label: "Aprovação" },
-  ] as const;
+  ];
 
   const mockToken = `${id.slice(0, 8)}-${Math.random().toString(36).slice(2, 8)}`;
   const publicUrl = typeof window !== "undefined" ? `${window.location.origin}/aprovar/${mockToken}` : `/aprovar/${mockToken}`;
