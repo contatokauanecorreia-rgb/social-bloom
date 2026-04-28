@@ -121,8 +121,17 @@ function AgentesPage() {
         </select>
       </div>
 
-      <main className="min-w-0 overflow-hidden">
-        <AgentChatPanel agent={selected} userId={userId} />
+      <main className="flex min-w-0 flex-col overflow-hidden">
+        <ClientContextBar
+          value={clientId}
+          onChange={handleClientChange}
+          variant="compact"
+          className="border-b bg-card/40 px-5 py-3"
+        />
+        <div className="min-h-0 flex-1 overflow-hidden">
+          {/* TODO: encaminhar `clientId` ao agent-chat para usar o briefing como contexto */}
+          <AgentChatPanel agent={selected} userId={userId} />
+        </div>
       </main>
     </div>
   );
