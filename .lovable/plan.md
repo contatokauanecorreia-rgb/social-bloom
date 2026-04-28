@@ -1,54 +1,116 @@
-# Painel de aprovação interno — visão do social media
+## Plano — Reescrita de `/dashboard/precificacao` (Calculadora interativa)
 
-Reescrever `src/routes/dashboard.clientes.$id.aprovacao.tsx` para mostrar o lote da semana atual com métricas e cards verticais de cada conteúdo (mock por enquanto, sem mudanças de banco).
+A página atual é um montador de "pacote por entregáveis" (presets Starter/Pro/Premium, custos fixos, margem). Vou substituí-la pela calculadora descrita na especificação: inputs por slider/checkbox à esquerda, resultado em destaque à direita, e tabela comparativa por cliente abaixo. A rota interna por cliente (`/clientes/:id/precificacao`) permanece como está (placeholder).
 
-## Estrutura da página
+### Arquivo afetado
+- `src/routes/dashboard.precificacao.tsx` — reescrito por completo. Sem mudanças de banco, sem novas dependências (usa `Slider`, `Input`, `Checkbox`, `Card`, `Badge`, `Button`, `Table` já existentes).
 
-### Header
-- Título: **"Semana de 13 a 19 de maio"** (período mock fixo) com label pequeno "Período atual" acima.
-- À direita: botão `gradient` **"Gerar link de aprovação"** que cria um token aleatório (`{id.slice(0,8)}-{random}`), monta `/aprovar/{token}` e copia para o clipboard com `toast.success`.
+### Layout
 
-### Métricas (grid 2 col mobile / 4 col desktop)
-- **Aguardando** (Clock, âmbar)
-- **Aprovados** (CheckCircle, esmeralda)
-- **Revisão** (AlertCircle, rose)
-- **Total do mês** (FileText, neutro)
+```text
+┌──────────────────────────────────────────────────────────────────┐
+│  Badge "Negócio"                                                 │
+│  H1: Calculadora de precificação                                 │
+│  Sub: Simule seu valor ideal por cliente em segundos.            │
+├──────────────────────────────┬───────────────────────────────────┤
+│ ESQUERDA  (inputs)           │ DIREITA  (resultado, sticky)      │
+│                              │                                   │
+│ • Clientes ativos    [1–20]  │  R$ 1.870 / cliente · mês         │
+│ • Posts por cliente  [4–30]  │  ─────────────────────────        │
+│ • Horas por post     [.5–3]  │  Total mensal   R$ 9.350          │
+│ • Valor hora (R$)    input   │  Total anual    R$ 112.200        │
+│ • Extras (4 checkboxes)      │  48 horas/mês de trabalho         │
+│                              │  Custo/hora implícito: R$ 38,96   │
+└──────────────────────────────┴───────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│ Tabela comparativa (5 clientes mock)                             │
+│ Cliente | Posts/mês | Cobrado hoje (edit) | Sugerido | Δ         │
+└──────────────────────────────────────────────────────────────────┘
+```
 
-Valores derivados via `useMemo` a partir do array de conteúdos.
+Grid: `lg:grid-cols-[1fr_380px]`. O painel de resultado usa `lg:sticky lg:top-6`.
 
-### Lista de cards (vertical, um abaixo do outro)
+### Estado e fórmulas
 
-Cada card horizontal (thumb à esquerda no desktop, em cima no mobile):
+Estado único em `useState`:
+```ts
+{
+  clients: 5,            // slider 1–20
+  postsPerClient: 12,    // slider 4–30
+  hoursPerPost: 1.5,     // slider 0.5–3, step 0.5
+  hourlyRate: 80,        // input numérico (R$)
+  extras: { stories: true, reels: true, report: false, meeting: false },
+  overrides: Record<clientId, number | null>,  // valor cobrado hoje editável
+}
+```
 
-1. **Thumbnail placeholder** 28×28 (`h-28 w-28`) com `bg-gradient-to-br` colorido conforme o tipo:
-   - Carrossel → violet→fuchsia (ícone `Images`)
-   - Reels → rose→orange (ícone `Video`)
-   - Post → sky→cyan (ícone `Image`)
-   - Story → amber→yellow (ícone `Layers`)
-2. **Linha de badges**: tipo (pill colorida) + status (pill colorida) + data prevista em texto pequeno.
-3. **Título** do conteúdo (font-semibold).
-4. **Preview da copy** com `line-clamp-2`.
-5. **Bubble de comentário** (apenas quando status = `revisao`):
-   - Container `border-rose-200 bg-rose-50/70 rounded-lg p-3`.
-   - Linha topo: `AlertCircle` + nome do cliente · data/hora à direita.
-   - Texto do comentário entre aspas curvas.
+Cálculo por cliente (memoizado):
+```ts
+const baseHours = postsPerClient * hoursPerPost;        // horas/mês por cliente
+const baseValue = baseHours * hourlyRate;               // R$ base
+let multiplier = 1;
+if (extras.stories) multiplier += 0.20;
+if (extras.reels)   multiplier += 0.30;
+let perClient = baseValue * multiplier;
+if (extras.report)  perClient += 150;
+if (extras.meeting) perClient += 200;
 
-### Cores dos status
-| Status | Chip |
-|---|---|
-| Aguardando | amber-100 / amber-800 |
-| Aprovado | emerald-100 / emerald-800 |
-| Revisão | rose-100 / rose-800 |
-| Rascunho | muted / muted-foreground |
+const monthlyTotal  = perClient * clients;
+const yearlyTotal   = monthlyTotal * 12;
+const hoursMonthAll = baseHours * clients;
+const implicitRate  = perClient / baseHours;            // R$/h efetivo
+```
 
-## Mock data
+Formatação BR via `Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })`.
 
-Array com 5 conteúdos cobrindo todos os tipos e todos os status (incluindo um em `revisao` com comentário "Júlia (Bela Forma)"). Sem persistência ainda — o array fica em `useState` para futura conexão com `content_posts` filtrados por cliente.
+### Inputs (coluna esquerda)
 
-## Sem banco
+Cada bloco em um `Card` com `CardHeader` (label + valor atual à direita) + `CardContent` com o controle.
 
-Nenhuma migração — o esquema atual de `content_posts` ainda não tem `client_id` nem `content_type`, então o painel real será conectado em uma etapa futura. Esta entrega é só a UI da visão do social media.
+1. **Clientes ativos** — `Slider` `min=1 max=20 step=1`. Header mostra `5 clientes`.
+2. **Posts por cliente / mês** — `Slider` `min=4 max=30 step=1`. Header `12 posts`.
+3. **Horas por post** — `Slider` `min=0.5 max=3 step=0.5`. Header `1.5h`.
+4. **Valor hora desejado** — `Input type="number" min=0`, prefixo `R$` via wrapper.
+5. **Extras incluídos** — 4 `Checkbox` com label e o impacto à direita (`+20%`, `+30%`, `+R$ 150/cliente`, `+R$ 200/cliente`). Layout 2 colunas em `sm:`.
 
-## Arquivo afetado
+### Resultado (coluna direita)
 
-- `src/routes/dashboard.clientes.$id.aprovacao.tsx` — reescrito por completo.
+Card `border-primary/30 bg-gradient-primary-soft`:
+- Linha pequena uppercase: `Valor sugerido por cliente / mês`
+- Número grande: `text-5xl font-bold text-gradient-primary tabular-nums` (ex.: `R$ 1.870`)
+- Separador
+- Duas linhas em grid 2 colunas: `Total mensal` e `Total anual` (valores grandes mas menores que o principal)
+- Bloco de breakdown muted:
+  - `48h/mês de trabalho total` (`hoursMonthAll`)
+  - `Custo por hora implícito: R$ 38,96`
+
+Botão secundário no rodapé: `Copiar resumo` (copia texto formatado para clipboard, com toast). Sem export PDF para manter escopo.
+
+### Tabela comparativa
+
+`Card` separado abaixo do grid principal.
+- 5 clientes mock fixos (nome + posts/mês iniciais), independentes dos sliders globais para servirem de base de comparação:
+  ```ts
+  const MOCK_CLIENTS = [
+    { id: "c1", name: "Bela Forma Estética", posts: 16, currentCharged: 1200 },
+    { id: "c2", name: "Padaria Trigo de Ouro", posts: 8, currentCharged: 600 },
+    { id: "c3", name: "Studio Pilates Vita", posts: 12, currentCharged: 900 },
+    { id: "c4", name: "Dr. Lucas Odonto", posts: 10, currentCharged: 1500 },
+    { id: "c5", name: "Brechó Manu", posts: 6, currentCharged: 400 },
+  ];
+  ```
+- Colunas: **Cliente** · **Posts/mês** · **Cobrado hoje** (input numérico editável, override em estado) · **Sugerido** · **Δ** (badge verde se positivo, vermelho se negativo, formatado com sinal).
+- "Sugerido" por linha usa as mesmas fórmulas de extras/hourlyRate, mas com `posts` da própria linha (ignorando `postsPerClient` global) → mostra como o pricing atual da calculadora se aplicaria àquele cliente real.
+- Linha de rodapé com totais (somatório de cobrado hoje vs somatório sugerido + delta total).
+
+### Detalhes visuais
+
+- `PageContainer wide`, mesmo padrão das outras páginas do dashboard.
+- `Badge variant="soft"` "Negócio" + `PageHeader` (sem actions, ou só `Calculator` icon decorativo no título).
+- Sem persistência em localStorage (calculadora é exploratória); mantenho assim para evitar conflito com a chave `postly:pricing-state` antiga.
+- Sem chamadas de rede, sem tabelas novas no banco.
+
+### Fora do escopo
+- Salvar simulações por usuário (não pedido).
+- Export PDF (não pedido).
+- Integração com tabela `clients` real — usamos mock conforme padrão das outras páginas internas ainda em mock.
