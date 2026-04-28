@@ -14,10 +14,10 @@ import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as DashboardStudioRouteImport } from './routes/dashboard.studio'
 import { Route as DashboardPlanoRouteImport } from './routes/dashboard.plano'
 import { Route as DashboardConfiguracoesRouteImport } from './routes/dashboard.configuracoes'
 import { Route as DashboardCarrosseisRouteImport } from './routes/dashboard.carrosseis'
-import { Route as DashboardAgentesRouteImport } from './routes/dashboard.agentes'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -44,6 +44,11 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardStudioRoute = DashboardStudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardPlanoRoute = DashboardPlanoRouteImport.update({
   id: '/plano',
   path: '/plano',
@@ -59,31 +64,26 @@ const DashboardCarrosseisRoute = DashboardCarrosseisRouteImport.update({
   path: '/carrosseis',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardAgentesRoute = DashboardAgentesRouteImport.update({
-  id: '/agentes',
-  path: '/agentes',
-  getParentRoute: () => DashboardRoute,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/design-system': typeof DesignSystemRoute
   '/login': typeof LoginRoute
-  '/dashboard/agentes': typeof DashboardAgentesRoute
   '/dashboard/carrosseis': typeof DashboardCarrosseisRoute
   '/dashboard/configuracoes': typeof DashboardConfiguracoesRoute
   '/dashboard/plano': typeof DashboardPlanoRoute
+  '/dashboard/studio': typeof DashboardStudioRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/design-system': typeof DesignSystemRoute
   '/login': typeof LoginRoute
-  '/dashboard/agentes': typeof DashboardAgentesRoute
   '/dashboard/carrosseis': typeof DashboardCarrosseisRoute
   '/dashboard/configuracoes': typeof DashboardConfiguracoesRoute
   '/dashboard/plano': typeof DashboardPlanoRoute
+  '/dashboard/studio': typeof DashboardStudioRoute
   '/dashboard': typeof DashboardIndexRoute
 }
 export interface FileRoutesById {
@@ -92,10 +92,10 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteWithChildren
   '/design-system': typeof DesignSystemRoute
   '/login': typeof LoginRoute
-  '/dashboard/agentes': typeof DashboardAgentesRoute
   '/dashboard/carrosseis': typeof DashboardCarrosseisRoute
   '/dashboard/configuracoes': typeof DashboardConfiguracoesRoute
   '/dashboard/plano': typeof DashboardPlanoRoute
+  '/dashboard/studio': typeof DashboardStudioRoute
   '/dashboard/': typeof DashboardIndexRoute
 }
 export interface FileRouteTypes {
@@ -105,20 +105,20 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/design-system'
     | '/login'
-    | '/dashboard/agentes'
     | '/dashboard/carrosseis'
     | '/dashboard/configuracoes'
     | '/dashboard/plano'
+    | '/dashboard/studio'
     | '/dashboard/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/design-system'
     | '/login'
-    | '/dashboard/agentes'
     | '/dashboard/carrosseis'
     | '/dashboard/configuracoes'
     | '/dashboard/plano'
+    | '/dashboard/studio'
     | '/dashboard'
   id:
     | '__root__'
@@ -126,10 +126,10 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/design-system'
     | '/login'
-    | '/dashboard/agentes'
     | '/dashboard/carrosseis'
     | '/dashboard/configuracoes'
     | '/dashboard/plano'
+    | '/dashboard/studio'
     | '/dashboard/'
   fileRoutesById: FileRoutesById
 }
@@ -177,6 +177,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/studio': {
+      id: '/dashboard/studio'
+      path: '/studio'
+      fullPath: '/dashboard/studio'
+      preLoaderRoute: typeof DashboardStudioRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/plano': {
       id: '/dashboard/plano'
       path: '/plano'
@@ -198,29 +205,22 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardCarrosseisRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/dashboard/agentes': {
-      id: '/dashboard/agentes'
-      path: '/agentes'
-      fullPath: '/dashboard/agentes'
-      preLoaderRoute: typeof DashboardAgentesRouteImport
-      parentRoute: typeof DashboardRoute
-    }
   }
 }
 
 interface DashboardRouteChildren {
-  DashboardAgentesRoute: typeof DashboardAgentesRoute
   DashboardCarrosseisRoute: typeof DashboardCarrosseisRoute
   DashboardConfiguracoesRoute: typeof DashboardConfiguracoesRoute
   DashboardPlanoRoute: typeof DashboardPlanoRoute
+  DashboardStudioRoute: typeof DashboardStudioRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
-  DashboardAgentesRoute: DashboardAgentesRoute,
   DashboardCarrosseisRoute: DashboardCarrosseisRoute,
   DashboardConfiguracoesRoute: DashboardConfiguracoesRoute,
   DashboardPlanoRoute: DashboardPlanoRoute,
+  DashboardStudioRoute: DashboardStudioRoute,
   DashboardIndexRoute: DashboardIndexRoute,
 }
 

@@ -16,7 +16,7 @@ const searchSchema = z.object({
   agent: fallback(z.enum(agentIds).optional(), undefined),
 });
 
-export const Route = createFileRoute("/dashboard/agentes")({
+export const Route = createFileRoute("/dashboard/studio")({
   head: () => ({ meta: [{ title: "Criar conteúdo — Postly" }] }),
   validateSearch: zodValidator(searchSchema),
   component: AgentesPage,
