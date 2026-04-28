@@ -230,6 +230,30 @@ function PlanoPage() {
     toast.success("Post removido");
   };
 
+  const handleDuplicatePost = async (post: ContentPost) => {
+    if (!userId) return;
+    const sameWeekCount = posts.filter((p) => p.week_id === post.week_id).length;
+    const { data, error } = await supabase
+      .from("content_posts")
+      .insert({
+        user_id: userId,
+        title: `${post.title} (cópia)`,
+        week_id: post.week_id,
+        tags: post.tags,
+        notes: post.notes,
+        status: post.status,
+        position: sameWeekCount,
+      })
+      .select()
+      .single();
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setPosts((prev) => [...prev, data as ContentPost]);
+    toast.success("Post duplicado");
+  };
+
   const toggleTag = (t: string) => {
     setActiveTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
   };
@@ -450,6 +474,8 @@ function PlanoPage() {
                   onDelete={handleDeleteWeek}
                   onAddPost={openNewPost}
                   onOpenPost={openEditPost}
+                  onDuplicatePost={handleDuplicatePost}
+                  onDeletePost={(p) => handleDeletePost(p.id)}
                   dndDisabled={hasFilters}
                 />
               ))}

@@ -31,6 +31,8 @@ export function WeekColumn({
   onDelete,
   onAddPost,
   onOpenPost,
+  onDuplicatePost,
+  onDeletePost,
   dndDisabled = false,
 }: {
   week: ContentWeek;
@@ -39,6 +41,8 @@ export function WeekColumn({
   onDelete: (id: string) => Promise<void>;
   onAddPost: (weekId: string) => void;
   onOpenPost: (post: ContentPost) => void;
+  onDuplicatePost?: (post: ContentPost) => void;
+  onDeletePost?: (post: ContentPost) => void;
   dndDisabled?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({
@@ -135,6 +139,8 @@ export function WeekColumn({
               key={p.id}
               post={p}
               onClick={() => onOpenPost(p)}
+              onDuplicate={onDuplicatePost}
+              onDelete={onDeletePost}
               draggable={!dndDisabled}
             />
           ))}
