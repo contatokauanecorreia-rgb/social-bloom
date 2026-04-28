@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Trash2, Loader2, Plus, X } from "lucide-react";
+import { Trash2, Loader2, Plus, X, Check } from "lucide-react";
 import { TagInput } from "./TagInput";
 import type { ContentPost, ContentWeek, PostStatus } from "@/lib/content-types";
 
@@ -38,6 +38,47 @@ export type PostDialogValue = {
   notes: string;
   status: PostStatus;
 };
+
+type DraftPayload = {
+  title: string;
+  weekId: string;
+  tags: string[];
+  noteBlocks: string[];
+  status: PostStatus;
+  savedAt: number;
+};
+
+const DRAFT_PREFIX = "postly:plano:draft:";
+const draftKey = (postId?: string) => `${DRAFT_PREFIX}${postId ?? "new"}`;
+
+function readDraft(postId?: string): DraftPayload | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(draftKey(postId));
+    if (!raw) return null;
+    return JSON.parse(raw) as DraftPayload;
+  } catch {
+    return null;
+  }
+}
+
+function writeDraft(postId: string | undefined, payload: DraftPayload) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(draftKey(postId), JSON.stringify(payload));
+  } catch {
+    // ignore quota errors
+  }
+}
+
+function clearDraft(postId?: string) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(draftKey(postId));
+  } catch {
+    // ignore
+  }
+}
 
 export function PostDialog({
   open,
