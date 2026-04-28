@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { AgentList } from "@/components/agentes/AgentList";
 import { AgentChatPanel } from "@/components/agentes/AgentChatPanel";
 import { AGENTS, type Agent, type AgentId, getAgent } from "@/lib/agents";
+import { ClientContextBar } from "@/components/clientes/ClientContextBar";
+import { ACTIVE_CLIENT_STORAGE_KEY } from "@/lib/client-context";
 
 const STORAGE_KEY = "postly:last-agent";
 
@@ -27,8 +29,9 @@ function AgentesPage() {
   const search = Route.useSearch();
   const [userId, setUserId] = useState<string | null>(null);
   const [selected, setSelected] = useState<Agent>(AGENTS[0]);
+  const [clientId, setClientId] = useState<string | null>(null);
 
-  // Restore last agent from localStorage on mount
+  // Restore last agent + active client from localStorage on mount
   useEffect(() => {
     if (typeof window === "undefined") return;
     const last = window.localStorage.getItem(STORAGE_KEY) as AgentId | null;
@@ -36,7 +39,17 @@ function AgentesPage() {
       const agent = getAgent(last);
       if (agent) setSelected(agent);
     }
+    const savedClient = window.localStorage.getItem(ACTIVE_CLIENT_STORAGE_KEY);
+    if (savedClient) setClientId(savedClient);
   }, []);
+
+  const handleClientChange = (id: string | null) => {
+    setClientId(id);
+    if (typeof window !== "undefined") {
+      if (id) window.localStorage.setItem(ACTIVE_CLIENT_STORAGE_KEY, id);
+      else window.localStorage.removeItem(ACTIVE_CLIENT_STORAGE_KEY);
+    }
+  };
 
   // React to ?agent=<id> query param: switch agent and clear the URL param
   useEffect(() => {
