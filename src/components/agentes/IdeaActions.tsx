@@ -5,7 +5,7 @@ export function IdeaActions() {
   const navigate = useNavigate();
 
   const goToKiuka = () => {
-    navigate({ to: "/dashboard/agentes", search: { agent: "kiuka" } });
+    navigate({ to: "/dashboard/studio", search: { agent: "kiuka" } });
   };
 
   const goToPlanner = () => {

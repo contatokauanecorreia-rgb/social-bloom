@@ -14,10 +14,17 @@ import { Route as DesignSystemRouteImport } from './routes/design-system'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
+import { Route as DashboardStudioRouteImport } from './routes/dashboard.studio'
+import { Route as DashboardPrecificacaoRouteImport } from './routes/dashboard.precificacao'
 import { Route as DashboardPlanoRouteImport } from './routes/dashboard.plano'
 import { Route as DashboardConfiguracoesRouteImport } from './routes/dashboard.configuracoes'
 import { Route as DashboardCarrosseisRouteImport } from './routes/dashboard.carrosseis'
-import { Route as DashboardAgentesRouteImport } from './routes/dashboard.agentes'
+import { Route as AprovarTokenRouteImport } from './routes/aprovar.$token'
+import { Route as DashboardClientesIndexRouteImport } from './routes/dashboard.clientes.index'
+import { Route as DashboardClientesIdRouteImport } from './routes/dashboard.clientes.$id'
+import { Route as DashboardClientesIdIndexRouteImport } from './routes/dashboard.clientes.$id.index'
+import { Route as DashboardClientesIdBriefingRouteImport } from './routes/dashboard.clientes.$id.briefing'
+import { Route as DashboardClientesIdAprovacaoRouteImport } from './routes/dashboard.clientes.$id.aprovacao'
 
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
@@ -44,6 +51,16 @@ const DashboardIndexRoute = DashboardIndexRouteImport.update({
   path: '/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardStudioRoute = DashboardStudioRouteImport.update({
+  id: '/studio',
+  path: '/studio',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardPrecificacaoRoute = DashboardPrecificacaoRouteImport.update({
+  id: '/precificacao',
+  path: '/precificacao',
+  getParentRoute: () => DashboardRoute,
+} as any)
 const DashboardPlanoRoute = DashboardPlanoRouteImport.update({
   id: '/plano',
   path: '/plano',
@@ -59,32 +76,73 @@ const DashboardCarrosseisRoute = DashboardCarrosseisRouteImport.update({
   path: '/carrosseis',
   getParentRoute: () => DashboardRoute,
 } as any)
-const DashboardAgentesRoute = DashboardAgentesRouteImport.update({
-  id: '/agentes',
-  path: '/agentes',
+const AprovarTokenRoute = AprovarTokenRouteImport.update({
+  id: '/aprovar/$token',
+  path: '/aprovar/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardClientesIndexRoute = DashboardClientesIndexRouteImport.update({
+  id: '/clientes/',
+  path: '/clientes/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardClientesIdRoute = DashboardClientesIdRouteImport.update({
+  id: '/clientes/$id',
+  path: '/clientes/$id',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardClientesIdIndexRoute =
+  DashboardClientesIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => DashboardClientesIdRoute,
+  } as any)
+const DashboardClientesIdBriefingRoute =
+  DashboardClientesIdBriefingRouteImport.update({
+    id: '/briefing',
+    path: '/briefing',
+    getParentRoute: () => DashboardClientesIdRoute,
+  } as any)
+const DashboardClientesIdAprovacaoRoute =
+  DashboardClientesIdAprovacaoRouteImport.update({
+    id: '/aprovacao',
+    path: '/aprovacao',
+    getParentRoute: () => DashboardClientesIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRouteWithChildren
   '/design-system': typeof DesignSystemRoute
   '/login': typeof LoginRoute
-  '/dashboard/agentes': typeof DashboardAgentesRoute
+  '/aprovar/$token': typeof AprovarTokenRoute
   '/dashboard/carrosseis': typeof DashboardCarrosseisRoute
   '/dashboard/configuracoes': typeof DashboardConfiguracoesRoute
   '/dashboard/plano': typeof DashboardPlanoRoute
+  '/dashboard/precificacao': typeof DashboardPrecificacaoRoute
+  '/dashboard/studio': typeof DashboardStudioRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/clientes/$id': typeof DashboardClientesIdRouteWithChildren
+  '/dashboard/clientes/': typeof DashboardClientesIndexRoute
+  '/dashboard/clientes/$id/aprovacao': typeof DashboardClientesIdAprovacaoRoute
+  '/dashboard/clientes/$id/briefing': typeof DashboardClientesIdBriefingRoute
+  '/dashboard/clientes/$id/': typeof DashboardClientesIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/design-system': typeof DesignSystemRoute
   '/login': typeof LoginRoute
-  '/dashboard/agentes': typeof DashboardAgentesRoute
+  '/aprovar/$token': typeof AprovarTokenRoute
   '/dashboard/carrosseis': typeof DashboardCarrosseisRoute
   '/dashboard/configuracoes': typeof DashboardConfiguracoesRoute
   '/dashboard/plano': typeof DashboardPlanoRoute
+  '/dashboard/precificacao': typeof DashboardPrecificacaoRoute
+  '/dashboard/studio': typeof DashboardStudioRoute
   '/dashboard': typeof DashboardIndexRoute
+  '/dashboard/clientes': typeof DashboardClientesIndexRoute
+  '/dashboard/clientes/$id/aprovacao': typeof DashboardClientesIdAprovacaoRoute
+  '/dashboard/clientes/$id/briefing': typeof DashboardClientesIdBriefingRoute
+  '/dashboard/clientes/$id': typeof DashboardClientesIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -92,11 +150,18 @@ export interface FileRoutesById {
   '/dashboard': typeof DashboardRouteWithChildren
   '/design-system': typeof DesignSystemRoute
   '/login': typeof LoginRoute
-  '/dashboard/agentes': typeof DashboardAgentesRoute
+  '/aprovar/$token': typeof AprovarTokenRoute
   '/dashboard/carrosseis': typeof DashboardCarrosseisRoute
   '/dashboard/configuracoes': typeof DashboardConfiguracoesRoute
   '/dashboard/plano': typeof DashboardPlanoRoute
+  '/dashboard/precificacao': typeof DashboardPrecificacaoRoute
+  '/dashboard/studio': typeof DashboardStudioRoute
   '/dashboard/': typeof DashboardIndexRoute
+  '/dashboard/clientes/$id': typeof DashboardClientesIdRouteWithChildren
+  '/dashboard/clientes/': typeof DashboardClientesIndexRoute
+  '/dashboard/clientes/$id/aprovacao': typeof DashboardClientesIdAprovacaoRoute
+  '/dashboard/clientes/$id/briefing': typeof DashboardClientesIdBriefingRoute
+  '/dashboard/clientes/$id/': typeof DashboardClientesIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -105,32 +170,52 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/design-system'
     | '/login'
-    | '/dashboard/agentes'
+    | '/aprovar/$token'
     | '/dashboard/carrosseis'
     | '/dashboard/configuracoes'
     | '/dashboard/plano'
+    | '/dashboard/precificacao'
+    | '/dashboard/studio'
     | '/dashboard/'
+    | '/dashboard/clientes/$id'
+    | '/dashboard/clientes/'
+    | '/dashboard/clientes/$id/aprovacao'
+    | '/dashboard/clientes/$id/briefing'
+    | '/dashboard/clientes/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/design-system'
     | '/login'
-    | '/dashboard/agentes'
+    | '/aprovar/$token'
     | '/dashboard/carrosseis'
     | '/dashboard/configuracoes'
     | '/dashboard/plano'
+    | '/dashboard/precificacao'
+    | '/dashboard/studio'
     | '/dashboard'
+    | '/dashboard/clientes'
+    | '/dashboard/clientes/$id/aprovacao'
+    | '/dashboard/clientes/$id/briefing'
+    | '/dashboard/clientes/$id'
   id:
     | '__root__'
     | '/'
     | '/dashboard'
     | '/design-system'
     | '/login'
-    | '/dashboard/agentes'
+    | '/aprovar/$token'
     | '/dashboard/carrosseis'
     | '/dashboard/configuracoes'
     | '/dashboard/plano'
+    | '/dashboard/precificacao'
+    | '/dashboard/studio'
     | '/dashboard/'
+    | '/dashboard/clientes/$id'
+    | '/dashboard/clientes/'
+    | '/dashboard/clientes/$id/aprovacao'
+    | '/dashboard/clientes/$id/briefing'
+    | '/dashboard/clientes/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -138,6 +223,7 @@ export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRouteWithChildren
   DesignSystemRoute: typeof DesignSystemRoute
   LoginRoute: typeof LoginRoute
+  AprovarTokenRoute: typeof AprovarTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -177,6 +263,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/studio': {
+      id: '/dashboard/studio'
+      path: '/studio'
+      fullPath: '/dashboard/studio'
+      preLoaderRoute: typeof DashboardStudioRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/precificacao': {
+      id: '/dashboard/precificacao'
+      path: '/precificacao'
+      fullPath: '/dashboard/precificacao'
+      preLoaderRoute: typeof DashboardPrecificacaoRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/dashboard/plano': {
       id: '/dashboard/plano'
       path: '/plano'
@@ -198,30 +298,86 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardCarrosseisRouteImport
       parentRoute: typeof DashboardRoute
     }
-    '/dashboard/agentes': {
-      id: '/dashboard/agentes'
-      path: '/agentes'
-      fullPath: '/dashboard/agentes'
-      preLoaderRoute: typeof DashboardAgentesRouteImport
+    '/aprovar/$token': {
+      id: '/aprovar/$token'
+      path: '/aprovar/$token'
+      fullPath: '/aprovar/$token'
+      preLoaderRoute: typeof AprovarTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard/clientes/': {
+      id: '/dashboard/clientes/'
+      path: '/clientes'
+      fullPath: '/dashboard/clientes/'
+      preLoaderRoute: typeof DashboardClientesIndexRouteImport
       parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/clientes/$id': {
+      id: '/dashboard/clientes/$id'
+      path: '/clientes/$id'
+      fullPath: '/dashboard/clientes/$id'
+      preLoaderRoute: typeof DashboardClientesIdRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/clientes/$id/': {
+      id: '/dashboard/clientes/$id/'
+      path: '/'
+      fullPath: '/dashboard/clientes/$id/'
+      preLoaderRoute: typeof DashboardClientesIdIndexRouteImport
+      parentRoute: typeof DashboardClientesIdRoute
+    }
+    '/dashboard/clientes/$id/briefing': {
+      id: '/dashboard/clientes/$id/briefing'
+      path: '/briefing'
+      fullPath: '/dashboard/clientes/$id/briefing'
+      preLoaderRoute: typeof DashboardClientesIdBriefingRouteImport
+      parentRoute: typeof DashboardClientesIdRoute
+    }
+    '/dashboard/clientes/$id/aprovacao': {
+      id: '/dashboard/clientes/$id/aprovacao'
+      path: '/aprovacao'
+      fullPath: '/dashboard/clientes/$id/aprovacao'
+      preLoaderRoute: typeof DashboardClientesIdAprovacaoRouteImport
+      parentRoute: typeof DashboardClientesIdRoute
     }
   }
 }
 
+interface DashboardClientesIdRouteChildren {
+  DashboardClientesIdAprovacaoRoute: typeof DashboardClientesIdAprovacaoRoute
+  DashboardClientesIdBriefingRoute: typeof DashboardClientesIdBriefingRoute
+  DashboardClientesIdIndexRoute: typeof DashboardClientesIdIndexRoute
+}
+
+const DashboardClientesIdRouteChildren: DashboardClientesIdRouteChildren = {
+  DashboardClientesIdAprovacaoRoute: DashboardClientesIdAprovacaoRoute,
+  DashboardClientesIdBriefingRoute: DashboardClientesIdBriefingRoute,
+  DashboardClientesIdIndexRoute: DashboardClientesIdIndexRoute,
+}
+
+const DashboardClientesIdRouteWithChildren =
+  DashboardClientesIdRoute._addFileChildren(DashboardClientesIdRouteChildren)
+
 interface DashboardRouteChildren {
-  DashboardAgentesRoute: typeof DashboardAgentesRoute
   DashboardCarrosseisRoute: typeof DashboardCarrosseisRoute
   DashboardConfiguracoesRoute: typeof DashboardConfiguracoesRoute
   DashboardPlanoRoute: typeof DashboardPlanoRoute
+  DashboardPrecificacaoRoute: typeof DashboardPrecificacaoRoute
+  DashboardStudioRoute: typeof DashboardStudioRoute
   DashboardIndexRoute: typeof DashboardIndexRoute
+  DashboardClientesIdRoute: typeof DashboardClientesIdRouteWithChildren
+  DashboardClientesIndexRoute: typeof DashboardClientesIndexRoute
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
-  DashboardAgentesRoute: DashboardAgentesRoute,
   DashboardCarrosseisRoute: DashboardCarrosseisRoute,
   DashboardConfiguracoesRoute: DashboardConfiguracoesRoute,
   DashboardPlanoRoute: DashboardPlanoRoute,
+  DashboardPrecificacaoRoute: DashboardPrecificacaoRoute,
+  DashboardStudioRoute: DashboardStudioRoute,
   DashboardIndexRoute: DashboardIndexRoute,
+  DashboardClientesIdRoute: DashboardClientesIdRouteWithChildren,
+  DashboardClientesIndexRoute: DashboardClientesIndexRoute,
 }
 
 const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
@@ -233,6 +389,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRouteWithChildren,
   DesignSystemRoute: DesignSystemRoute,
   LoginRoute: LoginRoute,
+  AprovarTokenRoute: AprovarTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

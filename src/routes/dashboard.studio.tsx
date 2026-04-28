@@ -16,8 +16,8 @@ const searchSchema = z.object({
   agent: fallback(z.enum(agentIds).optional(), undefined),
 });
 
-export const Route = createFileRoute("/dashboard/agentes")({
-  head: () => ({ meta: [{ title: "Criar conteúdo — Postly" }] }),
+export const Route = createFileRoute("/dashboard/studio")({
+  head: () => ({ meta: [{ title: "Studio de conteúdo — Postly" }] }),
   validateSearch: zodValidator(searchSchema),
   component: AgentesPage,
 });
@@ -48,7 +48,7 @@ function AgentesPage() {
       window.localStorage.setItem(STORAGE_KEY, agent.id);
     }
     navigate({
-      to: "/dashboard/agentes",
+      to: "/dashboard/studio",
       search: {},
       replace: true,
     });

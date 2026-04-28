@@ -76,6 +76,105 @@ export type Database = {
           },
         ]
       }
+      client_briefings: {
+        Row: {
+          business_description: string | null
+          client_id: string
+          content_pillars: string[]
+          created_at: string
+          donts: string[]
+          dos: string[]
+          extra: Json
+          goals: string[]
+          id: string
+          references: string | null
+          target_audience: string | null
+          tone_of_voice: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_description?: string | null
+          client_id: string
+          content_pillars?: string[]
+          created_at?: string
+          donts?: string[]
+          dos?: string[]
+          extra?: Json
+          goals?: string[]
+          id?: string
+          references?: string | null
+          target_audience?: string | null
+          tone_of_voice?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_description?: string | null
+          client_id?: string
+          content_pillars?: string[]
+          created_at?: string
+          donts?: string[]
+          dos?: string[]
+          extra?: Json
+          goals?: string[]
+          id?: string
+          references?: string | null
+          target_audience?: string | null
+          tone_of_voice?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      clients: {
+        Row: {
+          avatar_url: string | null
+          company: string | null
+          created_at: string
+          email: string | null
+          id: string
+          instagram: string | null
+          name: string
+          notes: string | null
+          phone: string | null
+          status: string
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          avatar_url?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          instagram?: string | null
+          name: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          avatar_url?: string | null
+          company?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          instagram?: string | null
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       content_posts: {
         Row: {
           created_at: string
