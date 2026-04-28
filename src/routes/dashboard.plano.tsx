@@ -10,6 +10,20 @@ import { PageContainer, PageHeader } from "@/components/dashboard/PageContainer"
 import { WeekColumn } from "@/components/plano/WeekColumn";
 import { TagChip } from "@/components/plano/TagChip";
 import { PostDialog, type PostDialogValue } from "@/components/plano/PostDialog";
+import { PostCard } from "@/components/plano/PostCard";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCorners,
+  type DragStartEvent,
+  type DragOverEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import type { ContentPost, ContentWeek } from "@/lib/content-types";
 
 export const Route = createFileRoute("/dashboard/plano")({
@@ -34,6 +48,14 @@ function PlanoPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<ContentPost | null>(null);
   const [defaultWeekId, setDefaultWeekId] = useState<string | undefined>();
+
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [dragSnapshot, setDragSnapshot] = useState<ContentPost[] | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   const loadAll = useCallback(async (uid: string) => {
     const [w, p] = await Promise.all([
@@ -219,6 +241,115 @@ function PlanoPage() {
 
   const hasFilters = search.trim() !== "" || activeTags.length > 0;
 
+  const activePost = activeId ? posts.find((p) => p.id === activeId) ?? null : null;
+
+  const findContainer = (id: string): string | null => {
+    if (weeks.some((w) => `week-${w.id}` === id)) return id.replace(/^week-/, "");
+    const post = posts.find((p) => p.id === id);
+    return post?.week_id ?? null;
+  };
+
+  const handleDragStart = (e: DragStartEvent) => {
+    setActiveId(String(e.active.id));
+    setDragSnapshot(posts);
+  };
+
+  const handleDragOver = (e: DragOverEvent) => {
+    const { active, over } = e;
+    if (!over) return;
+    const activeIdStr = String(active.id);
+    const overIdStr = String(over.id);
+
+    const activeContainer = findContainer(activeIdStr);
+    const overContainer = findContainer(overIdStr);
+    if (!activeContainer || !overContainer || activeContainer === overContainer) return;
+
+    setPosts((prev) => {
+      const activeItem = prev.find((p) => p.id === activeIdStr);
+      if (!activeItem) return prev;
+      const without = prev.filter((p) => p.id !== activeIdStr);
+      const overItems = without.filter((p) => p.week_id === overContainer);
+      const overIndex = overItems.findIndex((p) => p.id === overIdStr);
+      const insertAt = overIndex >= 0 ? overIndex : overItems.length;
+
+      const otherWeeks = without.filter((p) => p.week_id !== overContainer);
+      const newOverItems = [
+        ...overItems.slice(0, insertAt),
+        { ...activeItem, week_id: overContainer },
+        ...overItems.slice(insertAt),
+      ];
+      return [...otherWeeks, ...newOverItems];
+    });
+  };
+
+  const handleDragEnd = async (e: DragEndEvent) => {
+    const { active, over } = e;
+    setActiveId(null);
+    if (!over) {
+      setDragSnapshot(null);
+      return;
+    }
+    const activeIdStr = String(active.id);
+    const overIdStr = String(over.id);
+    const overContainer = findContainer(overIdStr);
+    if (!overContainer) {
+      setDragSnapshot(null);
+      return;
+    }
+
+    // Reordenação dentro do mesmo container
+    let nextPosts = posts;
+    const activeItem = posts.find((p) => p.id === activeIdStr);
+    if (!activeItem) {
+      setDragSnapshot(null);
+      return;
+    }
+
+    if (activeItem.week_id === overContainer && activeIdStr !== overIdStr) {
+      const containerItems = posts.filter((p) => p.week_id === overContainer);
+      const oldIndex = containerItems.findIndex((p) => p.id === activeIdStr);
+      const newIndex = containerItems.findIndex((p) => p.id === overIdStr);
+      if (oldIndex !== -1 && newIndex !== -1) {
+        const reordered = arrayMove(containerItems, oldIndex, newIndex);
+        nextPosts = [...posts.filter((p) => p.week_id !== overContainer), ...reordered];
+        setPosts(nextPosts);
+      }
+    }
+
+    // Recalcula positions de todas as semanas afetadas
+    const snapshot = dragSnapshot ?? [];
+    const normalized: ContentPost[] = [];
+    for (const w of weeks) {
+      const items = nextPosts.filter((p) => p.week_id === w.id);
+      items.forEach((p, idx) => normalized.push({ ...p, position: idx }));
+    }
+
+    const changed = normalized.filter((p) => {
+      const prev = snapshot.find((s) => s.id === p.id);
+      return !prev || prev.week_id !== p.week_id || prev.position !== p.position;
+    });
+
+    setPosts(normalized);
+    setDragSnapshot(null);
+
+    if (changed.length === 0) return;
+
+    const results = await Promise.all(
+      changed.map((p) =>
+        supabase
+          .from("content_posts")
+          .update({ week_id: p.week_id, position: p.position })
+          .eq("id", p.id),
+      ),
+    );
+    const failed = results.find((r) => r.error);
+    if (failed?.error) {
+      toast.error("Falha ao salvar a ordem. Revertendo.");
+      setPosts(snapshot);
+    }
+  };
+
+
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center py-24">
@@ -291,29 +422,53 @@ function PlanoPage() {
           </Button>
         </div>
       ) : (
-        <div className="-mx-6 overflow-x-auto px-6 pb-4 md:-mx-10 md:px-10">
-          <div className="flex min-h-[60vh] gap-3">
-            {weeks.map((w) => (
-              <WeekColumn
-                key={w.id}
-                week={w}
-                posts={postsByWeek.get(w.id) ?? []}
-                onRename={handleRenameWeek}
-                onDelete={handleDeleteWeek}
-                onAddPost={openNewPost}
-                onOpenPost={openEditPost}
-              />
-            ))}
-            <button
-              type="button"
-              onClick={handleAddWeek}
-              className="flex h-12 w-72 shrink-0 items-center justify-center gap-2 rounded-xl border border-dashed text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <Plus className="h-4 w-4" />
-              Nova semana
-            </button>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragOver={handleDragOver}
+          onDragEnd={handleDragEnd}
+          onDragCancel={() => {
+            if (dragSnapshot) setPosts(dragSnapshot);
+            setActiveId(null);
+            setDragSnapshot(null);
+          }}
+        >
+          {hasFilters && (
+            <p className="mb-2 text-xs text-muted-foreground">
+              Limpe os filtros para reordenar arrastando.
+            </p>
+          )}
+          <div className="-mx-6 overflow-x-auto px-6 pb-4 md:-mx-10 md:px-10">
+            <div className="flex min-h-[60vh] gap-3">
+              {weeks.map((w) => (
+                <WeekColumn
+                  key={w.id}
+                  week={w}
+                  posts={postsByWeek.get(w.id) ?? []}
+                  onRename={handleRenameWeek}
+                  onDelete={handleDeleteWeek}
+                  onAddPost={openNewPost}
+                  onOpenPost={openEditPost}
+                  dndDisabled={hasFilters}
+                />
+              ))}
+              <button
+                type="button"
+                onClick={handleAddWeek}
+                className="flex h-12 w-72 shrink-0 items-center justify-center gap-2 rounded-xl border border-dashed text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Plus className="h-4 w-4" />
+                Nova semana
+              </button>
+            </div>
           </div>
-        </div>
+          <DragOverlay>
+            {activePost ? (
+              <PostCard post={activePost} onClick={() => {}} draggable={false} isOverlay />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
 
       <PostDialog

@@ -1,5 +1,8 @@
 import { useState, type KeyboardEvent } from "react";
 import { Plus, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { useDroppable } from "@dnd-kit/core";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -28,6 +31,7 @@ export function WeekColumn({
   onDelete,
   onAddPost,
   onOpenPost,
+  dndDisabled = false,
 }: {
   week: ContentWeek;
   posts: ContentPost[];
@@ -35,7 +39,13 @@ export function WeekColumn({
   onDelete: (id: string) => Promise<void>;
   onAddPost: (weekId: string) => void;
   onOpenPost: (post: ContentPost) => void;
+  dndDisabled?: boolean;
 }) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `week-${week.id}`,
+    data: { type: "week", weekId: week.id },
+    disabled: dndDisabled,
+  });
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState(week.name);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -59,7 +69,13 @@ export function WeekColumn({
   };
 
   return (
-    <div className="flex h-full w-72 shrink-0 flex-col rounded-xl bg-muted/40 p-3">
+    <div
+      ref={setNodeRef}
+      className={cn(
+        "flex h-full w-72 shrink-0 flex-col rounded-xl bg-muted/40 p-3 transition-colors",
+        isOver && "bg-primary/10 ring-2 ring-primary/40",
+      )}
+    >
       <div className="mb-3 flex items-center gap-2">
         <span className="h-2 w-2 rounded-full bg-muted-foreground/50" />
         {editing ? (
@@ -113,9 +129,16 @@ export function WeekColumn({
             Nenhum post ainda.
           </div>
         )}
-        {posts.map((p) => (
-          <PostCard key={p.id} post={p} onClick={() => onOpenPost(p)} />
-        ))}
+        <SortableContext items={posts.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+          {posts.map((p) => (
+            <PostCard
+              key={p.id}
+              post={p}
+              onClick={() => onOpenPost(p)}
+              draggable={!dndDisabled}
+            />
+          ))}
+        </SortableContext>
       </div>
 
       <Button
