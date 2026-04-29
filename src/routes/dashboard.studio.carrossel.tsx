@@ -155,9 +155,25 @@ function CarrosselEditorPage() {
   const [format, setFormat] = useState<Format | null>(null);
   const [formatPickerOpen, setFormatPickerOpen] = useState(true);
 
+  // Bootstrap state populated from sessionStorage (when user came from AI wizard)
+  const bootstrapRef = useRef<{
+    slides?: Array<{
+      title: string;
+      subtitle?: string;
+      body: string;
+      imagePrompt?: string;
+      imageDataUrl: string | null;
+    }>;
+    fontPair?: { heading: string; body: string } | null;
+    palette?: [string, string, string];
+    imageMode?: "none" | "bg" | "grid" | "mixed";
+    signature?: { enabled: boolean; handle: string; position: SignaturePos; color: string } | null;
+  } | null>(null);
+
   const [slides, setSlides] = useState<Slide[]>([makeSlide()]);
   const [activeId, setActiveId] = useState<string>(() => "");
   const [selectedField, setSelectedField] = useState<TextField | null>(null);
+  const [pageFontPair, setPageFontPair] = useState<{ heading: string; body: string } | null>(null);
 
   const [exporting, setExporting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
