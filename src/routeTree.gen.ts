@@ -17,6 +17,7 @@ import { Route as DashboardIndexRouteImport } from './routes/dashboard.index'
 import { Route as DashboardStudioRouteImport } from './routes/dashboard.studio'
 import { Route as DashboardPrecificacaoRouteImport } from './routes/dashboard.precificacao'
 import { Route as DashboardPlanoRouteImport } from './routes/dashboard.plano'
+import { Route as DashboardPlannerRouteImport } from './routes/dashboard.planner'
 import { Route as DashboardConfiguracoesRouteImport } from './routes/dashboard.configuracoes'
 import { Route as DashboardCarrosseisRouteImport } from './routes/dashboard.carrosseis'
 import { Route as AprovarTokenRouteImport } from './routes/aprovar.$token'
@@ -66,6 +67,11 @@ const DashboardPrecificacaoRoute = DashboardPrecificacaoRouteImport.update({
 const DashboardPlanoRoute = DashboardPlanoRouteImport.update({
   id: '/plano',
   path: '/plano',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardPlannerRoute = DashboardPlannerRouteImport.update({
+  id: '/planner',
+  path: '/planner',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardConfiguracoesRoute = DashboardConfiguracoesRouteImport.update({
@@ -132,6 +138,7 @@ export interface FileRoutesByFullPath {
   '/aprovar/$token': typeof AprovarTokenRoute
   '/dashboard/carrosseis': typeof DashboardCarrosseisRoute
   '/dashboard/configuracoes': typeof DashboardConfiguracoesRoute
+  '/dashboard/planner': typeof DashboardPlannerRoute
   '/dashboard/plano': typeof DashboardPlanoRoute
   '/dashboard/precificacao': typeof DashboardPrecificacaoRoute
   '/dashboard/studio': typeof DashboardStudioRoute
@@ -151,6 +158,7 @@ export interface FileRoutesByTo {
   '/aprovar/$token': typeof AprovarTokenRoute
   '/dashboard/carrosseis': typeof DashboardCarrosseisRoute
   '/dashboard/configuracoes': typeof DashboardConfiguracoesRoute
+  '/dashboard/planner': typeof DashboardPlannerRoute
   '/dashboard/plano': typeof DashboardPlanoRoute
   '/dashboard/precificacao': typeof DashboardPrecificacaoRoute
   '/dashboard/studio': typeof DashboardStudioRoute
@@ -171,6 +179,7 @@ export interface FileRoutesById {
   '/aprovar/$token': typeof AprovarTokenRoute
   '/dashboard/carrosseis': typeof DashboardCarrosseisRoute
   '/dashboard/configuracoes': typeof DashboardConfiguracoesRoute
+  '/dashboard/planner': typeof DashboardPlannerRoute
   '/dashboard/plano': typeof DashboardPlanoRoute
   '/dashboard/precificacao': typeof DashboardPrecificacaoRoute
   '/dashboard/studio': typeof DashboardStudioRoute
@@ -193,6 +202,7 @@ export interface FileRouteTypes {
     | '/aprovar/$token'
     | '/dashboard/carrosseis'
     | '/dashboard/configuracoes'
+    | '/dashboard/planner'
     | '/dashboard/plano'
     | '/dashboard/precificacao'
     | '/dashboard/studio'
@@ -212,6 +222,7 @@ export interface FileRouteTypes {
     | '/aprovar/$token'
     | '/dashboard/carrosseis'
     | '/dashboard/configuracoes'
+    | '/dashboard/planner'
     | '/dashboard/plano'
     | '/dashboard/precificacao'
     | '/dashboard/studio'
@@ -231,6 +242,7 @@ export interface FileRouteTypes {
     | '/aprovar/$token'
     | '/dashboard/carrosseis'
     | '/dashboard/configuracoes'
+    | '/dashboard/planner'
     | '/dashboard/plano'
     | '/dashboard/precificacao'
     | '/dashboard/studio'
@@ -308,6 +320,13 @@ declare module '@tanstack/react-router' {
       path: '/plano'
       fullPath: '/dashboard/plano'
       preLoaderRoute: typeof DashboardPlanoRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/dashboard/planner': {
+      id: '/dashboard/planner'
+      path: '/planner'
+      fullPath: '/dashboard/planner'
+      preLoaderRoute: typeof DashboardPlannerRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/dashboard/configuracoes': {
@@ -405,6 +424,7 @@ const DashboardClientesIdRouteWithChildren =
 interface DashboardRouteChildren {
   DashboardCarrosseisRoute: typeof DashboardCarrosseisRoute
   DashboardConfiguracoesRoute: typeof DashboardConfiguracoesRoute
+  DashboardPlannerRoute: typeof DashboardPlannerRoute
   DashboardPlanoRoute: typeof DashboardPlanoRoute
   DashboardPrecificacaoRoute: typeof DashboardPrecificacaoRoute
   DashboardStudioRoute: typeof DashboardStudioRoute
@@ -416,6 +436,7 @@ interface DashboardRouteChildren {
 const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardCarrosseisRoute: DashboardCarrosseisRoute,
   DashboardConfiguracoesRoute: DashboardConfiguracoesRoute,
+  DashboardPlannerRoute: DashboardPlannerRoute,
   DashboardPlanoRoute: DashboardPlanoRoute,
   DashboardPrecificacaoRoute: DashboardPrecificacaoRoute,
   DashboardStudioRoute: DashboardStudioRoute,
