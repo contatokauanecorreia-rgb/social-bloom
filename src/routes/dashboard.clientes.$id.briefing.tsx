@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -258,9 +258,9 @@ function BriefingPage() {
     };
   }, [clientId]);
 
-  const update = <K extends keyof Form>(key: K, value: Form[K]) => {
+  const update = useCallback(<K extends keyof Form>(key: K, value: Form[K]) => {
     setForm((p) => ({ ...p, [key]: value }));
-  };
+  }, []);
 
   const aiContext = useMemo(() => buildContext(form), [form]);
 
@@ -450,10 +450,11 @@ function StepTomDeVoz({ form, update }: StepProps) {
         <div className="px-1 pt-2">
           <Slider
             value={[form.formality]}
-            onValueChange={(v) => update("formality", v[0])}
+            onValueChange={(v) => update("formality", v[0] as Form["formality"])}
             min={1}
             max={5}
             step={1}
+            minStepsBetweenThumbs={0}
           />
           <div className="mt-2 flex justify-between text-[11px] text-muted-foreground">
             <span>Muito informal</span>
