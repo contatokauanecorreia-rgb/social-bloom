@@ -45,6 +45,14 @@ function ConfiguracoesPage() {
       if (!active) return;
       setDisplayName(data?.display_name ?? "");
       setAvatarUrl(data?.avatar_url ?? "");
+
+      const { data: sub } = await supabase
+        .from("user_subscriptions")
+        .select("plan")
+        .eq("user_id", sess.session.user.id)
+        .maybeSingle();
+      if (!active) return;
+      if (sub?.plan) setPlan(sub.plan);
       setLoading(false);
     })();
     return () => {
