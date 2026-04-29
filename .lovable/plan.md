@@ -1,53 +1,36 @@
-# BLOCO 6 — Perfil do cliente (`/clientes/:id`)
+# BLOCO 7 — Portal público de aprovação
 
-A rota layout (`dashboard.clientes.$id.tsx`), a Visão geral (`.index.tsx`) e a Aprovação (`.aprovacao.tsx`) já existem. As abas "Visão geral | DNA da marca | Conteúdos | Aprovação" já estão funcionando no header. Vou ajustar duas coisas + ampliar a Visão geral para bater 1:1 com a especificação.
+A rota pública `/aprovar/$token` já existe. Vou reescrevê-la para bater 1:1 com a especificação visual e comportamental do Bloco 7.
 
-## 1. Visão geral — métricas reais + bloco Branding (`dashboard.clientes.$id.index.tsx`)
+## Mudanças no `src/routes/aprovar.$token.tsx`
 
-Refazer a página para incluir tudo que a spec pede, na ordem:
+### Header
+- Logo Postly pequeno (ícone `Sparkles` em pílula com `bg-gradient-primary`).
+- Nome do cliente + período (ex: "Studio Bela Forma" / "Semana de 13 a 19 de maio").
+- Badge **"X conteúdos aguardando aprovação"** (laranja/âmbar quando >0; verde "Tudo respondido" quando =0). Calculada por `useMemo` em cima de `responses`.
 
-1. **4 métricas no topo** (atualmente são todas zeradas/mock):
-   - **Posts criados** — `count` em `content_posts` filtrando por `client_id` (ver passo 4) no mês corrente.
-   - **Aprovados** — count com `status = 'aprovado'` no mês.
-   - **Em revisão** — count com `status IN ('revisao','aguardando')` no mês.
-   - **Taxa de aprovação** — `aprovados / (aprovados + revisao + aguardando) * 100`, ou `—` quando não houver posts.
+### Grid de conteúdos
+- **2 colunas no desktop, 1 no mobile** (`grid md:grid-cols-2 gap-5`).
+- 4 mocks (carrossel, reels, post, story) — alinhados com os exemplos do Bloco 6 para dar continuidade narrativa.
+- Cada card:
+  - **Thumbnail** (h-44) com gradiente por tipo + ícone grande (Images/Video/ImageIcon/Layers).
+  - Tipo (badge) + data/horário previsto (ex: "Seg, 13 mai · 09h00").
+  - Título + copy do conteúdo.
+  - **Botão "Aprovar" verde** (`bg-emerald-600`).
+  - **Botão "Solicitar revisão" outline** → expande textarea inline + botão "Enviar".
+  - Ao aprovar: **overlay verde "Aprovado"** sobre a thumbnail (círculo com check) + badge "Aprovado" no topo do card. Toast: *"Resposta registrada. O social media foi notificado."*
+  - Ao enviar revisão: validação de comentário não-vazio, marca status `changes`, mostra o comentário inline + badge "Revisão pedida" no canto da thumb. Mesmo toast.
 
-2. **Seção "DNA da marca"** — manter o card "Perfil da marca" + "Personalidade" que já existe, com nicho / tom / público / objetivo / dos / donts.
+### Rodapé
+- "Powered by **Postly**" centralizado, em `border-t` separado.
 
-3. **Nova seção "Branding"** — preview visual:
-   - 3 swatches da paleta (`palette[0..2]`) com seus HEX abaixo.
-   - Preview tipográfico: cartão com fundo `palette[0]` e texto na fonte `brand_font` (carrega via `<link>` do Google Fonts dinamicamente quando `brand_font_url` apontar para fonts.googleapis ou quando o nome for definido) — ex: "Aa — Studio Bela Forma" como demonstração.
-   - Badge com o nome do **arquétipo** (lendo `archetype`).
-   - Estado vazio: se faltar paleta/fonte/arquétipo, mostrar placeholder "— Defina no DNA da marca".
-
-4. **Botão "Editar DNA da marca"** — já existe como "Editar briefing"; renomear o label para **"Editar DNA da marca"** conforme spec, mantendo o `Link to="/dashboard/clientes/$id/briefing"`.
-
-5. **Bloco Contexto da IA** continua como hoje (já é parte do que a IA recebe — é útil manter, mesmo que a spec não cite explicitamente).
-
-### Sobre a métrica de posts por cliente
-
-A tabela `content_posts` hoje **não tem `client_id`** (tem só `week_id`, `user_id`). Sem isso, não consigo contar posts por cliente. Duas opções:
-
-- **(A) Métricas zeradas/placeholder** com nota "Em breve: vinculação de posts a clientes" — solução rápida, sem migration.
-- **(B) Migration adicionando `client_id uuid REFERENCES clients(id)` em `content_posts` (nullable)** + atualizar Studio/Planner para gravar quando aplicável. Mais correto, mas extrapola o Bloco 6.
-
-Vou seguir com **(A)** agora — como ainda não há posts vinculados a clientes, qualquer count seria fake. Deixo o cálculo já estruturado para virar real assim que (B) for feito num bloco futuro. Se preferir já fazer (B), me avisa.
-
-## 2. Aba Aprovação — link público com botão copiar (`dashboard.clientes.$id.aprovacao.tsx`)
-
-A spec pede o link visível (não atrás de um modal). Ajuste:
-
-- **Adicionar bloco no topo** "Link público de aprovação" mostrando `flowpauta.app/aprovar/<token>` em um `Input` readonly + botão "Copiar". O token é gerado uma vez por mount do componente (memorizado) e o `origin` usado é `flowpauta.app` (literal, conforme spec) — não `window.location.origin`.
-- O botão "Gerar link de aprovação" do header global (no layout) continua funcionando como atalho que copia.
-- Manter o resto: contadores, cards de conteúdo, comentários inline (já estão bons).
-
-## 3. Aba Conteúdos (placeholder)
-
-Não está no escopo deste bloco — manter placeholder atual.
+### Detalhes
+- Página com `head()` declarando `noindex` (já está) e título.
+- Sem login, sem chamada de API real — toda interação é client-side por enquanto. Quando criarmos a tabela `approval_links` num bloco futuro, plugamos aqui.
+- Mantém tom acolhedor já existente ("Olá! Hora de aprovar 🎉").
 
 ## Arquivos afetados
 
-- **edit** `src/routes/dashboard.clientes.$id.index.tsx` — métricas estruturadas + nova seção Branding + label do CTA.
-- **edit** `src/routes/dashboard.clientes.$id.aprovacao.tsx` — bloco visível com link `flowpauta.app/aprovar/<token>` + Copiar.
+- **edit** `src/routes/aprovar.$token.tsx` — reescrita completa do componente.
 
-Sem migrations, sem dependências novas. Carregamento de Google Font no preview usa `<link rel="stylesheet">` injetado dinamicamente (sem libs), só quando `brand_font_url` é http(s).
+Sem migrations, sem novas dependências.
