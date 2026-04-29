@@ -433,6 +433,28 @@ function PlanoPage() {
         }
       />
 
+      <div className="mb-3 flex flex-col gap-1.5 rounded-xl border bg-card/40 p-3 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground sm:w-44">
+          <Users className="h-4 w-4" />
+          <Label htmlFor="planner-client" className="cursor-pointer text-sm font-medium">
+            Para qual cliente?
+          </Label>
+        </div>
+        <Select value={selectedClient} onValueChange={setSelectedClient}>
+          <SelectTrigger id="planner-client" className="sm:max-w-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os clientes</SelectItem>
+            {clients.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <div className="mb-6 flex flex-col gap-3 rounded-xl border bg-card/40 p-3">
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
