@@ -22,6 +22,14 @@ function ConfiguracoesPage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [plan, setPlan] = useState<string>("starter");
+  const [aiMode, setAiMode] = useState<"postly" | "apikey" | "agent">("postly");
+  const [openaiKey, setOpenaiKey] = useState("");
+  const [anthropicKey, setAnthropicKey] = useState("");
+  const [assistantId, setAssistantId] = useState("");
+  const [savingAi, setSavingAi] = useState(false);
+
+  const isPremium = plan === "premium" || plan === "enterprise";
 
   useEffect(() => {
     let active = true;
