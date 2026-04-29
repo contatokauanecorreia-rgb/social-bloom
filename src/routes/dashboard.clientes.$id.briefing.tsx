@@ -288,8 +288,8 @@ function BriefingPage() {
         {
           client_id: clientId,
           user_id: session.user.id,
-          tone_of_voice: personaLabel
-            ? `${personaLabel} · ${FORMALITY_LABELS[form.formality - 1]}`
+          tone_of_voice: personaLabels.length
+            ? `${personaLabels.join(" + ")} · ${FORMALITY_LABELS[form.formality - 1]}`
             : FORMALITY_LABELS[form.formality - 1],
           target_audience: [
             ageLabel,
