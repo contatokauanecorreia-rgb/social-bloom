@@ -155,8 +155,9 @@ function CarrosselEditorPage() {
         ? window.localStorage.getItem(ACTIVE_CLIENT_STORAGE_KEY)
         : null;
     if (!saved) {
-      toast.error("Selecione um cliente no Studio antes de criar um carrossel.");
-      navigate({ to: "/dashboard/studio" });
+      // Não redireciona: o guard no /studio já previne o caso comum.
+      // Se o usuário abrir a URL direto sem cliente, o editor segue
+      // funcionando em modo "sem DNA" (paleta/fonte padrão).
       return;
     }
     setClientId(saved);

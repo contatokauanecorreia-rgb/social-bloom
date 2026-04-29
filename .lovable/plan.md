@@ -1,24 +1,71 @@
-# Reposicionar "Para qual cliente?" no Planner
+## Causa do problema
 
-Atualmente o seletor "Para qual cliente?" fica no topo da página, antes do título "Planner de conteúdo". Vamos movê-lo para logo **acima da barra de busca/tags** (o card que contém o input "Buscar por título ou nota..." e os chips de tags), mantendo todo o comportamento (filtro, auto-preenchimento no "Novo post", chips coloridos quando "Todos os clientes").
+O card "Criar carrossel" e a rota `/dashboard/studio/carrossel` já estão corretamente conectados:
 
-## Mudança em `src/routes/dashboard.planner.tsx`
+- `src/routes/dashboard.studio.tsx` chama `navigate({ to: "/dashboard/studio/carrossel" })` no `onClick`.
+- A rota está registrada em `src/routeTree.gen.ts` (`DashboardStudioCarrosselRoute`).
+- O componente `CarrosselEditorPage` é exportado corretamente em `src/routes/dashboard.studio.carrossel.tsx`.
 
-1. Remover o bloco do seletor que hoje está antes do `<Badge>Conteúdo</Badge>` / `<PageHeader>`.
-2. Inserir esse mesmo bloco imediatamente antes do card de filtros (`<div className="mb-6 flex flex-col gap-3 rounded-xl border bg-card/40 p-3">`), entre o `PageHeader` e a barra de busca.
-3. Manter o mesmo markup (ícone `Users`, `Label`, `Select` com "Todos os clientes" + lista de clientes) e os mesmos estados (`selectedClient`, `setSelectedClient`).
+O sintoma "card não abre o editor" vem de um **redirect silencioso dentro do próprio editor**: quando não há cliente ativo em `localStorage` (`ACTIVE_CLIENT_STORAGE_KEY`), o `useEffect` do editor mostra um toast e chama `navigate({ to: "/dashboard/studio" })` imediatamente. Para o usuário, o editor "pisca" e volta para o Studio, parecendo que o clique não funcionou.
 
-## Resultado visual
+## Correções (mínimas, sem reescrever o editor)
 
+### 1. `src/routes/dashboard.studio.tsx` — validar cliente ANTES de navegar
+
+No `onClick` do `ModeCard` "Criar carrossel", se não houver `clientId`, mostrar toast e não navegar. Assim o usuário vê uma mensagem clara em vez de uma navegação fantasma.
+
+```tsx
+<ModeCard
+  icon={Layers}
+  title="Criar carrossel"
+  description="Slides completos com design da marca."
+  cost={MODE_COST.carrossel}
+  disabled={exhausted}
+  onClick={() => {
+    if (!clientId) {
+      toast.error("Selecione um cliente antes de criar um carrossel.");
+      return;
+    }
+    navigate({ to: "/dashboard/studio/carrossel" });
+  }}
+/>
 ```
-[Badge Conteúdo]
-[Planner de conteúdo  ............  Nova semana | Novo post]
 
-[Para qual cliente?  ▾ Todos os clientes]   ← novo lugar
-[🔎 Buscar por título ou nota...        ]
-[ tags chips... ]
+### 2. `src/routes/dashboard.studio.carrossel.tsx` — não redirecionar silenciosamente
 
-[ Semana 1 ] [ Semana 2 ] [ Semana 3 ] ...
+Trocar o `useEffect` que redireciona quando não há cliente por um `return` simples. Como `clientId` continua `null`, o resto do editor já se comporta de forma segura (Promise.all não roda, `clientName` fica vazio, modal de formato segue abrindo). O guard antes da navegação no Studio é a primeira linha de defesa; este aqui é só um fallback se o usuário entrar direto pela URL.
+
+Substituição em `dashboard.studio.carrossel.tsx` (linhas 151–162):
+
+```tsx
+useEffect(() => {
+  if (!userId) return;
+  const saved =
+    typeof window !== "undefined"
+      ? window.localStorage.getItem(ACTIVE_CLIENT_STORAGE_KEY)
+      : null;
+  if (!saved) {
+    // Não redireciona: o guard no /studio já previne o caso comum.
+    return;
+  }
+  setClientId(saved);
+  // ... resto do useEffect segue igual
 ```
 
-Sem mudanças de lógica, banco de dados ou outros componentes.
+## O que NÃO muda
+
+- Estrutura do editor (modal de formato, painel esquerdo, preview central, slides bar)
+- Lógica de export ZIP, save draft, notificação do Planner
+- Rotas, banco, tipos
+- Qualquer outro componente
+
+## Validação manual após aplicar
+
+1. `/dashboard/studio` sem cliente selecionado → clicar em "Criar carrossel" → toast "Selecione um cliente antes de criar um carrossel.", sem navegação.
+2. Selecionar um cliente no `ClientPicker` → clicar em "Criar carrossel" → modal "Escolha o formato" abre → "Começar" → editor carrega com preview, painel e barra de slides.
+3. Voltar e testar "Baixar todos" / "Salvar rascunho" para confirmar que o resto continua funcionando.
+
+## Arquivos alterados
+
+- `src/routes/dashboard.studio.tsx` (1 bloco do `onClick`)
+- `src/routes/dashboard.studio.carrossel.tsx` (1 bloco do `useEffect`)

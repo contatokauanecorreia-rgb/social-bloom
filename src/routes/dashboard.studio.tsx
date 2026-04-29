@@ -144,7 +144,13 @@ function StudioPage() {
           description="Slides completos com design da marca."
           cost={MODE_COST.carrossel}
           disabled={exhausted}
-          onClick={() => navigate({ to: "/dashboard/studio/carrossel" })}
+          onClick={() => {
+            if (!clientId) {
+              toast.error("Selecione um cliente antes de criar um carrossel.");
+              return;
+            }
+            navigate({ to: "/dashboard/studio/carrossel" });
+          }}
         />
         <ModeCard
           icon={CalendarDays}
