@@ -21,10 +21,13 @@ type Persona = "amiga-especialista" | "autoridade" | "aspiracional" | "popular";
 type AgeRange = "18-24" | "25-35" | "36-45" | "46+";
 type Goal = "agendamentos" | "crescer-perfil" | "autoridade" | "vender";
 type Frequency = "1-2" | "3-4" | "5-6" | "7+";
+type Archetype = "cuidador" | "criador" | "sabio" | "heroi" | "rebelde" | "inocente";
 
 type Form = {
   name: string;
   segment: string;
+  archetype: Archetype | "";
+  palette: [string, string, string];
   personality: string[];
   formality: number;
   persona: Persona | "";
@@ -41,6 +44,8 @@ type Form = {
 const initial: Form = {
   name: "",
   segment: "",
+  archetype: "",
+  palette: ["#E91E63", "#FFFFFF", "#2D2D2D"],
   personality: [],
   formality: 3,
   persona: "",
@@ -92,7 +97,16 @@ const FREQUENCIES: { id: Frequency; label: string }[] = [
 ];
 
 const FORMALITY_LABELS = ["Muito informal", "Informal", "Equilibrado", "Formal", "Muito formal"];
-const STEPS = ["Identidade", "Tom de voz", "Público", "Objetivos", "Revisão"];
+const STEPS = ["Identidade", "Marca", "Tom de voz", "Público", "Objetivos", "Revisão"];
+
+const ARCHETYPES: { id: Archetype; label: string; hint: string }[] = [
+  { id: "cuidador", label: "Cuidador", hint: "Acolhe, protege, ajuda" },
+  { id: "criador", label: "Criador", hint: "Inspira, inova, transforma" },
+  { id: "sabio", label: "Sábio", hint: "Ensina, aprofunda, esclarece" },
+  { id: "heroi", label: "Herói", hint: "Conquista, supera, motiva" },
+  { id: "rebelde", label: "Rebelde", hint: "Quebra regras, provoca" },
+  { id: "inocente", label: "Inocente", hint: "Otimista, simples, leve" },
+];
 
 function BriefingPage() {
   const { id: clientId } = Route.useParams();
@@ -109,18 +123,25 @@ function BriefingPage() {
       supabase.from("clients").select("name").eq("id", clientId).maybeSingle(),
       supabase
         .from("client_briefings")
-        .select("dos, donts, extra")
+        .select("dos, donts, extra, archetype, palette")
         .eq("client_id", clientId)
         .maybeSingle(),
     ]).then(([c, b]) => {
       if (!active) return;
       const extra = ((b.data?.extra as Record<string, unknown> | null) ?? {}) as Partial<Form>;
+      const palette = (b.data?.palette ?? []) as string[];
       setForm({
         ...initial,
         ...extra,
         name: c.data?.name ?? extra.name ?? "",
         dos: b.data?.dos ?? extra.dos ?? [],
         donts: b.data?.donts ?? extra.donts ?? [],
+        archetype: ((b.data?.archetype as Archetype | null) ?? extra.archetype ?? "") as Archetype | "",
+        palette: [
+          palette[0] ?? extra.palette?.[0] ?? initial.palette[0],
+          palette[1] ?? extra.palette?.[1] ?? initial.palette[1],
+          palette[2] ?? extra.palette?.[2] ?? initial.palette[2],
+        ] as [string, string, string],
         competitors:
           extra.competitors && extra.competitors.length === 3
             ? extra.competitors
@@ -177,6 +198,8 @@ function BriefingPage() {
           goals: goalLabel ? [goalLabel] : [],
           dos: form.dos,
           donts: form.donts,
+          archetype: form.archetype || null,
+          palette: form.palette,
           extra: form as unknown as never,
         },
       ],
@@ -232,10 +255,11 @@ function BriefingPage() {
       <Card>
         <CardContent className="pt-6">
           {step === 0 && <StepIdentidade form={form} update={update} />}
-          {step === 1 && <StepTomDeVoz form={form} update={update} />}
-          {step === 2 && <StepPublico form={form} update={update} />}
-          {step === 3 && <StepObjetivos form={form} update={update} />}
-          {step === 4 && <StepRevisao form={form} aiContext={aiContext} />}
+          {step === 1 && <StepMarca form={form} update={update} />}
+          {step === 2 && <StepTomDeVoz form={form} update={update} />}
+          {step === 3 && <StepPublico form={form} update={update} />}
+          {step === 4 && <StepObjetivos form={form} update={update} />}
+          {step === 5 && <StepRevisao form={form} aiContext={aiContext} />}
         </CardContent>
       </Card>
 
@@ -290,6 +314,53 @@ function StepIdentidade({ form, update }: StepProps) {
           onChange={(v) => update("personality", v)}
           placeholder="Digite uma palavra e pressione Enter"
         />
+      </Field>
+    </div>
+  );
+}
+
+function StepMarca({ form, update }: StepProps) {
+  const setColor = (i: 0 | 1 | 2, hex: string) => {
+    const next = [...form.palette] as [string, string, string];
+    next[i] = hex.toUpperCase();
+    update("palette", next);
+  };
+  return (
+    <div className="space-y-6">
+      <Header title="Marca" subtitle="A essência visual e simbólica da marca." />
+
+      <Field label="Arquétipo da marca" hint="Como a marca se posiciona no imaginário do público.">
+        <ChoiceGrid
+          options={ARCHETYPES.map((a) => ({ id: a.id, label: a.label, hint: a.hint }))}
+          value={form.archetype}
+          onChange={(v) => update("archetype", v as Archetype)}
+          cols={3}
+        />
+      </Field>
+
+      <Field label="Paleta de cores" hint="Até 3 cores principais da identidade visual.">
+        <div className="grid grid-cols-3 gap-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex flex-col items-center gap-2 rounded-xl border bg-background p-3">
+              <div
+                className="h-16 w-full rounded-lg border shadow-inner"
+                style={{ backgroundColor: form.palette[i as 0 | 1 | 2] }}
+              />
+              <input
+                type="color"
+                value={form.palette[i as 0 | 1 | 2]}
+                onChange={(e) => setColor(i as 0 | 1 | 2, e.target.value)}
+                className="h-8 w-full cursor-pointer rounded"
+              />
+              <Input
+                value={form.palette[i as 0 | 1 | 2]}
+                onChange={(e) => setColor(i as 0 | 1 | 2, e.target.value)}
+                className="h-8 text-center font-mono text-xs uppercase"
+                maxLength={7}
+              />
+            </div>
+          ))}
+        </div>
       </Field>
     </div>
   );
