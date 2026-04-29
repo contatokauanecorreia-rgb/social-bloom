@@ -1358,10 +1358,25 @@ function SlideContent({
             width: "100%",
             height: "100%",
             objectFit: "cover",
+            objectPosition: `${slide.bgPos.x * 100}% ${slide.bgPos.y * 100}%`,
+            transform: `scale(${slide.bgZoom})`,
+            transformOrigin: `${slide.bgPos.x * 100}% ${slide.bgPos.y * 100}%`,
           }}
         />
       )}
       <div style={{ position: "absolute", inset: 0, background: overlayBg }} />
+      {slide.grid.enabled && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            backgroundImage:
+              "linear-gradient(to right, rgba(255,255,255,0.35) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.35) 1px, transparent 1px)",
+            backgroundSize: `${100 / 3}% ${100 / 3}%`,
+          }}
+        />
+      )}
 
       {/* bloco de texto arrastável */}
       <div
