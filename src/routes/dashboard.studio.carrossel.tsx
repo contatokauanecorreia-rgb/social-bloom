@@ -12,6 +12,7 @@ import {
   Save,
   Trash2,
   Type,
+  X,
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import JSZip from "jszip";
