@@ -236,3 +236,67 @@ function ConfiguracoesPage() {
     </PageContainer>
   );
 }
+
+function AiOptionCard({
+  icon,
+  title,
+  description,
+  selected,
+  onSelect,
+  premium,
+  locked,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  selected: boolean;
+  onSelect: () => void;
+  premium?: boolean;
+  locked?: boolean;
+  children?: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      disabled={locked}
+      className={cn(
+        "group w-full rounded-lg border bg-background p-4 text-left transition-all",
+        selected ? "border-primary ring-1 ring-primary" : "hover:border-primary/40",
+        locked && "cursor-not-allowed opacity-60",
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <span
+          className={cn(
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border",
+            selected ? "border-primary bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+          )}
+        >
+          {locked ? <Lock className="h-4 w-4" /> : icon}
+        </span>
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">{title}</span>
+            {premium && (
+              <Badge variant="soft" className="text-[10px]">
+                Premium
+              </Badge>
+            )}
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {locked ? "Disponível no Premium" : description}
+          </p>
+          {!locked && children}
+        </div>
+        <span
+          className={cn(
+            "mt-1 h-4 w-4 shrink-0 rounded-full border",
+            selected ? "border-primary bg-primary" : "border-muted-foreground/40",
+          )}
+        />
+      </div>
+    </button>
+  );
+}
