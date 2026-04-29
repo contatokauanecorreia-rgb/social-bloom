@@ -1017,8 +1017,8 @@ function StepRevisao({ form, aiContext }: { form: Form; aiContext: string }) {
 }
 
 function buildContext(f: Form): string {
-  const personaLabel = PERSONAS.find((p) => p.id === f.persona)?.label;
-  const goal = GOALS.find((g) => g.id === f.goal);
+  const personaLabels = PERSONAS.filter((p) => f.persona.includes(p.id as Persona)).map((p) => p.label);
+  const goals = GOALS.filter((g) => f.goal.includes(g.id as Goal));
   const ageLabel = AGES.find((a) => a.id === f.age)?.label;
   const archetype = ARCHETYPES.find((a) => a.id === f.archetype);
 
@@ -1029,9 +1029,9 @@ function buildContext(f: Form): string {
   if (f.personality.length) {
     parts.push(`A marca tem personalidade ${f.personality.join(", ")}.`);
   }
-  if (personaLabel) {
+  if (personaLabels.length) {
     parts.push(
-      `Tom de voz: ${personaLabel.toLowerCase()} (${FORMALITY_LABELS[f.formality - 1].toLowerCase()}).`,
+      `Tom de voz: ${personaLabels.map((l) => l.toLowerCase()).join(" + ")} (${FORMALITY_LABELS[f.formality - 1].toLowerCase()}).`,
     );
   }
   if (archetype) {
@@ -1044,8 +1044,10 @@ function buildContext(f: Form): string {
   if (f.donts.length) parts.push(`Nunca use: ${f.donts.join(", ")}.`);
   if (f.pains.trim()) parts.push(`Dores do público: ${f.pains.trim()}.`);
   if (f.dreams.trim()) parts.push(`Sonhos do público: ${f.dreams.trim()}.`);
-  if (goal) {
-    parts.push(`O objetivo de cada conteúdo é ${goal.label.toLowerCase()}. ${goal.cta}`);
+  if (goals.length) {
+    const labels = goals.map((g) => g.label.toLowerCase()).join(" e ");
+    const ctas = goals.map((g) => g.cta).join(" ");
+    parts.push(`O objetivo de cada conteúdo é ${labels}. ${ctas}`);
   }
   return parts.join(" ");
 }
