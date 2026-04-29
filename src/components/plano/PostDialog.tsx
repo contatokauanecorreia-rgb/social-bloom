@@ -125,6 +125,7 @@ export function PostDialog({
     }
     const baseTitle = post?.title ?? "";
     const baseWeek = post?.week_id ?? defaultWeekId ?? weeks[0]?.id ?? "";
+    const baseClient = post?.client_id ?? defaultClientId ?? null;
     const baseTags = post?.tags ?? [];
     const raw = post?.notes ?? "";
     const baseBlocks = raw ? raw.split(/\n\n---\n\n/) : [""];
@@ -134,6 +135,7 @@ export function PostDialog({
     if (draft) {
       setTitle(draft.title);
       setWeekId(draft.weekId || baseWeek);
+      setClientId(draft.clientId ?? baseClient);
       setTags(draft.tags);
       setNoteBlocks(draft.noteBlocks.length ? draft.noteBlocks : [""]);
       setStatus(draft.status);
@@ -142,6 +144,7 @@ export function PostDialog({
     } else {
       setTitle(baseTitle);
       setWeekId(baseWeek);
+      setClientId(baseClient);
       setTags(baseTags);
       setNoteBlocks(baseBlocks.length ? baseBlocks : [""]);
       setStatus(baseStatus);
@@ -152,7 +155,7 @@ export function PostDialog({
     requestAnimationFrame(() => {
       hydratedRef.current = true;
     });
-  }, [open, post, defaultWeekId, weeks]);
+  }, [open, post, defaultWeekId, defaultClientId, weeks]);
 
   // Autosave em localStorage com debounce
   useEffect(() => {
