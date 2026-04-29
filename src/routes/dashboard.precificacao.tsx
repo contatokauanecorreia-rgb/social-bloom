@@ -118,19 +118,55 @@ function computePerClient(posts: number, hoursPerPost: number, hourlyRate: numbe
 }
 
 function PrecificacaoPage() {
-  const [clients, setClients] = useState(5);
-  const [postsPerClient, setPostsPerClient] = useState(12);
-  const [hoursPerPost, setHoursPerPost] = useState(1.5);
-  const [hourlyRate, setHourlyRate] = useState(80);
-  const [extras, setExtras] = useState<Extras>({
+  const [clients, setClientsState] = useState(5);
+  const [postsPerClient, setPostsPerClientState] = useState(12);
+  const [hoursPerPost, setHoursPerPostState] = useState(1.5);
+  const [hourlyRate, setHourlyRateState] = useState(80);
+  const [extras, setExtrasState] = useState<Extras>({
     stories: true,
     reels: true,
     report: false,
     meeting: false,
   });
+  const [selectedPreset, setSelectedPreset] = useState<PresetKey | null>(null);
   const [overrides, setOverrides] = useState<Record<string, number>>(
     Object.fromEntries(MOCK_CLIENTS.map((c) => [c.id, c.currentCharged])),
   );
+
+  // Wrappers que limpam o preset selecionado quando o usuário ajusta manualmente
+  const setClients = (v: number) => {
+    setSelectedPreset(null);
+    setClientsState(v);
+  };
+  const setPostsPerClient = (v: number) => {
+    setSelectedPreset(null);
+    setPostsPerClientState(v);
+  };
+  const setHoursPerPost = (v: number) => {
+    setSelectedPreset(null);
+    setHoursPerPostState(v);
+  };
+  const setHourlyRate = (v: number) => {
+    setSelectedPreset(null);
+    setHourlyRateState(v);
+  };
+  const setExtras: typeof setExtrasState = (v) => {
+    setSelectedPreset(null);
+    setExtrasState(v);
+  };
+
+  const applyPreset = (key: PresetKey) => {
+    const preset = PRESETS.find((p) => p.key === key);
+    if (!preset) return;
+    setClientsState(preset.clients);
+    setPostsPerClientState(preset.posts);
+    setExtrasState({ stories: false, reels: false, report: false, meeting: false });
+    // Calcula valor-hora para que valor por cliente bata no preset
+    const computedHourly = Math.round(preset.perClient / (preset.posts * hoursPerPost));
+    setHourlyRateState(Math.max(1, computedHourly));
+    setSelectedPreset(key);
+    toast.success(`Preset "${preset.name}" aplicado!`);
+  };
 
   const result = useMemo(() => {
     const { baseHours, value: perClient } = computePerClient(
