@@ -686,6 +686,44 @@ function EditorPanel({
 
   return (
     <div className="space-y-6">
+      {/* LAYOUT & POSIÇÃO */}
+      <Section title="Layout & posição do texto">
+        <p className="text-[11px] text-muted-foreground">
+          Encaixe o bloco de texto em uma das 9 posições, ou arraste no preview.
+        </p>
+        <div className="mt-2 grid grid-cols-3 gap-1.5">
+          {[0.15, 0.5, 0.85].flatMap((y) =>
+            [0.15, 0.5, 0.85].map((x) => {
+              const isActive =
+                Math.abs(slide.textPos.x - x) < 0.02 && Math.abs(slide.textPos.y - y) < 0.02;
+              return (
+                <button
+                  key={`${x}-${y}`}
+                  type="button"
+                  onClick={() =>
+                    onUpdateActive((s) => ({ ...s, textPos: { x, y } }))
+                  }
+                  className={cn(
+                    "aspect-square rounded-md border transition flex items-center justify-center",
+                    isActive
+                      ? "border-primary bg-primary/10"
+                      : "border-border bg-background hover:border-primary/40",
+                  )}
+                  title={`Posição ${x},${y}`}
+                >
+                  <div
+                    className={cn(
+                      "h-1.5 w-1.5 rounded-full",
+                      isActive ? "bg-primary" : "bg-muted-foreground/40",
+                    )}
+                  />
+                </button>
+              );
+            }),
+          )}
+        </div>
+      </Section>
+
       {/* IMAGEM */}
       <Section title="Imagem de fundo">
         <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed bg-background py-3 text-xs font-medium hover:bg-accent">
@@ -719,6 +757,55 @@ function EditorPanel({
             </Button>
           </div>
         )}
+        {slide.bgImage && (
+          <div className="mt-3 space-y-3">
+            <div>
+              <Label className="text-[11px] text-muted-foreground">
+                Zoom ({slide.bgZoom.toFixed(2)}x)
+              </Label>
+              <Slider
+                className="mt-1"
+                value={[slide.bgZoom]}
+                min={1}
+                max={3}
+                step={0.05}
+                onValueChange={(v) =>
+                  onUpdateActive((s) => ({ ...s, bgZoom: v[0] }))
+                }
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] text-muted-foreground">
+                Posição X ({Math.round(slide.bgPos.x * 100)}%)
+              </Label>
+              <Slider
+                className="mt-1"
+                value={[slide.bgPos.x * 100]}
+                min={0}
+                max={100}
+                step={1}
+                onValueChange={(v) =>
+                  onUpdateActive((s) => ({ ...s, bgPos: { ...s.bgPos, x: v[0] / 100 } }))
+                }
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] text-muted-foreground">
+                Posição Y ({Math.round(slide.bgPos.y * 100)}%)
+              </Label>
+              <Slider
+                className="mt-1"
+                value={[slide.bgPos.y * 100]}
+                min={0}
+                max={100}
+                step={1}
+                onValueChange={(v) =>
+                  onUpdateActive((s) => ({ ...s, bgPos: { ...s.bgPos, y: v[0] / 100 } }))
+                }
+              />
+            </div>
+          </div>
+        )}
         <label className="mt-2 flex items-center gap-2 text-[11px] text-muted-foreground">
           <Checkbox
             checked={applyImageAll}
@@ -726,6 +813,21 @@ function EditorPanel({
           />
           Aplicar também em todos os slides
         </label>
+      </Section>
+
+      {/* GRADE DE IMAGEM */}
+      <Section title="Grade de imagem">
+        <div className="flex items-center justify-between">
+          <span className="text-xs flex items-center gap-1.5">
+            <LayoutGrid className="h-3.5 w-3.5" /> Mostrar grade 3x3
+          </span>
+          <Switch
+            checked={slide.grid.enabled}
+            onCheckedChange={(v) =>
+              onUpdateActive((s) => ({ ...s, grid: { enabled: v } }))
+            }
+          />
+        </div>
       </Section>
 
       {/* OVERLAY */}
@@ -886,18 +988,17 @@ function EditorPanel({
               />
             </div>
             <div>
-              <Label className="text-[11px] text-muted-foreground">Peso da fonte</Label>
-              <select
-                className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-xs"
-                value={slide.fontWeight[f]}
-                onChange={(e) => setWeight(f, Number(e.target.value))}
-              >
-                <option value={300}>Light (300)</option>
-                <option value={400}>Regular (400)</option>
-                <option value={500}>Medium (500)</option>
-                <option value={600}>SemiBold (600)</option>
-                <option value={700}>Bold (700)</option>
-              </select>
+              <Label className="text-[11px] text-muted-foreground">
+                Peso ({slide.fontWeight[f]})
+              </Label>
+              <Slider
+                className="mt-1"
+                value={[slide.fontWeight[f]]}
+                min={300}
+                max={700}
+                step={100}
+                onValueChange={(v) => setWeight(f, v[0])}
+              />
             </div>
           </div>
         ))}
@@ -1358,10 +1459,25 @@ function SlideContent({
             width: "100%",
             height: "100%",
             objectFit: "cover",
+            objectPosition: `${slide.bgPos.x * 100}% ${slide.bgPos.y * 100}%`,
+            transform: `scale(${slide.bgZoom})`,
+            transformOrigin: `${slide.bgPos.x * 100}% ${slide.bgPos.y * 100}%`,
           }}
         />
       )}
       <div style={{ position: "absolute", inset: 0, background: overlayBg }} />
+      {slide.grid.enabled && (
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "none",
+            backgroundImage:
+              "linear-gradient(to right, rgba(255,255,255,0.35) 1px, transparent 1px), linear-gradient(to bottom, rgba(255,255,255,0.35) 1px, transparent 1px)",
+            backgroundSize: `${100 / 3}% ${100 / 3}%`,
+          }}
+        />
+      )}
 
       {/* bloco de texto arrastável */}
       <div
