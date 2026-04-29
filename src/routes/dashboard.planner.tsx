@@ -530,6 +530,8 @@ function PlanoPage() {
                   onDuplicatePost={handleDuplicatePost}
                   onDeletePost={(p) => handleDeletePost(p.id)}
                   dndDisabled={hasFilters}
+                  getClientName={getClientName}
+                  showClientChip={selectedClient === "all"}
                 />
               ))}
               <button
