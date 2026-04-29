@@ -319,7 +319,52 @@ function StepIdentidade({ form, update }: StepProps) {
   );
 }
 
-function StepTomDeVoz({ form, update }: StepProps) {
+function StepMarca({ form, update }: StepProps) {
+  const setColor = (i: 0 | 1 | 2, hex: string) => {
+    const next = [...form.palette] as [string, string, string];
+    next[i] = hex.toUpperCase();
+    update("palette", next);
+  };
+  return (
+    <div className="space-y-6">
+      <Header title="Marca" subtitle="A essência visual e simbólica da marca." />
+
+      <Field label="Arquétipo da marca" hint="Como a marca se posiciona no imaginário do público.">
+        <ChoiceGrid
+          options={ARCHETYPES.map((a) => ({ id: a.id, label: a.label, hint: a.hint }))}
+          value={form.archetype}
+          onChange={(v) => update("archetype", v as Archetype)}
+          cols={3}
+        />
+      </Field>
+
+      <Field label="Paleta de cores" hint="Até 3 cores principais da identidade visual.">
+        <div className="grid grid-cols-3 gap-3">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="flex flex-col items-center gap-2 rounded-xl border bg-background p-3">
+              <div
+                className="h-16 w-full rounded-lg border shadow-inner"
+                style={{ backgroundColor: form.palette[i as 0 | 1 | 2] }}
+              />
+              <input
+                type="color"
+                value={form.palette[i as 0 | 1 | 2]}
+                onChange={(e) => setColor(i as 0 | 1 | 2, e.target.value)}
+                className="h-8 w-full cursor-pointer rounded"
+              />
+              <Input
+                value={form.palette[i as 0 | 1 | 2]}
+                onChange={(e) => setColor(i as 0 | 1 | 2, e.target.value)}
+                className="h-8 text-center font-mono text-xs uppercase"
+                maxLength={7}
+              />
+            </div>
+          ))}
+        </div>
+      </Field>
+    </div>
+  );
+}
   return (
     <div className="space-y-6">
       <Header title="Tom de voz" subtitle="Como a marca conversa com o público." />
