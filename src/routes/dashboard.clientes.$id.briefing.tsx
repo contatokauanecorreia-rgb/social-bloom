@@ -916,8 +916,14 @@ function ModeRadio({
 }
 
 function StepRevisao({ form, aiContext }: { form: Form; aiContext: string }) {
-  const personaLabel = PERSONAS.find((p) => p.id === form.persona)?.label ?? "—";
-  const goalLabel = GOALS.find((g) => g.id === form.goal)?.label ?? "—";
+  const personaLabel =
+    PERSONAS.filter((p) => form.persona.includes(p.id as Persona))
+      .map((p) => p.label)
+      .join(" + ") || "—";
+  const goalLabel =
+    GOALS.filter((g) => form.goal.includes(g.id as Goal))
+      .map((g) => g.label)
+      .join(" + ") || "—";
   const ageLabel = AGES.find((a) => a.id === form.age)?.label ?? "—";
   const archetypeLabel =
     ARCHETYPES.find((a) => a.id === form.archetype)?.label ?? "—";
