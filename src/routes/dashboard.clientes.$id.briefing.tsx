@@ -370,11 +370,27 @@ function StepMarca({ form, update }: StepProps) {
           ))}
         </div>
       </Field>
+
+      <Field
+        label="Fonte da marca"
+        hint="Use o nome de uma Google Font (ex: Inter, Poppins) ou cole a URL de um arquivo .ttf/.otf."
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Input
+            placeholder="Nome da fonte (ex: Poppins)"
+            value={form.brandFont}
+            onChange={(e) => update("brandFont", e.target.value)}
+          />
+          <Input
+            placeholder="URL do arquivo .ttf (opcional)"
+            value={form.brandFontUrl}
+            onChange={(e) => update("brandFontUrl", e.target.value)}
+          />
+        </div>
+      </Field>
     </div>
   );
 }
-
-function StepTomDeVoz({ form, update }: StepProps) {
   return (
     <div className="space-y-6">
       <Header title="Tom de voz" subtitle="Como a marca conversa com o público." />
