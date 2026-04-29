@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
   ArrowLeft,
   Download,
   Image as ImageIcon,
@@ -9,7 +12,6 @@ import {
   Save,
   Trash2,
   Type,
-  X,
 } from "lucide-react";
 import html2canvas from "html2canvas";
 import JSZip from "jszip";
