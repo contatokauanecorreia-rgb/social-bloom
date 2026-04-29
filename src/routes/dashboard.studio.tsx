@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Loader2, FileText, Layers, CalendarDays, Film } from "lucide-react";
 import { toast } from "sonner";
@@ -20,6 +20,8 @@ export const Route = createFileRoute("/dashboard/studio")({
 
 function StudioPage() {
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isChildRoute = pathname !== "/dashboard/studio" && pathname !== "/dashboard/studio/";
   const [userId, setUserId] = useState<string | null>(null);
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [clientId, setClientId] = useState<string | null>(null);
@@ -92,6 +94,10 @@ function StudioPage() {
   const refreshCredits = () => {
     fetchCredits().then(setCredits).catch(() => {});
   };
+
+  if (isChildRoute) {
+    return <Outlet />;
+  }
 
   if (!userId || !credits) {
     return (
