@@ -70,13 +70,13 @@ type Form = {
   fontMode: FontMode;
   personality: string[];
   formality: number;
-  persona: Persona | "";
+  persona: Persona[];
   dos: string[];
   donts: string[];
   age: AgeRange | "";
   pains: string;
   dreams: string;
-  goal: Goal | "";
+  goal: Goal[];
   competitors: string[];
   frequency: Frequency | "";
 };
@@ -92,13 +92,13 @@ const initial: Form = {
   fontMode: "publica",
   personality: [],
   formality: 3,
-  persona: "",
+  persona: [],
   dos: [],
   donts: [],
   age: "",
   pains: "",
   dreams: "",
-  goal: "",
+  goal: [],
   competitors: ["", "", ""],
   frequency: "",
 };
@@ -230,11 +230,26 @@ function BriefingPage() {
         .maybeSingle(),
     ]).then(([c, b]) => {
       if (!active) return;
-      const extra = ((b.data?.extra as Record<string, unknown> | null) ?? {}) as Partial<Form>;
+      const extra = ((b.data?.extra as Record<string, unknown> | null) ?? {}) as Partial<Form> & {
+        persona?: Persona | Persona[] | "";
+        goal?: Goal | Goal[] | "";
+      };
       const palette = (b.data?.palette ?? []) as string[];
+      const personaArr: Persona[] = Array.isArray(extra.persona)
+        ? (extra.persona as Persona[])
+        : extra.persona
+          ? [extra.persona as Persona]
+          : [];
+      const goalArr: Goal[] = Array.isArray(extra.goal)
+        ? (extra.goal as Goal[])
+        : extra.goal
+          ? [extra.goal as Goal]
+          : [];
       setForm({
         ...initial,
-        ...extra,
+        ...(extra as Partial<Form>),
+        persona: personaArr,
+        goal: goalArr,
         name: c.data?.name ?? extra.name ?? "",
         dos: b.data?.dos ?? extra.dos ?? [],
         donts: b.data?.donts ?? extra.donts ?? [],
@@ -279,8 +294,8 @@ function BriefingPage() {
       await supabase.from("clients").update({ name: form.name.trim() }).eq("id", clientId);
     }
 
-    const personaLabel = PERSONAS.find((p) => p.id === form.persona)?.label ?? "";
-    const goalLabel = GOALS.find((g) => g.id === form.goal)?.label ?? "";
+    const personaLabels = PERSONAS.filter((p) => form.persona.includes(p.id as Persona)).map((p) => p.label);
+    const goalLabels = GOALS.filter((g) => form.goal.includes(g.id as Goal)).map((g) => g.label);
     const ageLabel = AGES.find((a) => a.id === form.age)?.label ?? "";
 
     const { error } = await supabase.from("client_briefings").upsert(
@@ -288,8 +303,8 @@ function BriefingPage() {
         {
           client_id: clientId,
           user_id: session.user.id,
-          tone_of_voice: personaLabel
-            ? `${personaLabel} · ${FORMALITY_LABELS[form.formality - 1]}`
+          tone_of_voice: personaLabels.length
+            ? `${personaLabels.join(" + ")} · ${FORMALITY_LABELS[form.formality - 1]}`
             : FORMALITY_LABELS[form.formality - 1],
           target_audience: [
             ageLabel,
@@ -299,7 +314,7 @@ function BriefingPage() {
             .filter(Boolean)
             .join(". "),
           content_pillars: form.personality,
-          goals: goalLabel ? [goalLabel] : [],
+          goals: goalLabels,
           dos: form.dos,
           donts: form.donts,
           archetype: form.archetype || null,
@@ -463,11 +478,12 @@ function StepTomDeVoz({ form, update }: StepProps) {
         </div>
       </Field>
 
-      <Field label="A marca se parece com…">
+      <Field label="A marca se parece com…" hint="Selecione uma ou mais opções.">
         <ChoiceGrid
+          multi
           options={PERSONAS.map((p) => ({ id: p.id, label: p.label, hint: p.hint }))}
           value={form.persona}
-          onChange={(v) => update("persona", v as Persona)}
+          onChange={(v) => update("persona", v as Persona[])}
           cols={2}
         />
       </Field>
@@ -540,11 +556,12 @@ function StepObjetivos({ form, update }: StepProps) {
     <div className="space-y-6">
       <Header title="Objetivos" subtitle="O que cada conteúdo precisa entregar." />
 
-      <Field label="Objetivo principal">
+      <Field label="Objetivo principal" hint="Selecione um ou mais objetivos.">
         <ChoiceGrid
+          multi
           options={GOALS.map((g) => ({ id: g.id, label: g.label }))}
           value={form.goal}
-          onChange={(v) => update("goal", v as Goal)}
+          onChange={(v) => update("goal", v as Goal[])}
           cols={2}
         />
       </Field>
@@ -914,8 +931,14 @@ function ModeRadio({
 }
 
 function StepRevisao({ form, aiContext }: { form: Form; aiContext: string }) {
-  const personaLabel = PERSONAS.find((p) => p.id === form.persona)?.label ?? "—";
-  const goalLabel = GOALS.find((g) => g.id === form.goal)?.label ?? "—";
+  const personaLabel =
+    PERSONAS.filter((p) => form.persona.includes(p.id as Persona))
+      .map((p) => p.label)
+      .join(" + ") || "—";
+  const goalLabel =
+    GOALS.filter((g) => form.goal.includes(g.id as Goal))
+      .map((g) => g.label)
+      .join(" + ") || "—";
   const ageLabel = AGES.find((a) => a.id === form.age)?.label ?? "—";
   const archetypeLabel =
     ARCHETYPES.find((a) => a.id === form.archetype)?.label ?? "—";
@@ -1009,8 +1032,8 @@ function StepRevisao({ form, aiContext }: { form: Form; aiContext: string }) {
 }
 
 function buildContext(f: Form): string {
-  const personaLabel = PERSONAS.find((p) => p.id === f.persona)?.label;
-  const goal = GOALS.find((g) => g.id === f.goal);
+  const personaLabels = PERSONAS.filter((p) => f.persona.includes(p.id as Persona)).map((p) => p.label);
+  const goals = GOALS.filter((g) => f.goal.includes(g.id as Goal));
   const ageLabel = AGES.find((a) => a.id === f.age)?.label;
   const archetype = ARCHETYPES.find((a) => a.id === f.archetype);
 
@@ -1021,9 +1044,9 @@ function buildContext(f: Form): string {
   if (f.personality.length) {
     parts.push(`A marca tem personalidade ${f.personality.join(", ")}.`);
   }
-  if (personaLabel) {
+  if (personaLabels.length) {
     parts.push(
-      `Tom de voz: ${personaLabel.toLowerCase()} (${FORMALITY_LABELS[f.formality - 1].toLowerCase()}).`,
+      `Tom de voz: ${personaLabels.map((l) => l.toLowerCase()).join(" + ")} (${FORMALITY_LABELS[f.formality - 1].toLowerCase()}).`,
     );
   }
   if (archetype) {
@@ -1036,8 +1059,10 @@ function buildContext(f: Form): string {
   if (f.donts.length) parts.push(`Nunca use: ${f.donts.join(", ")}.`);
   if (f.pains.trim()) parts.push(`Dores do público: ${f.pains.trim()}.`);
   if (f.dreams.trim()) parts.push(`Sonhos do público: ${f.dreams.trim()}.`);
-  if (goal) {
-    parts.push(`O objetivo de cada conteúdo é ${goal.label.toLowerCase()}. ${goal.cta}`);
+  if (goals.length) {
+    const labels = goals.map((g) => g.label.toLowerCase()).join(" e ");
+    const ctas = goals.map((g) => g.cta).join(" ");
+    parts.push(`O objetivo de cada conteúdo é ${labels}. ${ctas}`);
   }
   return parts.join(" ");
 }
@@ -1069,32 +1094,53 @@ function Field({
   );
 }
 
-function ChoiceGrid({
-  options,
-  value,
-  onChange,
-  cols = 2,
-}: {
+type ChoiceGridSingleProps = {
   options: { id: string; label: string; hint?: string }[];
   value: string;
   onChange: (v: string) => void;
   cols?: 2 | 3 | 4;
-}) {
+  multi?: false;
+};
+type ChoiceGridMultiProps = {
+  options: { id: string; label: string; hint?: string }[];
+  value: string[];
+  onChange: (v: string[]) => void;
+  cols?: 2 | 3 | 4;
+  multi: true;
+};
+
+function ChoiceGrid(props: ChoiceGridSingleProps | ChoiceGridMultiProps) {
+  const { options, cols = 2 } = props;
   const colsClass =
     cols === 4
       ? "grid-cols-2 sm:grid-cols-4"
       : cols === 3
         ? "grid-cols-2 sm:grid-cols-3"
         : "grid-cols-1 sm:grid-cols-2";
+
+  const isActive = (id: string) =>
+    props.multi ? props.value.includes(id) : props.value === id;
+
+  const toggle = (id: string) => {
+    if (props.multi) {
+      const set = new Set(props.value);
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      props.onChange(Array.from(set));
+    } else {
+      props.onChange(id);
+    }
+  };
+
   return (
     <div className={cn("grid gap-2", colsClass)}>
       {options.map((o) => {
-        const active = value === o.id;
+        const active = isActive(o.id);
         return (
           <button
             key={o.id}
             type="button"
-            onClick={() => onChange(o.id)}
+            onClick={() => toggle(o.id)}
             className={cn(
               "rounded-xl border bg-background p-3 text-left transition-all hover:border-foreground/30",
               active && "border-primary bg-primary/5 ring-2 ring-primary/30",
