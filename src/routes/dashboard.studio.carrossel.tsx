@@ -154,6 +154,7 @@ function CarrosselEditorPage() {
 
   const [exporting, setExporting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
+  const [plannerTitles, setPlannerTitles] = useState<string[]>([]);
 
   // initial setup
   useEffect(() => {
