@@ -450,10 +450,11 @@ function StepTomDeVoz({ form, update }: StepProps) {
         <div className="px-1 pt-2">
           <Slider
             value={[form.formality]}
-            onValueChange={(v) => update("formality", v[0])}
+            onValueChange={(v) => update("formality", v[0] as Form["formality"])}
             min={1}
             max={5}
             step={1}
+            minStepsBetweenThumbs={0}
           />
           <div className="mt-2 flex justify-between text-[11px] text-muted-foreground">
             <span>Muito informal</span>
