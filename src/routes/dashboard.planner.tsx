@@ -2,10 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, X, Loader2 } from "lucide-react";
+import { Plus, Search, X, Loader2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PageContainer, PageHeader } from "@/components/dashboard/PageContainer";
 import { WeekColumn } from "@/components/plano/WeekColumn";
 import { TagChip } from "@/components/plano/TagChip";
