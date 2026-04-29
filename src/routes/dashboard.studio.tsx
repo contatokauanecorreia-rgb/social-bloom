@@ -10,6 +10,8 @@ import { CreditsBadge } from "@/components/studio/CreditsBadge";
 import { CreditsExhaustedBanner } from "@/components/studio/CreditsExhaustedBanner";
 import { ModeCard } from "@/components/studio/ModeCard";
 import { CopyGeneratorDialog } from "@/components/studio/CopyGeneratorDialog";
+import { CarouselModeDialog } from "@/components/studio/CarouselModeDialog";
+import { CarouselAIWizard } from "@/components/studio/CarouselAIWizard";
 import { fetchCredits, MODE_COST, type CreditsState } from "@/lib/credits";
 import { ACTIVE_CLIENT_STORAGE_KEY } from "@/lib/client-context";
 
@@ -27,6 +29,7 @@ function StudioPage() {
   const [clientId, setClientId] = useState<string | null>(null);
   const [credits, setCredits] = useState<CreditsState | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
+  const [carouselFlow, setCarouselFlow] = useState<"closed" | "choose" | "ai">("closed");
 
   useEffect(() => {
     let active = true;
@@ -155,7 +158,7 @@ function StudioPage() {
               toast.error("Selecione um cliente antes de criar um carrossel.");
               return;
             }
-            navigate({ to: "/dashboard/studio/carrossel" });
+            setCarouselFlow("choose");
           }}
         />
         <ModeCard
@@ -197,6 +200,26 @@ function StudioPage() {
         onOpenChange={setCopyOpen}
         clientId={clientId}
         onCreditsChange={refreshCredits}
+      />
+
+      <CarouselModeDialog
+        open={carouselFlow === "choose"}
+        onOpenChange={(o) => {
+          if (!o) setCarouselFlow("closed");
+        }}
+        onPickManual={() => {
+          setCarouselFlow("closed");
+          navigate({ to: "/dashboard/studio/carrossel" });
+        }}
+        onPickAI={() => setCarouselFlow("ai")}
+      />
+
+      <CarouselAIWizard
+        open={carouselFlow === "ai"}
+        onOpenChange={(o) => {
+          if (!o) setCarouselFlow("closed");
+        }}
+        clientId={clientId}
       />
     </PageContainer>
   );
