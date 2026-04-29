@@ -197,7 +197,14 @@ function CarrosselEditorPage() {
         .select("palette, brand_font, brand_font_url")
         .eq("client_id", saved)
         .maybeSingle(),
-    ]).then(([c, b]) => {
+      supabase
+        .from("content_posts")
+        .select("title")
+        .eq("user_id", userId)
+        .eq("client_id", saved)
+        .order("created_at", { ascending: false })
+        .limit(200),
+    ]).then(([c, b, p]) => {
       setClientName(c.data?.name ?? "");
       const palette = (b.data?.palette ?? []) as string[];
       const next: BriefingDNA = {
@@ -211,6 +218,10 @@ function CarrosselEditorPage() {
       };
       setDna(next);
       ensureBrandFont(next.brandFont, next.brandFontUrl);
+      const titles = ((p.data ?? []) as { title: string | null }[])
+        .map((r) => r.title)
+        .filter((t): t is string => !!t && t.trim().length > 0);
+      setPlannerTitles(Array.from(new Set(titles)));
     });
   }, [userId, navigate]);
 
