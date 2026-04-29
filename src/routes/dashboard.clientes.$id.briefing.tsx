@@ -28,6 +28,8 @@ type Form = {
   segment: string;
   archetype: Archetype | "";
   palette: [string, string, string];
+  brandFont: string;
+  brandFontUrl: string;
   personality: string[];
   formality: number;
   persona: Persona | "";
@@ -46,6 +48,8 @@ const initial: Form = {
   segment: "",
   archetype: "",
   palette: ["#E91E63", "#FFFFFF", "#2D2D2D"],
+  brandFont: "",
+  brandFontUrl: "",
   personality: [],
   formality: 3,
   persona: "",
@@ -123,7 +127,7 @@ function BriefingPage() {
       supabase.from("clients").select("name").eq("id", clientId).maybeSingle(),
       supabase
         .from("client_briefings")
-        .select("dos, donts, extra, archetype, palette")
+        .select("dos, donts, extra, archetype, palette, brand_font, brand_font_url")
         .eq("client_id", clientId)
         .maybeSingle(),
     ]).then(([c, b]) => {
@@ -142,6 +146,8 @@ function BriefingPage() {
           palette[1] ?? extra.palette?.[1] ?? initial.palette[1],
           palette[2] ?? extra.palette?.[2] ?? initial.palette[2],
         ] as [string, string, string],
+        brandFont: (b.data?.brand_font as string | null) ?? extra.brandFont ?? "",
+        brandFontUrl: (b.data?.brand_font_url as string | null) ?? extra.brandFontUrl ?? "",
         competitors:
           extra.competitors && extra.competitors.length === 3
             ? extra.competitors
@@ -200,6 +206,8 @@ function BriefingPage() {
           donts: form.donts,
           archetype: form.archetype || null,
           palette: form.palette,
+          brand_font: form.brandFont.trim() || null,
+          brand_font_url: form.brandFontUrl.trim() || null,
           extra: form as unknown as never,
         },
       ],
@@ -360,6 +368,24 @@ function StepMarca({ form, update }: StepProps) {
               />
             </div>
           ))}
+        </div>
+      </Field>
+
+      <Field
+        label="Fonte da marca"
+        hint="Use o nome de uma Google Font (ex: Inter, Poppins) ou cole a URL de um arquivo .ttf/.otf."
+      >
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Input
+            placeholder="Nome da fonte (ex: Poppins)"
+            value={form.brandFont}
+            onChange={(e) => update("brandFont", e.target.value)}
+          />
+          <Input
+            placeholder="URL do arquivo .ttf (opcional)"
+            value={form.brandFontUrl}
+            onChange={(e) => update("brandFontUrl", e.target.value)}
+          />
         </div>
       </Field>
     </div>

@@ -10,8 +10,12 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import {
+  clearPlannerHasDraft,
+  usePlannerNotification,
+} from "@/lib/planner-notification";
 
 type SidebarItem = {
   to:
@@ -64,6 +68,13 @@ const sections: SidebarSection[] = [
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const { pathname } = useLocation();
+  const plannerNotif = usePlannerNotification();
+
+  useEffect(() => {
+    if (pathname === "/dashboard/planner" || pathname.startsWith("/dashboard/planner/")) {
+      clearPlannerHasDraft();
+    }
+  }, [pathname]);
 
   return (
     <aside
@@ -102,19 +113,28 @@ export function AppSidebar() {
                     ? pathname === item.to
                     : pathname === item.to || pathname.startsWith(item.to + "/");
                   const Icon = item.icon;
+                  const showDot = item.to === "/dashboard/planner" && plannerNotif;
                   return (
                     <li key={item.to}>
                       <Link
                         to={item.to}
                         className={cn(
-                          "group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                          "group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
                           active && "bg-accent text-foreground",
                           collapsed && "justify-center px-0",
                         )}
                         title={collapsed ? item.label : undefined}
                       >
-                        <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
+                        <span className="relative">
+                          <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
+                          {showDot && collapsed && (
+                            <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary ring-2 ring-card" />
+                          )}
+                        </span>
                         {!collapsed && <span className="truncate">{item.label}</span>}
+                        {showDot && !collapsed && (
+                          <span className="ml-auto h-2 w-2 rounded-full bg-primary" />
+                        )}
                       </Link>
                     </li>
                   );

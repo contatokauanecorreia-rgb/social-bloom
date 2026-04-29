@@ -79,6 +79,8 @@ export type Database = {
       client_briefings: {
         Row: {
           archetype: string | null
+          brand_font: string | null
+          brand_font_url: string | null
           business_description: string | null
           client_id: string
           content_pillars: string[]
@@ -97,6 +99,8 @@ export type Database = {
         }
         Insert: {
           archetype?: string | null
+          brand_font?: string | null
+          brand_font_url?: string | null
           business_description?: string | null
           client_id: string
           content_pillars?: string[]
@@ -115,6 +119,8 @@ export type Database = {
         }
         Update: {
           archetype?: string | null
+          brand_font?: string | null
+          brand_font_url?: string | null
           business_description?: string | null
           client_id?: string
           content_pillars?: string[]

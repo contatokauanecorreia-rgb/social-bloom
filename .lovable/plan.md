@@ -1,116 +1,200 @@
-# BLOCO 2 — Studio de conteúdo
+# BLOCO 3 — Editor de Carrossel
 
-Substituição completa de `/dashboard/studio`. Remove os 4 agentes (SUR, KIÜKA, KIMO, ROXY) e a interface de chat por uma tela orientada a "modos de criação" com créditos.
+Adiciona um editor visual completo em `/dashboard/studio/carrossel` com modal de seleção de formato, painel de edição, preview escalado, barra de slides e export ZIP.
 
-## 1. Banco de dados (migrations)
+## 1. Banco de dados
 
-### 1.1 Plano + créditos do usuário
-Nova tabela `user_subscriptions`:
-- `id uuid pk`
-- `user_id uuid unique not null` (uma assinatura por usuário)
-- `plan text not null default 'starter'` (`starter` | `pro` | `premium`)
-- `credits_used int not null default 0`
-- `period_start timestamptz not null default now()` (reseta mensalmente)
-- `created_at`, `updated_at`
+A tabela `client_briefings` hoje tem `palette` e `archetype`, mas **não tem fonte**. Adicionar campos:
 
-RLS: usuário só lê/edita a própria linha. Trigger para `updated_at`.
-Trigger no `auth.users` (estende `handle_new_user`) para criar a linha do plano `starter` automaticamente.
+- `client_briefings.brand_font` (text, nullable) — nome da fonte (Google Font ou nome do arquivo .ttf).
+- `client_briefings.brand_font_url` (text, nullable) — URL pública (Google Fonts) ou caminho do storage.
 
-Limites em código (não no banco):
-- `starter` → 20 créditos
-- `pro` → 100 créditos
-- `premium` → `Infinity` (ilimitado)
+Criar bucket de storage `brand-assets` (público), com policies: usuário autenticado pode upload/select/delete arquivos no próprio prefixo `{user_id}/...`. Usado tanto para fonte customizada (.ttf) quanto para imagens de fundo do editor.
 
-### 1.2 Estender briefing com arquétipo + paleta
-Adiciona colunas em `client_briefings`:
-- `archetype text` (ex: "Cuidador", "Criador", "Sábio"…)
-- `palette text[] default '{}'` (até 3 HEX, ex: `{"#E91E63","#FFFFFF","#2D2D2D"}`)
+Estender o passo "Marca" do briefing wizard (`dashboard.clientes.$id.briefing.tsx`) para incluir:
+- Campo de fonte: input "Nome da fonte" + opção de upload `.ttf` (envia para `brand-assets/{user_id}/fonts/`).
+- Indicação se é Google Font (carregada por `<link>`) ou arquivo customizado.
 
-(Campos opcionais; preenchidos no wizard.)
+## 2. Dependências novas
 
-## 2. Wizard de briefing — novo passo "Marca"
+- `html2canvas` — render de cada slide DOM em PNG.
+- `jszip` — empacotar PNGs em um único arquivo.
+- `file-saver` — disparar download do ZIP.
+- `@dnd-kit/core` + `@dnd-kit/sortable` (já usados no planner se existir; senão instalar) — drag para reordenar slides.
 
-`src/routes/dashboard.clientes.$id.briefing.tsx`
-- Adiciona um passo entre "Identidade" e "Tom de voz" chamado **"Marca"**:
-  - **Arquétipo da marca**: `ChoiceGrid` com 6 opções (Cuidador, Criador, Sábio, Herói, Rebelde, Inocente).
-  - **Paleta de cores**: 3 inputs `<input type="color">` com preview e HEX exibido abaixo de cada um.
-- `STEPS` passa a ter 6 itens.
-- `save()` agora persiste `archetype` e `palette` em `client_briefings`.
-- Carrega esses campos no `useEffect` inicial.
+## 3. Notificação badge no sidebar
 
-## 3. Server functions / edge function
+Criar `src/lib/planner-notification.ts`:
+- `markPlannerHasDraft()` / `clearPlannerHasDraft()` salvam flag em `localStorage` (`postly:planner:hasDraft`).
+- Hook `usePlannerNotification()` retorna boolean reativo (via `storage` event + custom event).
 
-### 3.1 `src/server/credits.functions.ts` (createServerFn)
-- `getMyCredits()` → `{ plan, used, limit, remaining }` (lê `user_subscriptions`, lê o plano e calcula limite a partir do mapa de planos).
-- `consumeCredits({ amount })` → valida saldo, incrementa `credits_used`, retorna saldo novo. Lança erro se zerar.
-Ambas usam `requireSupabaseAuth` middleware.
+Atualizar `AppSidebar.tsx`:
+- Item "Planner de conteúdo" exibe um pontinho rosa (badge) quando flag ativa.
+- Ao entrar em `/dashboard/planner`, limpar a flag.
 
-### 3.2 Edge function `studio-generate`
-`supabase/functions/studio-generate/index.ts` — Lovable AI (`google/gemini-3-flash-preview`).
-- `verify_jwt = true` (usa sessão).
-- Body: `{ mode: "copy", clientId?: string, topic: string }`.
-- Backend: monta system prompt usando o briefing do cliente (nome, segmento, tom, arquétipo, dos/donts, objetivo). Chama gateway, retorna `{ content }`.
-- 429/402 propagados como toasts no client.
-- O cliente (Studio) chama `consumeCredits({ amount: 1 })` ANTES de chamar `studio-generate`. Se gerar erro, devolve crédito (`consumeCredits` aceita amount negativo opcional).
+## 4. Rota `/dashboard/studio/carrossel`
 
-## 4. Tela `/dashboard/studio`
+Arquivo: `src/routes/dashboard.studio.carrossel.tsx`.
 
-Reescreve `src/routes/dashboard.studio.tsx` do zero (descarta `AgentList`, `AgentChatPanel`, `getAgent` etc — arquivos ficam no projeto, mas não são mais importados por essa rota).
+### Fluxo
 
-Estrutura visual (mobile-first, design system rosa atual):
+1. Ao montar: carrega cliente ativo (`ACTIVE_CLIENT_STORAGE_KEY`) + briefing (palette, archetype, brand_font, brand_font_url). Se não houver cliente, redireciona para `/dashboard/studio` com toast.
+2. Abre **modal de formato** (não dispensável até escolher). Opções:
+   - Carrossel `1080x1350`
+   - Quadrado `1080x1080`
+   - Stories `1080x1920`
+   - Botão "Começar" → fecha modal e inicializa editor com 1 slide vazio.
+3. Editor renderizado.
 
-```
-┌──────────────────────────────────────────────────────────┐
-│ Studio de conteúdo               [42 créditos restantes] │
-│ Para qual cliente? [▾ Studio Bela Forma]   [▓▓▓░░░ 42%] │
-├──────────────────────────────────────────────────────────┤
-│ ✦ Contexto ativo                                         │
-│ Studio Bela Forma · Saúde e beleza                       │
-│ Tom: acolhedor · Objetivo: agendamentos                  │
-│ Arquétipo: Cuidador     [#E91E63] [#FFF] [#2D2D2D]      │
-│ #autoestima  #rotina  #resultado                         │
-├──────────────────────────────────────────────────────────┤
-│ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐          │
-│ │ Copy    │ │Carrossel│ │ Pauta 🔒│ │Roteiro🔒│          │
-│ │ 1 cred  │ │ 3 cred  │ │ 5 cred  │ │ 3 cred  │          │
-│ └─────────┘ └─────────┘ └─────────┘ └─────────┘          │
-└──────────────────────────────────────────────────────────┘
+### Layout do editor
+
+```text
++--------------------------------------------------+
+| Header: voltar / título / cliente ativo          |
++----------+--------------------------+------------+
+|          |                          |            |
+| Painel   |     Preview do slide     |            |
+| esquerdo |     (escalado p/ caber)  |            |
+| 280px    |                          |            |
+|          |                          |            |
++----------+--------------------------+------------+
+| Barra de slides (miniaturas + add + remove)      |
++--------------------------------------------------+
 ```
 
-Componentes novos em `src/components/studio/`:
-- `CreditsBadge.tsx` — exibe "X créditos restantes este mês" + `<Progress />`. "Ilimitado" para Premium.
-- `ClientPicker.tsx` — Select com clientes reais do Supabase (`clients` table) + bloco "Contexto ativo" (puxa `client_briefings` por `client_id`, exibe nome+segmento, tom, objetivo, palavras-chave (`content_pillars`), arquétipo, 3 círculos com HEX da paleta).
-- `ModeCard.tsx` — card grande com ícone, título, descrição, custo. Aceita `locked` (ícone cadeado + "Disponível no Pro"). Bloqueado também quando créditos zerados.
-- `CreditsExhaustedBanner.tsx` — banner rosa: "Seus créditos acabaram. Faça upgrade para continuar gerando." com botão linkando `/dashboard/plano`.
-- `CopyGeneratorDialog.tsx` (modal):
-  - Textarea "Sobre o que é esse conteúdo?" + hint.
-  - Botão "Gerar copy — 1 crédito" (loading state).
-  - Resultado em card com 3 botões: "Copiar" (clipboard + toast), "Regenerar" (consome +1 crédito, chama de novo), "Salvar no planner" (cria post em `content_posts` na primeira semana com `notes` = copy gerada e título derivado do tópico, navega para `/dashboard/planner`).
+Mobile: painel esquerdo vira drawer (botão "Editar"), barra de slides fica horizontal scroll na base.
 
-Lógica do componente raiz:
-- `useEffect` carrega: créditos, lista de clientes (Supabase), cliente ativo do `localStorage` (`postly:active-client`).
-- Modos `pauta` e `roteiro`: `locked = plan === 'starter'`.
-- `carrossel`: clicar → toast "Em breve" (rota `/studio/carrossel` não criada agora).
-- `copy`: abre `CopyGeneratorDialog`.
-- Após gerar/regenerar com sucesso: refetch dos créditos.
-- Se `remaining === 0`: todos os cards ficam desabilitados e mostra `CreditsExhaustedBanner` no topo.
+### Estado do editor (em memória)
 
-## 5. Limpeza
+```ts
+type Slide = {
+  id: string;
+  bgImage: string | null;          // dataURL ou URL pública
+  overlay: { enabled: boolean; intensity: number; type: "dark"|"light"|"gradient" };
+  text: { title: string; subtitle: string; body: string };
+  fontSize: { title: number; subtitle: number; body: number };
+  textColor: { title: string; subtitle: string; body: string };
+};
+type EditorState = {
+  format: { w: number; h: number };
+  slides: Slide[];
+  activeId: string;
+  selectedField: "title"|"subtitle"|"body" | null;
+  font: { name: string; url: string|null; isCustom: boolean };
+  palette: [string, string, string];
+};
+```
 
-- Sidebar e rotas existentes mantidas (BLOCO 1 já feito).
-- `src/components/agentes/*` e `src/lib/agents.ts` ficam no projeto (não tocam) mas deixam de ser importados pelo Studio. Edge function `agent-chat` segue existindo (para uso futuro).
+### Painel esquerdo — controles
 
-## 6. Detalhes técnicos
+Cada seção é um `Collapsible` ou bloco com título uppercase pequeno.
 
-- `studio-generate` lê briefing do cliente via `supabase` autenticado (RLS), monta `systemPrompt` com `archetype`, `palette` (informativa), `toneOfVoice`, `dos`, `donts`, `targetAudience`, `goals`. Garante PT-BR.
-- Cobrança de crédito é **server-side** (`consumeCredits` server fn). Cliente nunca confia em valor local — sempre refaz `getMyCredits()` após operação.
-- Reset mensal: helper em `getMyCredits` checa se `period_start` foi há mais de 30 dias e reseta `credits_used` + `period_start`.
-- `package.json`: nenhuma dependência nova necessária.
+**IMAGEM DE FUNDO**
+- Botão "Anexar imagem" → `<input type=file accept=image/*>`. Lê como dataURL (ou faz upload para `brand-assets`); salva em `slide.bgImage`.
+- Miniatura do upload + botão "Remover".
+- Checkbox "Aplicar em todos os slides" → propaga `bgImage` para todos.
 
-## Fora de escopo (BLOCOs futuros)
+**SOMBRA / OVERLAY**
+- `Switch` ativar/desativar.
+- `Slider` 0–100 (intensidade).
+- `RadioGroup`: Escuro / Claro / Gradiente.
 
-- Telas reais de carrossel, pauta, roteiro (cards já presentes, mas só copy é funcional agora).
-- Cobrança real / integração de pagamento na tela `/plano` — apenas botão "Fazer upgrade" levando para a tela existente.
-- Histórico de gerações persistido (cada copy gerada é volátil até "Salvar no planner").
+**TEXTO**
+- 3 inputs: Título, Subtítulo, Corpo (textarea).
+- Cada um com botão "Aplicar em todos os slides".
+- Clicar no input torna esse campo o `selectedField` (para aplicar cor).
 
-Posso implementar?
+**FONTE**
+- Mostra nome da fonte do DNA. Se Google Font: injeta `<link>` em `document.head` com `family=name`. Se custom (.ttf): registra `@font-face` via `FontFace` API com `brand_font_url`.
+- 3 sliders de tamanho (Título 32–120, Subtítulo 20–80, Corpo 14–48).
+
+**CORES**
+- 3 swatches lado a lado da `palette`. Clique aplica `textColor[selectedField]`. Se nenhum campo selecionado, mostrar dica "Selecione um campo de texto".
+
+**Rodapé do painel**
+- Botão primário "Baixar todos" (com ícone Download).
+- Botão secundário "Salvar rascunho".
+
+### Preview central
+
+Componente `SlideCanvas` com tamanho real (`format.w` × `format.h`) e `transform: scale(...)` para caber no container (mesma técnica do skill slides). O DOM real está em pixel-perfect 1080×N — necessário para `html2canvas` exportar nas dimensões corretas.
+
+Ordem de camadas:
+1. `<img bgImage>` cobrindo (object-fit: cover) ou cor sólida fallback.
+2. Overlay (`div absolute inset-0`) com background calculado:
+   - `dark`: `rgba(0,0,0, intensity/100)`
+   - `light`: `rgba(255,255,255, intensity/100)`
+   - `gradient`: `linear-gradient(180deg, transparent, rgba(0,0,0,intensity/100))`
+3. Texto centralizado (flex column, padding) com Título/Subtítulo/Corpo nas fontes/cores escolhidas.
+
+### Barra de slides
+
+Lista horizontal de miniaturas (cada miniatura é um `SlideCanvas` em escala bem reduzida, `pointer-events: none`). Slide ativo: borda primária. Botão "+" no fim adiciona slide novo (clona estilos do anterior, texto vazio). Hover na miniatura mostra "×". Drag-and-drop com `@dnd-kit/sortable`.
+
+### Export ZIP — "Baixar todos"
+
+```ts
+const zip = new JSZip();
+for (let i = 0; i < slides.length; i++) {
+  setActiveId(slides[i].id);          // força render
+  await new Promise(r => requestAnimationFrame(r));
+  const node = document.getElementById(`slide-export-${slides[i].id}`);
+  const canvas = await html2canvas(node, { useCORS: true, scale: 1, width: format.w, height: format.h });
+  const blob = await new Promise<Blob>(r => canvas.toBlob(b => r(b!), "image/png"));
+  zip.file(`slide-${i+1}.png`, blob);
+}
+const out = await zip.generateAsync({ type: "blob" });
+saveAs(out, `carrossel-${Date.now()}.zip`);
+markPlannerHasDraft();
+toast.success("Download iniciado! 🎉 Não esquece de pegar a legenda do seu post no Planner de conteúdo 📝", { duration: 8000 });
+```
+
+Para que `html2canvas` capture nas dimensões reais, renderiza-se um nó "exportável" oculto (`position: absolute; left: -99999px;` ou `visibility: hidden`) com tamanho original 1080×N por slide ativo.
+
+### Salvar rascunho
+
+Cria post em `content_posts` (na primeira semana do usuário) com:
+- `title`: "Rascunho de carrossel — {cliente}"
+- `notes`: JSON serializado do `EditorState` (para reabrir depois) + título do primeiro slide como resumo
+- `status`: `'backlog'`
+- `tags`: `['carrossel', 'rascunho']`
+
+Toast de sucesso + `markPlannerHasDraft()`.
+
+## 5. Atualizar Studio dashboard
+
+`dashboard.studio.tsx`: trocar `onClick={() => toast.info("Em breve!")}` do card "Criar carrossel" por `navigate({ to: "/dashboard/studio/carrossel" })`. **Sem cobrança de créditos** neste bloco (o editor é manual; créditos são para geração por IA).
+
+## 6. Componentes novos
+
+```
+src/components/studio/carrossel/
+  FormatPickerDialog.tsx   - modal de formato
+  SlideCanvas.tsx          - render pixel-perfect de 1 slide
+  SlideThumbnail.tsx       - miniatura sortável
+  SlidesBar.tsx            - barra inferior
+  EditorPanel.tsx          - painel esquerdo (todas as seções)
+  ColorSwatches.tsx
+  OverlayControls.tsx
+  TextFieldsControls.tsx
+  FontControls.tsx
+  BgImageControls.tsx
+  useCarrosselEditor.ts    - hook com state + ações (addSlide, removeSlide, updateSlide, applyToAll, etc.)
+  exportSlides.ts          - função de export ZIP
+src/lib/planner-notification.ts
+```
+
+## 7. Out of scope (deste bloco)
+
+- Drag livre de elementos no canvas (texto sempre centralizado por padrão).
+- Edição inline clicando no preview (apenas via inputs do painel).
+- Reabrir rascunho a partir do planner (apenas grava).
+- Cobrança de créditos (editor manual).
+
+## Detalhes técnicos resumidos
+
+- Migration: `ALTER TABLE client_briefings ADD COLUMN brand_font text, ADD COLUMN brand_font_url text;` + criação de bucket `brand-assets` com policies por `auth.uid()`.
+- Carregamento de Google Font: `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=NAME&display=swap">` injetado uma vez via `useEffect`.
+- Carregamento de fonte custom: `new FontFace(name, url(...)).load().then(f => document.fonts.add(f))`.
+- `html2canvas` com `useCORS: true` para imagens do bucket público.
+- Toda a estrutura permanece com design system atual (cores rosa, bordas, componentes shadcn).
