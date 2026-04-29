@@ -92,7 +92,7 @@ const initial: Form = {
   fontMode: "publica",
   personality: [],
   formality: 3,
-  persona: "",
+  persona: [],
   dos: [],
   donts: [],
   age: "",
