@@ -226,9 +226,84 @@ function PrecificacaoPage() {
         Negócio
       </Badge>
       <PageHeader
-        title="Calculadora de precificação"
-        description="Simule seu valor ideal por cliente em segundos."
+        title="Precificação"
+        description="Comece por um preset ou ajuste cada slider — o resultado é calculado em tempo real."
       />
+
+      {/* Presets */}
+      <div className="mb-8 grid gap-4 md:grid-cols-3">
+        {PRESETS.map((p) => {
+          const Icon = p.icon;
+          const active = selectedPreset === p.key;
+          return (
+            <button
+              key={p.key}
+              type="button"
+              onClick={() => applyPreset(p.key)}
+              className={cn(
+                "group relative flex flex-col gap-3 rounded-2xl border bg-card p-5 text-left transition-all",
+                "hover:border-primary/50 hover:shadow-md",
+                p.highlight && "ring-2 ring-primary/30",
+                active && "border-primary bg-primary/5 ring-2 ring-primary",
+              )}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div
+                  className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-lg",
+                    active || p.highlight
+                      ? "bg-gradient-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                </div>
+                <span
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+                    p.highlight
+                      ? "bg-primary/10 text-primary"
+                      : "bg-muted text-muted-foreground",
+                  )}
+                >
+                  {p.badge}
+                </span>
+              </div>
+              <div>
+                <div className="text-lg font-bold">{p.name}</div>
+                <div className="text-xs text-muted-foreground">{p.subtitle}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="rounded-md border bg-background/40 px-2.5 py-1.5">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Clientes
+                  </div>
+                  <div className="font-semibold tabular-nums">{p.clients}</div>
+                </div>
+                <div className="rounded-md border bg-background/40 px-2.5 py-1.5">
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Posts
+                  </div>
+                  <div className="font-semibold tabular-nums">{p.posts}/cliente</div>
+                </div>
+              </div>
+              <div className="border-t pt-3">
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  Valor por cliente
+                </div>
+                <div className="text-2xl font-bold tabular-nums">
+                  {BRL.format(p.perClient)}
+                </div>
+              </div>
+              {active && (
+                <span className="absolute right-3 top-3 rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary-foreground">
+                  Aplicado
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         {/* Inputs */}
