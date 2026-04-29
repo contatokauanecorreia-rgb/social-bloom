@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Download,
   Image as ImageIcon,
+  LayoutGrid,
   Loader2,
   Plus,
   Save,
@@ -52,7 +53,7 @@ import {
 } from "@/components/ui/dialog";
 import { ACTIVE_CLIENT_STORAGE_KEY } from "@/lib/client-context";
 import { cn } from "@/lib/utils";
-import { ensureBrandFont, brandFontFamily } from "@/lib/brand-font";
+import { ensureBrandFont, brandFontFamily, loadGoogleFont } from "@/lib/brand-font";
 import { markPlannerHasDraft } from "@/lib/planner-notification";
 
 export const Route = createFileRoute("/dashboard/studio/carrossel")({
