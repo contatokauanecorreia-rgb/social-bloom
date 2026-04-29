@@ -1069,32 +1069,53 @@ function Field({
   );
 }
 
-function ChoiceGrid({
-  options,
-  value,
-  onChange,
-  cols = 2,
-}: {
+type ChoiceGridSingleProps = {
   options: { id: string; label: string; hint?: string }[];
   value: string;
   onChange: (v: string) => void;
   cols?: 2 | 3 | 4;
-}) {
+  multi?: false;
+};
+type ChoiceGridMultiProps = {
+  options: { id: string; label: string; hint?: string }[];
+  value: string[];
+  onChange: (v: string[]) => void;
+  cols?: 2 | 3 | 4;
+  multi: true;
+};
+
+function ChoiceGrid(props: ChoiceGridSingleProps | ChoiceGridMultiProps) {
+  const { options, cols = 2 } = props;
   const colsClass =
     cols === 4
       ? "grid-cols-2 sm:grid-cols-4"
       : cols === 3
         ? "grid-cols-2 sm:grid-cols-3"
         : "grid-cols-1 sm:grid-cols-2";
+
+  const isActive = (id: string) =>
+    props.multi ? props.value.includes(id) : props.value === id;
+
+  const toggle = (id: string) => {
+    if (props.multi) {
+      const set = new Set(props.value);
+      if (set.has(id)) set.delete(id);
+      else set.add(id);
+      props.onChange(Array.from(set));
+    } else {
+      props.onChange(id);
+    }
+  };
+
   return (
     <div className={cn("grid gap-2", colsClass)}>
       {options.map((o) => {
-        const active = value === o.id;
+        const active = isActive(o.id);
         return (
           <button
             key={o.id}
             type="button"
-            onClick={() => onChange(o.id)}
+            onClick={() => toggle(o.id)}
             className={cn(
               "rounded-xl border bg-background p-3 text-left transition-all hover:border-foreground/30",
               active && "border-primary bg-primary/5 ring-2 ring-primary/30",
