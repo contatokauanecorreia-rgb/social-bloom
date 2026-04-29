@@ -125,6 +125,105 @@ function ConfiguracoesPage() {
       </section>
 
       <section className="mt-6 rounded-xl border bg-card p-6">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold">Integrações de IA</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Escolha como a Postly deve gerar conteúdo para seus clientes.
+            </p>
+          </div>
+          <Badge variant="soft" className="capitalize">Plano {plan}</Badge>
+        </div>
+
+        <div className="mt-5 grid gap-3">
+          <AiOptionCard
+            icon={<Sparkles className="h-4 w-4" />}
+            title="Usar IA da Postly (padrão)"
+            description="Créditos mensais incluídos no plano."
+            selected={aiMode === "postly"}
+            onSelect={() => setAiMode("postly")}
+          />
+
+          <AiOptionCard
+            icon={<KeyRound className="h-4 w-4" />}
+            title="Conectar minha API Key"
+            description="Use sua própria conta de OpenAI ou Anthropic."
+            premium
+            locked={!isPremium}
+            selected={aiMode === "apikey"}
+            onSelect={() => isPremium && setAiMode("apikey")}
+          >
+            {aiMode === "apikey" && isPremium && (
+              <div className="mt-4 grid gap-4 border-t pt-4">
+                <div className="space-y-1.5">
+                  <Label>OpenAI (GPT-4)</Label>
+                  <Input
+                    type="password"
+                    value={openaiKey}
+                    onChange={(e) => setOpenaiKey(e.target.value)}
+                    placeholder="sk-..."
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Anthropic (Claude)</Label>
+                  <Input
+                    type="password"
+                    value={anthropicKey}
+                    onChange={(e) => setAnthropicKey(e.target.value)}
+                    placeholder="sk-ant-..."
+                  />
+                </div>
+              </div>
+            )}
+          </AiOptionCard>
+
+          <AiOptionCard
+            icon={<Bot className="h-4 w-4" />}
+            title="Usar meu agente personalizado"
+            description="Conecte um Assistant da OpenAI já treinado."
+            premium
+            locked={!isPremium}
+            selected={aiMode === "agent"}
+            onSelect={() => isPremium && setAiMode("agent")}
+          >
+            {aiMode === "agent" && isPremium && (
+              <div className="mt-4 grid gap-4 border-t pt-4">
+                <div className="space-y-1.5">
+                  <Label>Assistant ID</Label>
+                  <Input
+                    value={assistantId}
+                    onChange={(e) => setAssistantId(e.target.value)}
+                    placeholder="asst_..."
+                  />
+                </div>
+                {!openaiKey && (
+                  <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+                    Requer API Key da OpenAI conectada na opção acima.
+                  </p>
+                )}
+              </div>
+            )}
+          </AiOptionCard>
+        </div>
+
+        <div className="mt-5 flex justify-end">
+          <Button
+            onClick={() => {
+              setSavingAi(true);
+              setTimeout(() => {
+                setSavingAi(false);
+                toast.success("Preferências de IA salvas");
+              }, 400);
+            }}
+            disabled={savingAi}
+          >
+            {savingAi ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Salvar integrações
+          </Button>
+        </div>
+      </section>
+
+      <section className="mt-6 rounded-xl border bg-card p-6">
         <h2 className="text-lg font-semibold">Sessão</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           Encerre sua sessão atual neste dispositivo.
