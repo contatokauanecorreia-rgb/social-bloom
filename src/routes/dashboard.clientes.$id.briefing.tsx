@@ -279,8 +279,8 @@ function BriefingPage() {
       await supabase.from("clients").update({ name: form.name.trim() }).eq("id", clientId);
     }
 
-    const personaLabel = PERSONAS.find((p) => p.id === form.persona)?.label ?? "";
-    const goalLabel = GOALS.find((g) => g.id === form.goal)?.label ?? "";
+    const personaLabels = PERSONAS.filter((p) => form.persona.includes(p.id as Persona)).map((p) => p.label);
+    const goalLabels = GOALS.filter((g) => form.goal.includes(g.id as Goal)).map((g) => g.label);
     const ageLabel = AGES.find((a) => a.id === form.age)?.label ?? "";
 
     const { error } = await supabase.from("client_briefings").upsert(
