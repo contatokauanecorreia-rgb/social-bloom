@@ -415,7 +415,25 @@ function PlanoPage() {
 
   return (
     <PageContainer wide>
-      <div className="mb-4 flex flex-col gap-1.5 rounded-xl border bg-card/40 p-3 sm:flex-row sm:items-center sm:gap-3">
+      <Badge variant="soft" className="mb-3 w-fit">Conteúdo</Badge>
+      <PageHeader
+        title="Planner de conteúdo"
+        description="Organize seus posts por semana, com tags livres e filtros."
+        actions={
+          <>
+            <Button variant="outline" onClick={handleAddWeek}>
+              <Plus className="h-4 w-4" />
+              Nova semana
+            </Button>
+            <Button onClick={() => openNewPost()}>
+              <Plus className="h-4 w-4" />
+              Novo post
+            </Button>
+          </>
+        }
+      />
+
+      <div className="mb-3 flex flex-col gap-1.5 rounded-xl border bg-card/40 p-3 sm:flex-row sm:items-center sm:gap-3">
         <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground sm:w-44">
           <Users className="h-4 w-4" />
           <Label htmlFor="planner-client" className="cursor-pointer text-sm font-medium">
@@ -436,24 +454,6 @@ function PlanoPage() {
           </SelectContent>
         </Select>
       </div>
-
-      <Badge variant="soft" className="mb-3 w-fit">Conteúdo</Badge>
-      <PageHeader
-        title="Planner de conteúdo"
-        description="Organize seus posts por semana, com tags livres e filtros."
-        actions={
-          <>
-            <Button variant="outline" onClick={handleAddWeek}>
-              <Plus className="h-4 w-4" />
-              Nova semana
-            </Button>
-            <Button onClick={() => openNewPost()}>
-              <Plus className="h-4 w-4" />
-              Novo post
-            </Button>
-          </>
-        }
-      />
 
       <div className="mb-6 flex flex-col gap-3 rounded-xl border bg-card/40 p-3">
         <div className="flex items-center gap-2">
