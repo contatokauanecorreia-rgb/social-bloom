@@ -230,11 +230,26 @@ function BriefingPage() {
         .maybeSingle(),
     ]).then(([c, b]) => {
       if (!active) return;
-      const extra = ((b.data?.extra as Record<string, unknown> | null) ?? {}) as Partial<Form>;
+      const extra = ((b.data?.extra as Record<string, unknown> | null) ?? {}) as Partial<Form> & {
+        persona?: Persona | Persona[] | "";
+        goal?: Goal | Goal[] | "";
+      };
       const palette = (b.data?.palette ?? []) as string[];
+      const personaArr: Persona[] = Array.isArray(extra.persona)
+        ? (extra.persona as Persona[])
+        : extra.persona
+          ? [extra.persona as Persona]
+          : [];
+      const goalArr: Goal[] = Array.isArray(extra.goal)
+        ? (extra.goal as Goal[])
+        : extra.goal
+          ? [extra.goal as Goal]
+          : [];
       setForm({
         ...initial,
-        ...extra,
+        ...(extra as Partial<Form>),
+        persona: personaArr,
+        goal: goalArr,
         name: c.data?.name ?? extra.name ?? "",
         dos: b.data?.dos ?? extra.dos ?? [],
         donts: b.data?.donts ?? extra.donts ?? [],
