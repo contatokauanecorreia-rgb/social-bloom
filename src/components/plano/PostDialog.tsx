@@ -105,6 +105,7 @@ export function PostDialog({
 }) {
   const [title, setTitle] = useState("");
   const [weekId, setWeekId] = useState("");
+  const [clientId, setClientId] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [noteBlocks, setNoteBlocks] = useState<string[]>([""]);
   const [status, setStatus] = useState<PostStatus>("planned");
