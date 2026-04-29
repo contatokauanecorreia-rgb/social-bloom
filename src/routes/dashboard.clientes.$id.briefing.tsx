@@ -98,7 +98,7 @@ const initial: Form = {
   age: "",
   pains: "",
   dreams: "",
-  goal: "",
+  goal: [],
   competitors: ["", "", ""],
   frequency: "",
 };
