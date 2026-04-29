@@ -255,10 +255,11 @@ function BriefingPage() {
       <Card>
         <CardContent className="pt-6">
           {step === 0 && <StepIdentidade form={form} update={update} />}
-          {step === 1 && <StepTomDeVoz form={form} update={update} />}
-          {step === 2 && <StepPublico form={form} update={update} />}
-          {step === 3 && <StepObjetivos form={form} update={update} />}
-          {step === 4 && <StepRevisao form={form} aiContext={aiContext} />}
+          {step === 1 && <StepMarca form={form} update={update} />}
+          {step === 2 && <StepTomDeVoz form={form} update={update} />}
+          {step === 3 && <StepPublico form={form} update={update} />}
+          {step === 4 && <StepObjetivos form={form} update={update} />}
+          {step === 5 && <StepRevisao form={form} aiContext={aiContext} />}
         </CardContent>
       </Card>
 
