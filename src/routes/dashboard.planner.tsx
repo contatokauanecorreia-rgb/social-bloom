@@ -118,6 +118,7 @@ function PlanoPage() {
   const filteredPosts = useMemo(() => {
     const q = search.trim().toLowerCase();
     return posts.filter((p) => {
+      if (selectedClient !== "all" && p.client_id !== selectedClient) return false;
       if (q) {
         const hay = `${p.title} ${p.notes ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -127,7 +128,17 @@ function PlanoPage() {
       }
       return true;
     });
-  }, [posts, search, activeTags]);
+  }, [posts, search, activeTags, selectedClient]);
+
+  const clientNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of clients) m.set(c.id, c.name);
+    return m;
+  }, [clients]);
+  const getClientName = useCallback(
+    (id: string | null) => (id ? clientNameById.get(id) : undefined),
+    [clientNameById],
+  );
 
   const postsByWeek = useMemo(() => {
     const map = new Map<string, ContentPost[]>();
