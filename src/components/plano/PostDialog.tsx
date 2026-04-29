@@ -209,6 +209,7 @@ export function PostDialog({
         id: post?.id,
         title: title.trim(),
         week_id: weekId,
+        client_id: clientId,
         tags,
         notes: serializedNotes,
         status,
