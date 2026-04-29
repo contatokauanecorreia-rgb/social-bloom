@@ -392,7 +392,7 @@ function CarrosselEditorPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/30">
+    <div className="flex h-screen flex-col bg-muted/30 overflow-hidden">
       {/* Header */}
       <header className="flex items-center gap-3 border-b bg-card px-4 py-3">
         <Button
