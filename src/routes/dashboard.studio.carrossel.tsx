@@ -66,6 +66,8 @@ type FormatKey = "carrossel" | "quadrado" | "stories";
 type Format = { key: FormatKey; label: string; w: number; h: number };
 type OverlayType = "dark" | "light" | "gradient";
 type TextField = "title" | "subtitle" | "body";
+type TextAlign = "left" | "center" | "right";
+type SignaturePos = "bl" | "br" | "tl" | "tr";
 
 type Slide = {
   id: string;
@@ -74,6 +76,10 @@ type Slide = {
   text: { title: string; subtitle: string; body: string };
   fontSize: { title: number; subtitle: number; body: number };
   textColor: { title: string; subtitle: string; body: string };
+  textAlign: { title: TextAlign; subtitle: TextAlign; body: TextAlign };
+  fontWeight: { title: number; subtitle: number; body: number };
+  textPos: { x: number; y: number };
+  signature: { enabled: boolean; handle: string; position: SignaturePos; color: string };
 };
 
 type BriefingDNA = {
@@ -90,12 +96,15 @@ const FORMATS: Format[] = [
 
 const DEFAULT_PALETTE: [string, string, string] = ["#E91E63", "#FFFFFF", "#2D2D2D"];
 
+const TITLE_TO_SUBTITLE = 16;
+const SUBTITLE_TO_BODY = 12;
+
 const newId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
     ? crypto.randomUUID()
     : `s-${Math.random().toString(36).slice(2)}-${Date.now()}`;
 
-const makeSlide = (template?: Slide): Slide => ({
+const makeSlide = (template?: Slide, paletteColor?: string): Slide => ({
   id: newId(),
   bgImage: template?.bgImage ?? null,
   overlay: template ? { ...template.overlay } : { enabled: false, intensity: 40, type: "dark" },
@@ -105,7 +114,22 @@ const makeSlide = (template?: Slide): Slide => ({
     : { title: 72, subtitle: 36, body: 28 },
   textColor: template
     ? { ...template.textColor }
-    : { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#FFFFFF" },
+    : { title: "#1A1A1A", subtitle: "#1A1A1A", body: "#333333" },
+  textAlign: template
+    ? { ...template.textAlign }
+    : { title: "center", subtitle: "center", body: "center" },
+  fontWeight: template
+    ? { ...template.fontWeight }
+    : { title: 700, subtitle: 500, body: 400 },
+  textPos: template ? { ...template.textPos } : { x: 0.5, y: 0.5 },
+  signature: template
+    ? { ...template.signature }
+    : {
+        enabled: false,
+        handle: "",
+        position: "br",
+        color: paletteColor ?? DEFAULT_PALETTE[0],
+      },
 });
 
 // ---------- Página ----------
