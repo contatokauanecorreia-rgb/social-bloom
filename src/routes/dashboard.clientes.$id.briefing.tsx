@@ -198,6 +198,8 @@ function BriefingPage() {
           goals: goalLabel ? [goalLabel] : [],
           dos: form.dos,
           donts: form.donts,
+          archetype: form.archetype || null,
+          palette: form.palette,
           extra: form as unknown as never,
         },
       ],
