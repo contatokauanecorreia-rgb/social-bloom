@@ -269,6 +269,7 @@ function PlanoPage() {
         user_id: userId,
         title: `${post.title} (cópia)`,
         week_id: post.week_id,
+        client_id: post.client_id,
         tags: post.tags,
         notes: post.notes,
         status: post.status,
