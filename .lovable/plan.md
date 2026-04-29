@@ -1,200 +1,126 @@
-# BLOCO 3 — Editor de Carrossel
+# BLOCO 4 — DNA da marca
 
-Adiciona um editor visual completo em `/dashboard/studio/carrossel` com modal de seleção de formato, painel de edição, preview escalado, barra de slides e export ZIP.
+Reescrita completa do wizard em `src/routes/dashboard.clientes.$id.briefing.tsx` (mantendo o path `/briefing` para preservar links já existentes), agora com 6 etapas, 12 arquétipos, tipografia (pública/exclusiva), paleta (HEX ou extraída de imagem) e tela de revisão com preview visual.
 
-## 1. Banco de dados
+## 1. UI / Rota
 
-A tabela `client_briefings` hoje tem `palette` e `archetype`, mas **não tem fonte**. Adicionar campos:
+- Caminho mantido: `/dashboard/clientes/:id/briefing`. Aba renomeada para **"DNA da marca"** em `dashboard.clientes.$id.tsx` (linha 72).
+- Header da página passa a exibir "DNA da marca".
+- Pills clicáveis no topo + barra de progresso (componente atual já faz isso — só atualizar a lista `STEPS`).
 
-- `client_briefings.brand_font` (text, nullable) — nome da fonte (Google Font ou nome do arquivo .ttf).
-- `client_briefings.brand_font_url` (text, nullable) — URL pública (Google Fonts) ou caminho do storage.
+### Etapas
 
-Criar bucket de storage `brand-assets` (público), com policies: usuário autenticado pode upload/select/delete arquivos no próprio prefixo `{user_id}/...`. Usado tanto para fonte customizada (.ttf) quanto para imagens de fundo do editor.
+1. **Identidade** — nome do cliente; segmento (cards: Saúde e beleza / Alimentação / Serviços locais / Educação / E-commerce / Moda / Outro); chips "Personalidade em 3 palavras".
+2. **Tom de voz** — slider Formalidade 1–5; cards "A marca se parece com..." (4 personas com descrições); tags verdes (USA) e tags vermelhas (NUNCA).
+3. **Público** — cards de faixa etária; textareas de dores e sonhos.
+4. **Objetivos** — cards de objetivo principal; até 3 inputs de @concorrente; cards de frequência de postagem.
+5. **Branding** — três blocos:
+   - **Arquétipo**: grid 3×4 com 12 cards (ícone do `lucide-react`, nome, descrição). Seleção única.
+   - **Tipografia**: radio "Fonte pública" (input de nome + botão "Buscar" que carrega via Google Fonts API CSS e mostra preview "AaBb 123") OU "Fonte exclusiva" (upload `.ttf` → `brand-assets/{userId}/{clientId}/font.ttf` → preview com `FontFace`).
+   - **Paleta**: radio "Inserir HEX" (3 inputs com `<input type="color">`) OU "Extrair de imagem" (upload → quantização client-side via canvas → 3 swatches editáveis). Salva sempre como `[primary, secondary, accent]` em `client_briefings.palette`.
+6. **Revisão** — bloco azul com "Contexto gerado para a IA" (italico, prompt concatenado); grid resumo (Segmento / Público / Tom / Objetivo / Arquétipo); preview visual: card com fundo na cor primária, título na fonte escolhida em cor de destaque, secundária como acento. Botão **"Salvar DNA da marca"** → salva e navega para `/dashboard/clientes/:id`.
 
-Estender o passo "Marca" do briefing wizard (`dashboard.clientes.$id.briefing.tsx`) para incluir:
-- Campo de fonte: input "Nome da fonte" + opção de upload `.ttf` (envia para `brand-assets/{user_id}/fonts/`).
-- Indicação se é Google Font (carregada por `<link>`) ou arquivo customizado.
+## 2. Arquétipos (12) e influência no prompt
 
-## 2. Dependências novas
+Lista usada na UI **e** no edge function:
 
-- `html2canvas` — render de cada slide DOM em PNG.
-- `jszip` — empacotar PNGs em um único arquivo.
-- `file-saver` — disparar download do ZIP.
-- `@dnd-kit/core` + `@dnd-kit/sortable` (já usados no planner se existir; senão instalar) — drag para reordenar slides.
+| ID | Nome | Direção de linguagem |
+|---|---|---|
+| inocente | Inocente | acolhedora, sem pressão |
+| explorador | Explorador | aventureira, curiosa |
+| sabio | Sábio | autoridade, premium |
+| heroi | Herói | provocadora, desafiadora |
+| fora-da-lei | Fora da Lei | provocadora, disruptiva |
+| mago | Mago | visionária, transformadora |
+| cara-comum | Cara Comum | leve, próxima |
+| amante | Amante | sensual, íntima |
+| bobo | Bobo da Corte | leve, com humor |
+| cuidador | Cuidador | acolhedora, sem pressão |
+| criador | Criador | criativa, original |
+| governante | Governante | autoridade, premium |
 
-## 3. Notificação badge no sidebar
+Mapeamento agrupado em `ARCHETYPE_TONE` (front + edge function) seguindo o pedido:
+- inocente / cuidador → acolhedora, sem pressão
+- heroi / fora-da-lei → provocadora, desafiadora
+- sabio / governante → autoridade, premium
+- bobo / cara-comum → leve, próxima, humor
+- explorador / amante / mago / criador → tom específico próprio (frase descritiva).
 
-Criar `src/lib/planner-notification.ts`:
-- `markPlannerHasDraft()` / `clearPlannerHasDraft()` salvam flag em `localStorage` (`postly:planner:hasDraft`).
-- Hook `usePlannerNotification()` retorna boolean reativo (via `storage` event + custom event).
+## 3. Persistência
 
-Atualizar `AppSidebar.tsx`:
-- Item "Planner de conteúdo" exibe um pontinho rosa (badge) quando flag ativa.
-- Ao entrar em `/dashboard/planner`, limpar a flag.
+Sem migration nova. Reaproveita colunas existentes em `client_briefings`:
 
-## 4. Rota `/dashboard/studio/carrossel`
+- `name` do cliente → continua em `clients.name` (atualizado no save).
+- `content_pillars` ← personalidade (3 palavras).
+- `tone_of_voice` ← string composta `"{persona} • {formalityLabel}"`.
+- `dos` / `donts` ← tags verde/vermelha.
+- `target_audience` ← `"{ageRange} • Dores: ... | Sonhos: ..."`.
+- `goals` ← `[goalId]`.
+- `extra` (jsonb) ← `{ personality, formality, persona, age, pains, dreams, competitors, frequency, archetype, fontMode, paletteMode, sourceImageUrl }` (campos que não têm coluna dedicada).
+- `archetype` ← id do arquétipo (texto livre, 12 valores possíveis).
+- `palette` ← `[primary, secondary, accent]`.
+- `brand_font`, `brand_font_url` ← já existem.
 
-Arquivo: `src/routes/dashboard.studio.carrossel.tsx`.
+Ao carregar a tela, hidrata o form a partir dessas colunas + `extra`.
 
-### Fluxo
+## 4. Extração de paleta (client-side)
 
-1. Ao montar: carrega cliente ativo (`ACTIVE_CLIENT_STORAGE_KEY`) + briefing (palette, archetype, brand_font, brand_font_url). Se não houver cliente, redireciona para `/dashboard/studio` com toast.
-2. Abre **modal de formato** (não dispensável até escolher). Opções:
-   - Carrossel `1080x1350`
-   - Quadrado `1080x1080`
-   - Stories `1080x1920`
-   - Botão "Começar" → fecha modal e inicializa editor com 1 slide vazio.
-3. Editor renderizado.
+Helper novo `src/lib/extract-palette.ts`:
+- carrega imagem em `<canvas>` reduzido (~64×64), lê pixels, agrupa por buckets de 32 e retorna 3 cores mais frequentes em HEX.
+- sem dependências externas.
 
-### Layout do editor
+## 5. Edge function (atualização leve)
 
-```text
-+--------------------------------------------------+
-| Header: voltar / título / cliente ativo          |
-+----------+--------------------------+------------+
-|          |                          |            |
-| Painel   |     Preview do slide     |            |
-| esquerdo |     (escalado p/ caber)  |            |
-| 280px    |                          |            |
-|          |                          |            |
-+----------+--------------------------+------------+
-| Barra de slides (miniaturas + add + remove)      |
-+--------------------------------------------------+
-```
+`supabase/functions/studio-generate/index.ts`:
+- adiciona dicionário `ARCHETYPE_TONE` igual ao do front.
+- em `buildBriefingContext`, quando `b.archetype` existe, injeta também `Direção de linguagem: {ARCHETYPE_TONE[id]}`.
+- nada mais muda; o sistema de créditos e o restante seguem iguais.
 
-Mobile: painel esquerdo vira drawer (botão "Editar"), barra de slides fica horizontal scroll na base.
+## 6. Arquivos afetados
 
-### Estado do editor (em memória)
+- **edit** `src/routes/dashboard.clientes.$id.briefing.tsx` (reescrita do wizard, novas etapas, novos componentes inline: `ArchetypeGrid`, `FontPicker`, `PalettePicker`).
+- **edit** `src/routes/dashboard.clientes.$id.tsx` (label da aba: "DNA da marca").
+- **new** `src/lib/extract-palette.ts`.
+- **edit** `supabase/functions/studio-generate/index.ts` (injetar tom do arquétipo).
 
-```ts
-type Slide = {
-  id: string;
-  bgImage: string | null;          // dataURL ou URL pública
-  overlay: { enabled: boolean; intensity: number; type: "dark"|"light"|"gradient" };
-  text: { title: string; subtitle: string; body: string };
-  fontSize: { title: number; subtitle: number; body: number };
-  textColor: { title: string; subtitle: string; body: string };
-};
-type EditorState = {
-  format: { w: number; h: number };
-  slides: Slide[];
-  activeId: string;
-  selectedField: "title"|"subtitle"|"body" | null;
-  font: { name: string; url: string|null; isCustom: boolean };
-  palette: [string, string, string];
-};
-```
+Sem migrations novas, sem novas dependências.
 
-### Painel esquerdo — controles
-
-Cada seção é um `Collapsible` ou bloco com título uppercase pequeno.
-
-**IMAGEM DE FUNDO**
-- Botão "Anexar imagem" → `<input type=file accept=image/*>`. Lê como dataURL (ou faz upload para `brand-assets`); salva em `slide.bgImage`.
-- Miniatura do upload + botão "Remover".
-- Checkbox "Aplicar em todos os slides" → propaga `bgImage` para todos.
-
-**SOMBRA / OVERLAY**
-- `Switch` ativar/desativar.
-- `Slider` 0–100 (intensidade).
-- `RadioGroup`: Escuro / Claro / Gradiente.
-
-**TEXTO**
-- 3 inputs: Título, Subtítulo, Corpo (textarea).
-- Cada um com botão "Aplicar em todos os slides".
-- Clicar no input torna esse campo o `selectedField` (para aplicar cor).
-
-**FONTE**
-- Mostra nome da fonte do DNA. Se Google Font: injeta `<link>` em `document.head` com `family=name`. Se custom (.ttf): registra `@font-face` via `FontFace` API com `brand_font_url`.
-- 3 sliders de tamanho (Título 32–120, Subtítulo 20–80, Corpo 14–48).
-
-**CORES**
-- 3 swatches lado a lado da `palette`. Clique aplica `textColor[selectedField]`. Se nenhum campo selecionado, mostrar dica "Selecione um campo de texto".
-
-**Rodapé do painel**
-- Botão primário "Baixar todos" (com ícone Download).
-- Botão secundário "Salvar rascunho".
-
-### Preview central
-
-Componente `SlideCanvas` com tamanho real (`format.w` × `format.h`) e `transform: scale(...)` para caber no container (mesma técnica do skill slides). O DOM real está em pixel-perfect 1080×N — necessário para `html2canvas` exportar nas dimensões corretas.
-
-Ordem de camadas:
-1. `<img bgImage>` cobrindo (object-fit: cover) ou cor sólida fallback.
-2. Overlay (`div absolute inset-0`) com background calculado:
-   - `dark`: `rgba(0,0,0, intensity/100)`
-   - `light`: `rgba(255,255,255, intensity/100)`
-   - `gradient`: `linear-gradient(180deg, transparent, rgba(0,0,0,intensity/100))`
-3. Texto centralizado (flex column, padding) com Título/Subtítulo/Corpo nas fontes/cores escolhidas.
-
-### Barra de slides
-
-Lista horizontal de miniaturas (cada miniatura é um `SlideCanvas` em escala bem reduzida, `pointer-events: none`). Slide ativo: borda primária. Botão "+" no fim adiciona slide novo (clona estilos do anterior, texto vazio). Hover na miniatura mostra "×". Drag-and-drop com `@dnd-kit/sortable`.
-
-### Export ZIP — "Baixar todos"
+## 7. Detalhes técnicos chave
 
 ```ts
-const zip = new JSZip();
-for (let i = 0; i < slides.length; i++) {
-  setActiveId(slides[i].id);          // força render
-  await new Promise(r => requestAnimationFrame(r));
-  const node = document.getElementById(`slide-export-${slides[i].id}`);
-  const canvas = await html2canvas(node, { useCORS: true, scale: 1, width: format.w, height: format.h });
-  const blob = await new Promise<Blob>(r => canvas.toBlob(b => r(b!), "image/png"));
-  zip.file(`slide-${i+1}.png`, blob);
+// src/lib/extract-palette.ts (esboço)
+export async function extractPalette(file: File): Promise<[string, string, string]> {
+  const url = URL.createObjectURL(file);
+  const img = await loadImage(url);
+  const canvas = document.createElement("canvas");
+  canvas.width = 64; canvas.height = 64;
+  const ctx = canvas.getContext("2d")!;
+  ctx.drawImage(img, 0, 0, 64, 64);
+  const { data } = ctx.getImageData(0, 0, 64, 64);
+  const buckets = new Map<string, { r:number; g:number; b:number; n:number }>();
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i] & 0xE0, g = data[i+1] & 0xE0, b = data[i+2] & 0xE0;
+    const key = `${r},${g},${b}`;
+    const cur = buckets.get(key) ?? { r:0, g:0, b:0, n:0 };
+    cur.r += data[i]; cur.g += data[i+1]; cur.b += data[i+2]; cur.n += 1;
+    buckets.set(key, cur);
+  }
+  const top = [...buckets.values()]
+    .sort((a, b) => b.n - a.n)
+    .slice(0, 3)
+    .map(c => rgbToHex(c.r/c.n, c.g/c.n, c.b/c.n));
+  while (top.length < 3) top.push("#FFFFFF");
+  return top as [string, string, string];
 }
-const out = await zip.generateAsync({ type: "blob" });
-saveAs(out, `carrossel-${Date.now()}.zip`);
-markPlannerHasDraft();
-toast.success("Download iniciado! 🎉 Não esquece de pegar a legenda do seu post no Planner de conteúdo 📝", { duration: 8000 });
 ```
 
-Para que `html2canvas` capture nas dimensões reais, renderiza-se um nó "exportável" oculto (`position: absolute; left: -99999px;` ou `visibility: hidden`) com tamanho original 1080×N por slide ativo.
-
-### Salvar rascunho
-
-Cria post em `content_posts` (na primeira semana do usuário) com:
-- `title`: "Rascunho de carrossel — {cliente}"
-- `notes`: JSON serializado do `EditorState` (para reabrir depois) + título do primeiro slide como resumo
-- `status`: `'backlog'`
-- `tags`: `['carrossel', 'rascunho']`
-
-Toast de sucesso + `markPlannerHasDraft()`.
-
-## 5. Atualizar Studio dashboard
-
-`dashboard.studio.tsx`: trocar `onClick={() => toast.info("Em breve!")}` do card "Criar carrossel" por `navigate({ to: "/dashboard/studio/carrossel" })`. **Sem cobrança de créditos** neste bloco (o editor é manual; créditos são para geração por IA).
-
-## 6. Componentes novos
-
-```
-src/components/studio/carrossel/
-  FormatPickerDialog.tsx   - modal de formato
-  SlideCanvas.tsx          - render pixel-perfect de 1 slide
-  SlideThumbnail.tsx       - miniatura sortável
-  SlidesBar.tsx            - barra inferior
-  EditorPanel.tsx          - painel esquerdo (todas as seções)
-  ColorSwatches.tsx
-  OverlayControls.tsx
-  TextFieldsControls.tsx
-  FontControls.tsx
-  BgImageControls.tsx
-  useCarrosselEditor.ts    - hook com state + ações (addSlide, removeSlide, updateSlide, applyToAll, etc.)
-  exportSlides.ts          - função de export ZIP
-src/lib/planner-notification.ts
+```ts
+// google fonts preview
+const url = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(name).replace(/%20/g,'+')}:wght@400;700&display=swap`;
+const link = document.createElement("link");
+link.rel = "stylesheet"; link.href = url;
+document.head.appendChild(link);
+// usa style={{ fontFamily: `"${name}", sans-serif` }} no preview
 ```
 
-## 7. Out of scope (deste bloco)
-
-- Drag livre de elementos no canvas (texto sempre centralizado por padrão).
-- Edição inline clicando no preview (apenas via inputs do painel).
-- Reabrir rascunho a partir do planner (apenas grava).
-- Cobrança de créditos (editor manual).
-
-## Detalhes técnicos resumidos
-
-- Migration: `ALTER TABLE client_briefings ADD COLUMN brand_font text, ADD COLUMN brand_font_url text;` + criação de bucket `brand-assets` com policies por `auth.uid()`.
-- Carregamento de Google Font: `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=NAME&display=swap">` injetado uma vez via `useEffect`.
-- Carregamento de fonte custom: `new FontFace(name, url(...)).load().then(f => document.fonts.add(f))`.
-- `html2canvas` com `useCORS: true` para imagens do bucket público.
-- Toda a estrutura permanece com design system atual (cores rosa, bordas, componentes shadcn).
+Pronto para implementação após aprovação.
