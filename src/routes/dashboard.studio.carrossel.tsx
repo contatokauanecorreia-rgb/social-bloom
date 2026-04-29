@@ -73,6 +73,9 @@ type SignaturePos = "bl" | "br" | "tl" | "tr";
 type Slide = {
   id: string;
   bgImage: string | null;
+  bgPos: { x: number; y: number };
+  bgZoom: number;
+  grid: { enabled: boolean };
   overlay: { enabled: boolean; intensity: number; type: OverlayType };
   text: { title: string; subtitle: string; body: string };
   fontSize: { title: number; subtitle: number; body: number };
@@ -108,6 +111,9 @@ const newId = () =>
 const makeSlide = (template?: Slide, paletteColor?: string): Slide => ({
   id: newId(),
   bgImage: template?.bgImage ?? null,
+  bgPos: template ? { ...template.bgPos } : { x: 0.5, y: 0.5 },
+  bgZoom: template?.bgZoom ?? 1,
+  grid: template ? { ...template.grid } : { enabled: false },
   overlay: template ? { ...template.overlay } : { enabled: false, intensity: 40, type: "dark" },
   text: { title: "", subtitle: "", body: "" },
   fontSize: template
