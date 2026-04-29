@@ -258,9 +258,9 @@ function BriefingPage() {
     };
   }, [clientId]);
 
-  const update = <K extends keyof Form>(key: K, value: Form[K]) => {
+  const update = useCallback(<K extends keyof Form>(key: K, value: Form[K]) => {
     setForm((p) => ({ ...p, [key]: value }));
-  };
+  }, []);
 
   const aiContext = useMemo(() => buildContext(form), [form]);
 
