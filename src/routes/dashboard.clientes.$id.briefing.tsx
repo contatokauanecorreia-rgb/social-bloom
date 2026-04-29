@@ -463,11 +463,12 @@ function StepTomDeVoz({ form, update }: StepProps) {
         </div>
       </Field>
 
-      <Field label="A marca se parece com…">
+      <Field label="A marca se parece com…" hint="Selecione uma ou mais opções.">
         <ChoiceGrid
+          multi
           options={PERSONAS.map((p) => ({ id: p.id, label: p.label, hint: p.hint }))}
           value={form.persona}
-          onChange={(v) => update("persona", v as Persona)}
+          onChange={(v) => update("persona", v as Persona[])}
           cols={2}
         />
       </Field>
