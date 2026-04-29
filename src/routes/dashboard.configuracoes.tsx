@@ -7,7 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, LogOut, Save } from "lucide-react";
+import { Bot, KeyRound, Loader2, Lock, LogOut, Save, Sparkles } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/dashboard/configuracoes")({
   head: () => ({ meta: [{ title: "Configurações — Postly" }] }),
