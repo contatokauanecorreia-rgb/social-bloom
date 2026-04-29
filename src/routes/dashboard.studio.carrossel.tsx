@@ -988,18 +988,17 @@ function EditorPanel({
               />
             </div>
             <div>
-              <Label className="text-[11px] text-muted-foreground">Peso da fonte</Label>
-              <select
-                className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-xs"
-                value={slide.fontWeight[f]}
-                onChange={(e) => setWeight(f, Number(e.target.value))}
-              >
-                <option value={300}>Light (300)</option>
-                <option value={400}>Regular (400)</option>
-                <option value={500}>Medium (500)</option>
-                <option value={600}>SemiBold (600)</option>
-                <option value={700}>Bold (700)</option>
-              </select>
+              <Label className="text-[11px] text-muted-foreground">
+                Peso ({slide.fontWeight[f]})
+              </Label>
+              <Slider
+                className="mt-1"
+                value={[slide.fontWeight[f]]}
+                min={300}
+                max={700}
+                step={100}
+                onValueChange={(v) => setWeight(f, v[0])}
+              />
             </div>
           </div>
         ))}
