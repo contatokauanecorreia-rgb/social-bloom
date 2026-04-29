@@ -70,7 +70,7 @@ type Form = {
   fontMode: FontMode;
   personality: string[];
   formality: number;
-  persona: Persona | "";
+  persona: Persona[];
   dos: string[];
   donts: string[];
   age: AgeRange | "";
