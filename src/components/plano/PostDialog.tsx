@@ -164,6 +164,7 @@ export function PostDialog({
       const payload: DraftPayload = {
         title,
         weekId,
+        clientId,
         tags,
         noteBlocks,
         status,
@@ -173,7 +174,7 @@ export function PostDialog({
       setSavedAt(payload.savedAt);
     }, 500);
     return () => window.clearTimeout(handle);
-  }, [open, post?.id, title, weekId, tags, noteBlocks, status]);
+  }, [open, post?.id, title, weekId, clientId, tags, noteBlocks, status]);
 
   useEffect(() => {
     if (focusLastRef.current) {
