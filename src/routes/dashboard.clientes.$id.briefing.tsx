@@ -97,7 +97,16 @@ const FREQUENCIES: { id: Frequency; label: string }[] = [
 ];
 
 const FORMALITY_LABELS = ["Muito informal", "Informal", "Equilibrado", "Formal", "Muito formal"];
-const STEPS = ["Identidade", "Tom de voz", "Público", "Objetivos", "Revisão"];
+const STEPS = ["Identidade", "Marca", "Tom de voz", "Público", "Objetivos", "Revisão"];
+
+const ARCHETYPES: { id: Archetype; label: string; hint: string }[] = [
+  { id: "cuidador", label: "Cuidador", hint: "Acolhe, protege, ajuda" },
+  { id: "criador", label: "Criador", hint: "Inspira, inova, transforma" },
+  { id: "sabio", label: "Sábio", hint: "Ensina, aprofunda, esclarece" },
+  { id: "heroi", label: "Herói", hint: "Conquista, supera, motiva" },
+  { id: "rebelde", label: "Rebelde", hint: "Quebra regras, provoca" },
+  { id: "inocente", label: "Inocente", hint: "Otimista, simples, leve" },
+];
 
 function BriefingPage() {
   const { id: clientId } = Route.useParams();
