@@ -2,10 +2,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, X, Loader2 } from "lucide-react";
+import { Plus, Search, X, Loader2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { PageContainer, PageHeader } from "@/components/dashboard/PageContainer";
 import { WeekColumn } from "@/components/plano/WeekColumn";
 import { TagChip } from "@/components/plano/TagChip";
@@ -40,10 +48,12 @@ function PlanoPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [weeks, setWeeks] = useState<ContentWeek[]>([]);
   const [posts, setPosts] = useState<ContentPost[]>([]);
+  const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState<string[]>([]);
+  const [selectedClient, setSelectedClient] = useState<string>("all");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<ContentPost | null>(null);
@@ -58,7 +68,7 @@ function PlanoPage() {
   );
 
   const loadAll = useCallback(async (uid: string) => {
-    const [w, p] = await Promise.all([
+    const [w, p, c] = await Promise.all([
       supabase
         .from("content_weeks")
         .select("*")
@@ -71,11 +81,18 @@ function PlanoPage() {
         .eq("user_id", uid)
         .order("position", { ascending: true })
         .order("created_at", { ascending: true }),
+      supabase
+        .from("clients")
+        .select("id,name")
+        .eq("user_id", uid)
+        .order("name", { ascending: true }),
     ]);
     if (w.error) toast.error(w.error.message);
     if (p.error) toast.error(p.error.message);
+    if (c.error) toast.error(c.error.message);
     setWeeks((w.data ?? []) as ContentWeek[]);
     setPosts((p.data ?? []) as ContentPost[]);
+    setClients((c.data ?? []) as { id: string; name: string }[]);
   }, []);
 
   useEffect(() => {
@@ -101,6 +118,7 @@ function PlanoPage() {
   const filteredPosts = useMemo(() => {
     const q = search.trim().toLowerCase();
     return posts.filter((p) => {
+      if (selectedClient !== "all" && p.client_id !== selectedClient) return false;
       if (q) {
         const hay = `${p.title} ${p.notes ?? ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
@@ -110,7 +128,17 @@ function PlanoPage() {
       }
       return true;
     });
-  }, [posts, search, activeTags]);
+  }, [posts, search, activeTags, selectedClient]);
+
+  const clientNameById = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of clients) m.set(c.id, c.name);
+    return m;
+  }, [clients]);
+  const getClientName = useCallback(
+    (id: string | null) => (id ? clientNameById.get(id) : undefined),
+    [clientNameById],
+  );
 
   const postsByWeek = useMemo(() => {
     const map = new Map<string, ContentPost[]>();
@@ -183,6 +211,7 @@ function PlanoPage() {
         .update({
           title: value.title,
           week_id: value.week_id,
+          client_id: value.client_id,
           tags: value.tags,
           notes: value.notes || null,
           status: value.status,
@@ -204,6 +233,7 @@ function PlanoPage() {
           user_id: userId,
           title: value.title,
           week_id: value.week_id,
+          client_id: value.client_id,
           tags: value.tags,
           notes: value.notes || null,
           status: value.status,
@@ -239,6 +269,7 @@ function PlanoPage() {
         user_id: userId,
         title: `${post.title} (cópia)`,
         week_id: post.week_id,
+        client_id: post.client_id,
         tags: post.tags,
         notes: post.notes,
         status: post.status,
@@ -384,6 +415,28 @@ function PlanoPage() {
 
   return (
     <PageContainer wide>
+      <div className="mb-4 flex flex-col gap-1.5 rounded-xl border bg-card/40 p-3 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground sm:w-44">
+          <Users className="h-4 w-4" />
+          <Label htmlFor="planner-client" className="cursor-pointer text-sm font-medium">
+            Para qual cliente?
+          </Label>
+        </div>
+        <Select value={selectedClient} onValueChange={setSelectedClient}>
+          <SelectTrigger id="planner-client" className="sm:max-w-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os clientes</SelectItem>
+            {clients.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
       <Badge variant="soft" className="mb-3 w-fit">Conteúdo</Badge>
       <PageHeader
         title="Planner de conteúdo"
@@ -477,6 +530,8 @@ function PlanoPage() {
                   onDuplicatePost={handleDuplicatePost}
                   onDeletePost={(p) => handleDeletePost(p.id)}
                   dndDisabled={hasFilters}
+                  getClientName={getClientName}
+                  showClientChip={selectedClient === "all"}
                 />
               ))}
               <button
@@ -502,7 +557,9 @@ function PlanoPage() {
         onOpenChange={setDialogOpen}
         post={editingPost}
         defaultWeekId={defaultWeekId}
+        defaultClientId={selectedClient !== "all" ? selectedClient : null}
         weeks={weeks}
+        clients={clients}
         onSave={handleSavePost}
         onDelete={handleDeletePost}
       />

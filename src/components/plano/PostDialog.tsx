@@ -34,6 +34,7 @@ export type PostDialogValue = {
   id?: string;
   title: string;
   week_id: string;
+  client_id: string | null;
   tags: string[];
   notes: string;
   status: PostStatus;
@@ -42,6 +43,7 @@ export type PostDialogValue = {
 type DraftPayload = {
   title: string;
   weekId: string;
+  clientId: string | null;
   tags: string[];
   noteBlocks: string[];
   status: PostStatus;
@@ -85,7 +87,9 @@ export function PostDialog({
   onOpenChange,
   post,
   defaultWeekId,
+  defaultClientId,
   weeks,
+  clients,
   onSave,
   onDelete,
 }: {
@@ -93,12 +97,15 @@ export function PostDialog({
   onOpenChange: (open: boolean) => void;
   post: ContentPost | null;
   defaultWeekId?: string;
+  defaultClientId?: string | null;
   weeks: ContentWeek[];
+  clients: { id: string; name: string }[];
   onSave: (value: PostDialogValue) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
   const [title, setTitle] = useState("");
   const [weekId, setWeekId] = useState("");
+  const [clientId, setClientId] = useState<string | null>(null);
   const [tags, setTags] = useState<string[]>([]);
   const [noteBlocks, setNoteBlocks] = useState<string[]>([""]);
   const [status, setStatus] = useState<PostStatus>("planned");
@@ -118,6 +125,7 @@ export function PostDialog({
     }
     const baseTitle = post?.title ?? "";
     const baseWeek = post?.week_id ?? defaultWeekId ?? weeks[0]?.id ?? "";
+    const baseClient = post?.client_id ?? defaultClientId ?? null;
     const baseTags = post?.tags ?? [];
     const raw = post?.notes ?? "";
     const baseBlocks = raw ? raw.split(/\n\n---\n\n/) : [""];
@@ -127,6 +135,7 @@ export function PostDialog({
     if (draft) {
       setTitle(draft.title);
       setWeekId(draft.weekId || baseWeek);
+      setClientId(draft.clientId ?? baseClient);
       setTags(draft.tags);
       setNoteBlocks(draft.noteBlocks.length ? draft.noteBlocks : [""]);
       setStatus(draft.status);
@@ -135,6 +144,7 @@ export function PostDialog({
     } else {
       setTitle(baseTitle);
       setWeekId(baseWeek);
+      setClientId(baseClient);
       setTags(baseTags);
       setNoteBlocks(baseBlocks.length ? baseBlocks : [""]);
       setStatus(baseStatus);
@@ -145,7 +155,7 @@ export function PostDialog({
     requestAnimationFrame(() => {
       hydratedRef.current = true;
     });
-  }, [open, post, defaultWeekId, weeks]);
+  }, [open, post, defaultWeekId, defaultClientId, weeks]);
 
   // Autosave em localStorage com debounce
   useEffect(() => {
@@ -154,6 +164,7 @@ export function PostDialog({
       const payload: DraftPayload = {
         title,
         weekId,
+        clientId,
         tags,
         noteBlocks,
         status,
@@ -163,7 +174,7 @@ export function PostDialog({
       setSavedAt(payload.savedAt);
     }, 500);
     return () => window.clearTimeout(handle);
-  }, [open, post?.id, title, weekId, tags, noteBlocks, status]);
+  }, [open, post?.id, title, weekId, clientId, tags, noteBlocks, status]);
 
   useEffect(() => {
     if (focusLastRef.current) {
@@ -198,6 +209,7 @@ export function PostDialog({
         id: post?.id,
         title: title.trim(),
         week_id: weekId,
+        client_id: clientId,
         tags,
         notes: serializedNotes,
         status,
@@ -247,7 +259,29 @@ export function PostDialog({
               <span>Rascunho restaurado de onde você parou.</span>
             </div>
           )}
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                Cliente
+              </Label>
+              <Select
+                value={clientId ?? "__none__"}
+                onValueChange={(v) => setClientId(v === "__none__" ? null : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Sem cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sem cliente</SelectItem>
+                  {clients.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
             <div className="space-y-1.5">
               <Label className="text-xs uppercase tracking-wider text-muted-foreground">
                 Semana

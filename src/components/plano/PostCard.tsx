@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ContentPost } from "@/lib/content-types";
+import { clientColorFromId } from "@/lib/content-types";
 import { TagChip } from "./TagChip";
 import { CheckCircle2, MoreHorizontal, Copy, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -29,6 +30,8 @@ export function PostCard({
   onDelete,
   draggable = true,
   isOverlay = false,
+  clientName,
+  showClientChip = false,
 }: {
   post: ContentPost;
   onClick: () => void;
@@ -36,6 +39,8 @@ export function PostCard({
   onDelete?: (post: ContentPost) => void;
   draggable?: boolean;
   isOverlay?: boolean;
+  clientName?: string;
+  showClientChip?: boolean;
 }) {
   const sortable = useSortable({
     id: post.id,
@@ -81,13 +86,24 @@ export function PostCard({
             <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-500" />
           )}
         </div>
-        {post.tags.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-1">
+        {(showClientChip && clientName && post.client_id) || post.tags.length > 0 ? (
+          <div className="mt-2 flex flex-wrap items-center gap-1">
+            {showClientChip && clientName && post.client_id && (
+              <span
+                className="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-medium"
+                style={(() => {
+                  const c = clientColorFromId(post.client_id);
+                  return { backgroundColor: c.bg, color: c.fg, borderColor: c.border };
+                })()}
+              >
+                {clientName}
+              </span>
+            )}
             {post.tags.map((t) => (
               <TagChip key={t} label={t} />
             ))}
           </div>
-        )}
+        ) : null}
       </button>
 
       {showMenu && (

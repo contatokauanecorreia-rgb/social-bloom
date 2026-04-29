@@ -34,6 +34,8 @@ export function WeekColumn({
   onDuplicatePost,
   onDeletePost,
   dndDisabled = false,
+  getClientName,
+  showClientChip = false,
 }: {
   week: ContentWeek;
   posts: ContentPost[];
@@ -44,6 +46,8 @@ export function WeekColumn({
   onDuplicatePost?: (post: ContentPost) => void;
   onDeletePost?: (post: ContentPost) => void;
   dndDisabled?: boolean;
+  getClientName?: (clientId: string | null) => string | undefined;
+  showClientChip?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `week-${week.id}`,
@@ -142,6 +146,8 @@ export function WeekColumn({
               onDuplicate={onDuplicatePost}
               onDelete={onDeletePost}
               draggable={!dndDisabled}
+              clientName={getClientName?.(p.client_id) ?? undefined}
+              showClientChip={showClientChip}
             />
           ))}
         </SortableContext>
