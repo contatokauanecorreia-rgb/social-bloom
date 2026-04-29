@@ -279,8 +279,9 @@ function CarrosselEditorPage() {
     ]).then(([c, b, p]) => {
       setClientName(c.data?.name ?? "");
       const palette = (b.data?.palette ?? []) as string[];
+      const bootstrapPalette = bootstrapRef.current?.palette;
       const next: BriefingDNA = {
-        palette: [
+        palette: bootstrapPalette ?? [
           palette[0] ?? DEFAULT_PALETTE[0],
           palette[1] ?? DEFAULT_PALETTE[1],
           palette[2] ?? DEFAULT_PALETTE[2],
