@@ -1,71 +1,48 @@
-## Causa do problema
+## Problema identificado
+O clique do card não é o verdadeiro problema.
 
-O card "Criar carrossel" e a rota `/dashboard/studio/carrossel` já estão corretamente conectados:
+Verifiquei o fluxo atual e confirmei que:
+- o card **"Criar carrossel"** já chama `navigate({ to: "/dashboard/studio/carrossel" })`;
+- a rota **`/dashboard/studio/carrossel`** está registrada no roteador;
+- o arquivo **`src/routes/dashboard.studio.carrossel.tsx`** existe e exporta a rota corretamente.
 
-- `src/routes/dashboard.studio.tsx` chama `navigate({ to: "/dashboard/studio/carrossel" })` no `onClick`.
-- A rota está registrada em `src/routeTree.gen.ts` (`DashboardStudioCarrosselRoute`).
-- O componente `CarrosselEditorPage` é exportado corretamente em `src/routes/dashboard.studio.carrossel.tsx`.
+O bloqueio real é este:
+- **`src/routes/dashboard.studio.tsx` é a rota pai de `/dashboard/studio/carrossel`, mas não renderiza `<Outlet />`.**
+- Resultado: a URL pode até mudar para `/dashboard/studio/carrossel`, porém o editor filho nunca monta na tela.
 
-O sintoma "card não abre o editor" vem de um **redirect silencioso dentro do próprio editor**: quando não há cliente ativo em `localStorage` (`ACTIVE_CLIENT_STORAGE_KEY`), o `useEffect` do editor mostra um toast e chama `navigate({ to: "/dashboard/studio" })` imediatamente. Para o usuário, o editor "pisca" e volta para o Studio, parecendo que o clique não funcionou.
+## Plano de correção
 
-## Correções (mínimas, sem reescrever o editor)
+### 1. Ajustar a rota pai `/dashboard/studio`
+Modificar **`src/routes/dashboard.studio.tsx`** para funcionar como rota pai de verdade:
+- importar `Outlet` e o hook de localização do TanStack Router;
+- manter a interface atual do Studio quando a URL for exatamente **`/dashboard/studio`**;
+- renderizar **`<Outlet />`** quando a URL for uma rota filha, especialmente **`/dashboard/studio/carrossel`**.
 
-### 1. `src/routes/dashboard.studio.tsx` — validar cliente ANTES de navegar
+Isso preserva tudo que já existe e libera a renderização do editor sem mexer na lógica interna dele.
 
-No `onClick` do `ModeCard` "Criar carrossel", se não houver `clientId`, mostrar toast e não navegar. Assim o usuário vê uma mensagem clara em vez de uma navegação fantasma.
+### 2. Preservar a navegação existente do card
+Manter o comportamento atual do card **"Criar carrossel"**:
+- continuar validando se existe cliente selecionado;
+- continuar navegando para **`/dashboard/studio/carrossel`**;
+- não reescrever `ModeCard` nem trocar a arquitetura do editor.
 
-```tsx
-<ModeCard
-  icon={Layers}
-  title="Criar carrossel"
-  description="Slides completos com design da marca."
-  cost={MODE_COST.carrossel}
-  disabled={exhausted}
-  onClick={() => {
-    if (!clientId) {
-      toast.error("Selecione um cliente antes de criar um carrossel.");
-      return;
-    }
-    navigate({ to: "/dashboard/studio/carrossel" });
-  }}
-/>
-```
+### 3. Validar o fluxo completo
+Depois da correção, confirmar este caminho:
+1. abrir `/dashboard/studio`;
+2. clicar em **Criar carrossel**;
+3. abrir **`/dashboard/studio/carrossel`**;
+4. exibir o modal de seleção de formato;
+5. clicar em **Começar**;
+6. abrir o editor normalmente.
 
-### 2. `src/routes/dashboard.studio.carrossel.tsx` — não redirecionar silenciosamente
+## Arquivo a alterar
+- `src/routes/dashboard.studio.tsx`
 
-Trocar o `useEffect` que redireciona quando não há cliente por um `return` simples. Como `clientId` continua `null`, o resto do editor já se comporta de forma segura (Promise.all não roda, `clientName` fica vazio, modal de formato segue abrindo). O guard antes da navegação no Studio é a primeira linha de defesa; este aqui é só um fallback se o usuário entrar direto pela URL.
+## Detalhe técnico
+Não vou editar `routeTree.gen.ts`, porque ele já mostra que a rota existe e é gerada automaticamente. A correção é puramente estrutural na rota pai.
 
-Substituição em `dashboard.studio.carrossel.tsx` (linhas 151–162):
-
-```tsx
-useEffect(() => {
-  if (!userId) return;
-  const saved =
-    typeof window !== "undefined"
-      ? window.localStorage.getItem(ACTIVE_CLIENT_STORAGE_KEY)
-      : null;
-  if (!saved) {
-    // Não redireciona: o guard no /studio já previne o caso comum.
-    return;
-  }
-  setClientId(saved);
-  // ... resto do useEffect segue igual
-```
-
-## O que NÃO muda
-
-- Estrutura do editor (modal de formato, painel esquerdo, preview central, slides bar)
-- Lógica de export ZIP, save draft, notificação do Planner
-- Rotas, banco, tipos
-- Qualquer outro componente
-
-## Validação manual após aplicar
-
-1. `/dashboard/studio` sem cliente selecionado → clicar em "Criar carrossel" → toast "Selecione um cliente antes de criar um carrossel.", sem navegação.
-2. Selecionar um cliente no `ClientPicker` → clicar em "Criar carrossel" → modal "Escolha o formato" abre → "Começar" → editor carrega com preview, painel e barra de slides.
-3. Voltar e testar "Baixar todos" / "Salvar rascunho" para confirmar que o resto continua funcionando.
-
-## Arquivos alterados
-
-- `src/routes/dashboard.studio.tsx` (1 bloco do `onClick`)
-- `src/routes/dashboard.studio.carrossel.tsx` (1 bloco do `useEffect`)
+## Impacto esperado
+- corrige a abertura do editor;
+- mantém o editor existente intacto;
+- mantém a URL atual;
+- evita retrabalho desnecessário em navegação, modal e layout do carrossel.
