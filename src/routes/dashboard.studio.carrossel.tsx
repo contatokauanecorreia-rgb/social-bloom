@@ -244,9 +244,20 @@ function CarrosselEditorPage() {
 
   const addSlide = () => {
     const tpl = slides.find((s) => s.id === activeId);
-    const ns = makeSlide(tpl);
+    const ns = makeSlide(tpl, dna.palette[0]);
     setSlides((prev) => [...prev, ns]);
     setActiveId(ns.id);
+  };
+
+  const moveActiveText = (dxFraction: number, dyFraction: number) => {
+    setSlides((prev) =>
+      prev.map((s) => {
+        if (s.id !== activeId) return s;
+        const x = Math.max(0.05, Math.min(0.95, s.textPos.x + dxFraction));
+        const y = Math.max(0.05, Math.min(0.95, s.textPos.y + dyFraction));
+        return { ...s, textPos: { x, y } };
+      }),
+    );
   };
 
   const removeSlide = (id: string) => {
