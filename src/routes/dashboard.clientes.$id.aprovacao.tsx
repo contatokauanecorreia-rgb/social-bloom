@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Link2,
   Clock,
@@ -12,6 +13,7 @@ import {
   Video,
   Image as ImageIcon,
   Layers,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -133,6 +135,13 @@ function AprovacaoInternaPage() {
   const { id } = Route.useParams();
   const [contents] = useState<ContentItem[]>(MOCK_CONTENTS);
 
+  // Token estável por mount (futuramente: persistido em tabela approval_links)
+  const token = useMemo(
+    () => `${id.slice(0, 8)}-${Math.random().toString(36).slice(2, 10)}`,
+    [id],
+  );
+  const publicUrl = `flowpauta.app/aprovar/${token}`;
+
   const counts = useMemo(
     () => ({
       aguardando: contents.filter((c) => c.status === "aguardando").length,
@@ -143,18 +152,31 @@ function AprovacaoInternaPage() {
     [contents],
   );
 
-  const generateLink = async () => {
-    const token = `${id.slice(0, 8)}-${Math.random().toString(36).slice(2, 10)}`;
-    const url =
-      typeof window !== "undefined"
-        ? `${window.location.origin}/aprovar/${token}`
-        : `/aprovar/${token}`;
-    await navigator.clipboard.writeText(url);
-    toast.success("Link copiado!", { description: url });
+  const copyLink = async () => {
+    await navigator.clipboard.writeText(`https://${publicUrl}`);
+    toast.success("Link copiado!");
   };
 
   return (
     <div className="space-y-6">
+      {/* Link público */}
+      <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-background to-background p-5">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary">
+          <Link2 className="h-3.5 w-3.5" />
+          Link público de aprovação
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Compartilhe com seu cliente. Ele aprova ou comenta sem precisar de login.
+        </p>
+        <div className="mt-3 flex gap-2">
+          <Input value={publicUrl} readOnly className="font-mono text-sm" />
+          <Button variant="gradient" onClick={copyLink}>
+            <Copy className="h-4 w-4" />
+            Copiar
+          </Button>
+        </div>
+      </Card>
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -162,10 +184,6 @@ function AprovacaoInternaPage() {
           </p>
           <h2 className="text-lg font-semibold">Semana de 13 a 19 de maio</h2>
         </div>
-        <Button variant="gradient" onClick={generateLink}>
-          <Link2 className="h-4 w-4" />
-          Gerar link de aprovação
-        </Button>
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
