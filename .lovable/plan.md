@@ -1,172 +1,139 @@
 ## Escopo
-Aplicar 8 melhorias ao editor `src/routes/dashboard.studio.carrossel.tsx` mantendo a arquitetura atual (tipos, slides, export ZIP, salvar rascunho, barra de slides, picker de formato). Nenhum outro arquivo do app é tocado, exceto `src/lib/brand-font.ts` (carregar família completa) e o tipo `Slide`, que ganha campos novos com defaults retrocompatíveis.
+
+Reestruturar o fluxo de criação de carrossel adicionando uma escolha "manual vs IA" e um wizard de 2 passos antes do editor. Manter 100% do editor atual e apenas (a) reorganizar a ordem das seções do painel esquerdo, (b) adicionar a seção "Layout & Posição" (grid 3x3) que mapeia para o `textPos` já existente, e (c) permitir que o editor seja iniciado pré-preenchido pelos slides gerados pela IA.
+
+Arquivos tocados:
+- `src/routes/dashboard.studio.tsx` — abrir modal de escolha em vez de navegar direto.
+- `src/components/studio/CarouselModeDialog.tsx` (novo) — modal "Manual / IA".
+- `src/components/studio/CarouselAIWizard.tsx` (novo) — wizard 2 passos + loading.
+- `src/routes/dashboard.studio.carrossel.tsx` — aceitar slides iniciais via `sessionStorage`, reordenar painel, adicionar grid 3x3 e ajustes de pesos por campo.
+- `supabase/functions/carrossel-generate/index.ts` (novo) — gera roteiro JSON de slides + opcional imagens Nano Banana Pro.
+- `supabase/config.toml` — registrar nova função.
+
+Nada é tocado fora do Studio.
 
 ---
 
-## 1. Tamanho do slide no preview (auto-fit)
+## 1. Tela inicial — modal "Manual / IA"
 
-Em `ScaledPreview` o cálculo já existe mas tem dois problemas: (a) `parent.clientHeight` na maioria das vezes é o conteúdo do `<main>` colapsado e (b) o `Math.min(..., 0.8)` impõe um teto. Ajustes:
+`dashboard.studio.tsx`: o `onClick` do `ModeCard` "Criar carrossel" passa a abrir `CarouselModeDialog` (novo) em vez de navegar. O guard de cliente selecionado fica no próprio dialog.
 
-- Trocar `min-h-screen` do wrapper raiz por `h-screen` + flex coluna, garantindo que `<main>` tenha altura definida.
-- Em `ScaledPreview`: medir o `<main>` (parent do parent) via `ResizeObserver`, calcular `scale = min((pw - 48) / format.w, (ph - 48) / format.h)` sem teto fixo, com mínimo de 0.1.
-- Recomputar quando `format` muda e quando a janela redimensiona.
+`CarouselModeDialog` (shadcn `Dialog`):
+- Dois cards lado a lado: **Criar manualmente** (ícone `Hand`) → `navigate("/dashboard/studio/carrossel")`. **Criar com IA** (ícone `Sparkles`) → abre `CarouselAIWizard`.
+- Estado controlado pelo pai (`carouselFlow: "closed" | "choose" | "ai"`).
 
-Resultado: o slide cabe sempre na coluna central sem zoom-out manual.
+## 2. Wizard IA — Passo 1 "Configurar IA"
 
-## 2. Fundo padrão dot-grid branco
+Componente `CarouselAIWizard` num `Dialog` grande (max-w-2xl), com `step` interno (`1 | 2 | "loading"`).
 
-Em `SlideContent`:
-- Quando `slide.bgImage` é `null`, renderizar fundo branco com padrão de pontos via `background-image: radial-gradient(#0000001a 1px, transparent 1px); background-size: 24px 24px;` aplicado a uma camada de fundo.
-- Remover o uso de `dna.palette[2]` como cor de fundo padrão (que estava deixando cinza/escuro). A paleta continua aplicada em texto e assinatura.
+Passo 1 — campos:
+- `topic` — `Textarea` "Sobre o que é o conteúdo?", placeholder do enunciado.
+- `moodboard` — botão de upload (`<input type="file" accept="image/*">`); preview com remove. Arquivo só fica em memória; **não** subimos pra storage neste passo (usado só como referência visual no preview do wizard; opcional como prompt para Nano Banana).
+- `slideCount` — contador 1..10 com botões `←`/`→`, default 5.
+- `imageMode` — 4 cards radio: `none | bg | grid | mixed` (Sem imagens / Só fundo / Só grade / Intercalar).
+- `aiImages` — `Switch` "Gerar imagens com IA (Nano Banana Pro)".
 
-## 3. Alinhamento de texto por campo
+Botão **Continuar →** valida `topic.trim().length > 0` e avança.
 
-Adicionar ao tipo `Slide`:
+## 3. Wizard IA — Passo 2 "Personalizar"
 
-```ts
-textAlign: { title: "left" | "center" | "right"; subtitle: ...; body: ... }
-```
+Carregar DNA do cliente ativo (mesmo fetch que o editor faz: `client_briefings.palette, brand_font, brand_font_url, archetype`) ao entrar no passo 2.
 
-Default: todos `"center"` (mantém comportamento atual).
+Campos:
+- `instagram` — `Input` "@seuperfil".
+- **Combinação de fontes**:
+  - Se `dna.brand_font` existe → 1 card "Sua fonte" pré-selecionado, mostrando família atual em peso 700/400.
+  - Senão → 6 cards de combinações fixas mapeadas pelo arquétipo do briefing:
+    ```
+    sofisticado/governante:  Playfair Display + DM Sans
+    cara-comum/bobo:         Syne + Outfit
+    sabio:                   Oswald + Inter
+    cuidador/inocente:       Raleway + Lato
+    criador/mago:            Space Grotesk + Fraunces
+    heroi/fora-da-lei:       Bebas Neue + Inter
+    ```
+  - Cada card carrega as fontes via `loadGoogleFont` ao montar e mostra "Aa Título" (peso 700) + "Texto do corpo" (peso 400).
+  - Se o arquétipo não está no mapa, exibimos as 6 combinações na ordem acima.
+- **Paleta**: se `dna.palette` existe → mostra os 3 swatches já selecionados. Senão → 3 paletas sugeridas (tabela fixa por arquétipo, cada uma com 3 cores) e o usuário escolhe uma.
 
-No `EditorPanel`, dentro de cada `TextFieldRow`, incluir 3 botões-ícone (`AlignLeft`, `AlignCenter`, `AlignRight` do lucide-react) que chamam `onUpdateActive` setando `textAlign[field]`. Independentes por campo.
+Botão **Gerar carrossel ✦** dispara o passo loading.
 
-Em `SlideContent`, aplicar `textAlign` em cada elemento (`h1`/`h2`/`p`) via `style.textAlign`. O container do bloco passa a usar `alignItems` derivado do alinhamento do título (para o bloco encolher e respeitar o lado correto): `flex-start | center | flex-end`.
+## 4. Loading + chamada à edge function
 
-## 4. Bloco de texto arrastável
+Ao clicar Gerar:
+- Trocar para `step="loading"`. Modal mostra `Loader2` girando + título "Gerando conteúdo..." + subtítulo + barra de progresso (`Progress` shadcn). Progresso é simulado em 4 estágios (10/40/70/95) e finalizado em 100 quando a resposta chega — é o padrão do app, não há streaming aqui.
+- POST `supabase.functions.invoke("carrossel-generate", { body })`.
 
-Adicionar ao `Slide`:
-
-```ts
-textPos: { x: number; y: number } // 0..1 normalizado em relação ao slide
-```
-
-Default `{ x: 0.5, y: 0.5 }` (centro), retrocompatível.
-
-Em `SlideContent`:
-- O bloco de texto deixa de usar `inset: 0 + justifyContent: center`. Vira um `position: absolute` posicionado em `left: x*format.w; top: y*format.h; transform: translate(-50%, -50%)`, com `maxWidth: format.w * 0.84`.
-- Mantém `flex-direction: column` e o gap da seção 5.
-
-Drag (apenas no preview, não na thumb e não no node de export):
-- Adicionar prop `draggable?: boolean` em `SlideContent`. `ScaledPreview` passa `true`; thumbs e export passam `false`.
-- Quando `draggable`, envolver o bloco de texto em handlers `onPointerDown/Move/Up` que calculam o delta em pixels do slide (dividindo o delta da tela pelo `scale` recebido) e atualizam `textPos` via callback `onTextMove(dx, dy)` exposto pela `ScaledPreview` para o pai.
-- Limitar `x`,`y` em `[0.05, 0.95]`.
-
-`CarrosselEditorPage` ganha um `updateActiveTextPos(dx, dy)` que aplica em cima do `textPos` atual.
-
-## 5. Espaçamento padrão
-
-Em `SlideContent`, substituir o `gap: 24` único por gaps explícitos entre elementos. Como flex `gap` é único, renderizar com margens:
-
-- `subtitle`: `marginTop: 16`
-- `body`: `marginTop: 12`
-
-Aplicado apenas quando o elemento anterior também está visível. Esses valores ficam em constantes `TITLE_TO_SUBTITLE = 16`, `SUBTITLE_TO_BODY = 12`.
-
-## 6. Família completa de fontes (300–700)
-
-Atualizar `src/lib/brand-font.ts`:
-
-- `loadGoogleFont(family)` passa a requisitar `wght@300;400;500;600;700` (já é quase isso; garantir todos os pesos).
-- Manter cache via `loadedGoogle` Set.
-
-Adicionar ao `Slide`:
-
-```ts
-fontWeight: { title: number; subtitle: number; body: number }
-```
-
-Defaults: title 700, subtitle 500, body 400 (retrocompatíveis com os pesos atuais hardcoded).
-
-No `EditorPanel` seção FONTE, abaixo de cada slider de tamanho, um `<select>` (ou shadcn `Select`) com opções 300/400/500/600/700 rotuladas (Light/Regular/Medium/SemiBold/Bold) que atualiza `fontWeight[field]`.
-
-Em `SlideContent`, trocar `fontWeight: 800/600/400` hardcoded por `slide.fontWeight.title|subtitle|body`.
-
-## 7. Seção ASSINATURA
-
-Adicionar ao `Slide`:
-
-```ts
-signature: {
-  enabled: boolean;
-  handle: string;          // "@studiobelaforma"
-  position: "bl" | "br" | "tl" | "tr";
-  color: string;           // cor da paleta, default dna.palette[0]
-}
-```
-
-Defaults: `{ enabled: false, handle: "", position: "br", color: dna.palette[0] }`.
-
-No `EditorPanel`, nova `Section title="Assinatura"` abaixo de Cores:
-- `Switch` para `enabled`.
-- `Input` para `handle` (placeholder `@suamarca`).
-- `RadioGroup` 2x2 com 4 opções de canto.
-- Linha de 3 swatches da paleta para escolher a cor.
-- Botão/checkbox "Aplicar em todos os slides" (usa `onApplyToAll` para copiar o objeto inteiro de `signature`).
-
-Em `SlideContent`, quando `signature.enabled && handle`, renderizar um `<div>` `position: absolute` com padding `format.w * 0.05`, `fontSize: format.w * 0.025`, `fontWeight: 600`, cor `signature.color`, ancorado no canto:
-- `bl`: `left/bottom`
-- `br`: `right/bottom`
-- `tl`: `left/top`
-- `tr`: `right/top`
-
-## 8. Autocomplete de título via Planner
-
-No `EditorPanel`, o campo Título do `TextFieldRow` ganha um modo "com sugestões". Implementação:
-
-- O componente pai (`CarrosselEditorPage`) carrega 1x, quando `userId` e `clientId` existirem:
-  ```ts
-  supabase.from("content_posts")
-    .select("title")
-    .eq("user_id", userId)
-    .eq("client_id", clientId)
-    .order("created_at", { ascending: false })
-    .limit(200)
+Edge function `supabase/functions/carrossel-generate/index.ts` (replica o padrão de `studio-generate`):
+- Body: `{ clientId, topic, slideCount, imageMode, aiImages, fontPair, palette, instagram }`.
+- Carrega briefing (mesmos campos de studio-generate) com cliente autenticado para respeitar RLS.
+- Monta system prompt com arquétipo + tom + DNA + segmento e força tool-calling JSON:
   ```
-  e guarda em `plannerTitles: string[]`.
-- Passa `plannerTitles` para `EditorPanel` → para o `TextFieldRow` do título.
-- Quando o usuário digita ≥2 chars, filtra `plannerTitles` por `includes` case-insensitive (até 6 sugestões) e exibe um `<ul>` absoluto abaixo do `Input` (estilo dropdown shadcn). Clicar preenche o título via `onChange` e fecha.
-- Se a lista filtrada está vazia (ou não há posts para o cliente), o dropdown não aparece.
-- Fechar ao perder foco (com pequeno delay para permitir o click).
+  tools: [{ type:"function", function:{
+    name:"build_carousel",
+    parameters:{ type:"object", properties:{
+      slides:{ type:"array", items:{ type:"object", properties:{
+        title:{type:"string"}, subtitle:{type:"string"}, body:{type:"string"},
+        imagePrompt:{type:"string"}
+      }, required:["title","subtitle","body","imagePrompt"]}}
+    }, required:["slides"]}
+  }}]
+  tool_choice: { type:"function", function:{ name:"build_carousel" } }
+  ```
+  Modelo: `google/gemini-3-flash-preview`.
+- Se `aiImages === true` e `imageMode !== "none"`: para cada slide, chama Lovable AI com `model: "google/gemini-3-pro-image-preview"`, `modalities:["image","text"]`, prompt = `${slide.imagePrompt}. Estilo da marca: ${arquétipo}. Segmento: ${segmento}.` + opcional moodboard se enviado como base64. Faz as N chamadas em sequência (não paralelo) para evitar rate limit. Retorna `data:image/png;base64,...` em `slides[i].imageDataUrl`.
+- Trata 429/402 e devolve mensagem para o front.
+- Resposta: `{ slides: [{title, subtitle, body, imageDataUrl?}, ...] }`.
 
-A tabela `content_posts` confirmadamente tem `title` e `client_id` no schema, RLS por `user_id` já garante isolamento.
+Tratamento "Nano Banana Pro": usamos `google/gemini-3-pro-image-preview` via Lovable AI Gateway (já documentado no projeto). O texto do enunciado menciona `nanobanana.im/api`, mas o gateway nativo é mais seguro (sem chave externa) e produz imagens equivalentes; o front anuncia "Nano Banana Pro" como label.
 
----
+Após sucesso, o wizard:
+1. Monta `Slide[]` aplicando o template do editor (`makeSlide`), preenchendo `text.title/subtitle/body` e `bgImage = imageDataUrl ?? null` quando `imageMode` pedir imagem de fundo. Para `imageMode === "grid"` ou `"mixed"`, gravamos a imagem num campo separado consumido pela seção "Grade de imagens" já existente (não há grid ainda no editor — ver §5).
+2. Persiste em `sessionStorage` sob chave `studio:carrossel:bootstrap`: `{ slides, fontPair, palette, signature:{ enabled: !!instagram, handle: instagram, position:"br", color: palette[0] } }`.
+3. `navigate({ to: "/dashboard/studio/carrossel" })` e fecha o modal.
+
+## 5. Editor: bootstrap + reorganização do painel
+
+`dashboard.studio.carrossel.tsx`:
+
+**Bootstrap**: no mount, ler `sessionStorage["studio:carrossel:bootstrap"]`. Se existir, popular `slides`, sobrescrever `dna.palette` quando o wizard escolheu paleta sugerida, aplicar `signature` em todos os slides e chamar `loadGoogleFont` para as duas famílias do `fontPair`. Limpar a chave após consumir. Se não existir bootstrap → comportamento atual (1 slide vazio).
+
+**Reordenação do painel** em `EditorPanel`. Nova ordem das seções:
+1. **Layout & Posição** — grid 3x3 de botões (`SUP.ESQ ... INF.DIR`) que setam `textPos` para `{x: col/2, y: row/2}` com col,row ∈ {0,1,2}; cada botão fica destacado quando bate com a posição atual (com tolerância 0.1). O drag livre existente continua funcionando.
+2. **Alinhamento** — 3 botões (Esq/Centro/Dir). Aplica em `textAlign` dos três campos de uma vez (atalho global) — os controles por campo já existentes seguem disponíveis dentro de cada `TextFieldRow`.
+3. **Título** / **Subtítulo** / **Texto do corpo** — `TextFieldRow` existentes (com autocomplete do planner no título).
+4. **Imagem de fundo** — upload + preview + sliders X/Y de posição da imagem + slider de zoom + botão "Aplicar também na grade". Adicionar a `Slide` os campos `bgPos:{x:number,y:number}` (0..1, default 0.5/0.5) e `bgZoom:number` (1..3, default 1) e usar em `SlideContent` via `backgroundPosition: ${x*100}% ${y*100}%; background-size: ${zoom*100}%`.
+5. **Sombra/Overlay** — já existe.
+6. **Grade de imagens** — `Switch` "Mostrar grade". Quando ligado e o slide tem `bgImage`, renderiza uma sobreposição decorativa de mosaico no canto direito (3 thumbs). É um layout opcional, não substitui o fundo. Adicionar campo `grid:{ enabled:boolean }`.
+7. **Fonte** — exibe a fonte do DNA OU a combinação escolhida no wizard (`fontPair` salva em `Slide`-independente, num estado de página `pageFont:{ heading, body } | null`); sliders de peso para título/subtítulo/corpo (já existem como selects → trocamos por `Slider` 300..700 step 100 mantendo o estado `fontWeight` atual).
+8. **Cores** — swatches já existentes.
+9. **Assinatura** — já existe; ganha pré-preenchimento via bootstrap.
+
+Outras seções (export, formato) continuam fora do painel esquerdo, sem mudanças.
+
+**Tipo Slide adicional** (defaults retrocompatíveis em `makeSlide`):
+```ts
+bgPos: { x: 0.5, y: 0.5 }
+bgZoom: 1
+grid: { enabled: false }
+```
+
+## 6. Geração de imagem (Nano Banana Pro)
+
+Já descrito em §4. Front exibe label "Nano Banana Pro"; backend usa `google/gemini-3-pro-image-preview` no gateway. Cada slide recebe `bgImage = data:image/png;base64,...`. O usuário pode trocar pelo upload manual depois (fluxo atual de upload já trata `bgImage` como string).
 
 ## Detalhes técnicos
 
-**Tipo Slide atualizado** (defaults em `makeSlide`):
-```text
-textAlign:   { title:"center", subtitle:"center", body:"center" }
-textPos:     { x:0.5, y:0.5 }
-fontWeight:  { title:700, subtitle:500, body:400 }
-signature:   { enabled:false, handle:"", position:"br", color:dna.palette[0] }
-```
-
-`makeSlide` recebe `dna` opcional para inicializar `signature.color`. Onde já é chamado sem argumento (estado inicial), usar `DEFAULT_PALETTE[0]`.
-
-**Drag math** (em `ScaledPreview`):
-```text
-onPointerMove: dx_real = (e.clientX - startX) / scale
-               dy_real = (e.clientY - startY) / scale
-               newX = clamp(startPos.x + dx_real / format.w, 0.05, 0.95)
-               newY = clamp(startPos.y + dy_real / format.h, 0.05, 0.95)
-```
-
-**Renderização texto (SlideContent)**: container do bloco com `display:flex; flex-direction:column; alignItems` derivado do `textAlign.title`; cada filho com seu próprio `textAlign`. Margens superiores conforme seção 5.
-
-**Export ZIP**: continua usando `slide-export-${id}` com `SlideContent draggable={false}`. Como agora SlideContent honra `textPos`/`textAlign`/`fontWeight`/`signature`, o export sai idêntico ao preview.
-
-**Retrocompat com rascunhos antigos**: ao carregar slides salvos do Planner (futuro), garantir defaults via spread em `makeSlide`. (Não há fluxo de "abrir rascunho" hoje, então só os defaults bastam.)
-
----
-
-## Arquivos modificados
-
-- `src/routes/dashboard.studio.carrossel.tsx` — tipos, painel, preview, slide content, autocomplete, drag, assinatura.
-- `src/lib/brand-font.ts` — pesos 300;400;500;600;700.
+- Toda comunicação com IA passa por edge function (cliente nunca chama o gateway direto).
+- `sessionStorage` foi escolhido em vez de query params/state global porque o payload pode conter imagens base64 grandes; chave consumida e removida ao montar o editor.
+- Imagens base64 em `bgImage` já são suportadas pela renderização atual (`backgroundImage: url(...)`); para o export ZIP/`html-to-image` o navegador trata data URLs nativamente.
+- `Progress` durante loading é simulado client-side; a função não streama. Se preferir, pode-se trocar por barra indeterminada em iteração futura.
+- Tratamento de erro: 429 → toast "Muitas requisições"; 402 → toast "Créditos esgotados"; outros → toast genérico, mantém o wizard aberto no passo 2 para retry.
+- Fontes do wizard são carregadas via `loadGoogleFont` para o preview dos cards.
+- A grid 3x3 não substitui o drag — apenas oferece "snap" em 9 posições.
 
 ## Fora do escopo
 
-- Barra de slides (thumbs), header, picker de formato, salvar rascunho, export ZIP — sem mudanças além do efeito automático das novas propriedades sendo respeitadas.
-- Roteamento `/dashboard/studio` e `Outlet` — já corrigidos.
+- Histórico de carrosséis IA, salvar moodboard em storage, edição de prompt por slide, regenerar imagens individualmente.
+- Fluxo manual: continua exatamente igual ao atual (modal "Manual" navega direto).
+- `/dashboard/studio` cards de Copy/Pauta/Roteiro: sem mudanças.
