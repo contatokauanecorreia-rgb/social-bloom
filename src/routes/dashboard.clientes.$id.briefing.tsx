@@ -123,18 +123,25 @@ function BriefingPage() {
       supabase.from("clients").select("name").eq("id", clientId).maybeSingle(),
       supabase
         .from("client_briefings")
-        .select("dos, donts, extra")
+        .select("dos, donts, extra, archetype, palette")
         .eq("client_id", clientId)
         .maybeSingle(),
     ]).then(([c, b]) => {
       if (!active) return;
       const extra = ((b.data?.extra as Record<string, unknown> | null) ?? {}) as Partial<Form>;
+      const palette = (b.data?.palette ?? []) as string[];
       setForm({
         ...initial,
         ...extra,
         name: c.data?.name ?? extra.name ?? "",
         dos: b.data?.dos ?? extra.dos ?? [],
         donts: b.data?.donts ?? extra.donts ?? [],
+        archetype: ((b.data?.archetype as Archetype | null) ?? extra.archetype ?? "") as Archetype | "",
+        palette: [
+          palette[0] ?? extra.palette?.[0] ?? initial.palette[0],
+          palette[1] ?? extra.palette?.[1] ?? initial.palette[1],
+          palette[2] ?? extra.palette?.[2] ?? initial.palette[2],
+        ] as [string, string, string],
         competitors:
           extra.competitors && extra.competitors.length === 3
             ? extra.competitors
