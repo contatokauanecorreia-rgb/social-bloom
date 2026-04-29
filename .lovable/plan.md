@@ -1,35 +1,57 @@
-## BLOCO 10 — Integrações de IA em /configuracoes
+## BLOCO 11 — Sistema de Planos em /plano
 
-Adicionar uma nova seção "Integrações de IA" na página de configurações, abaixo do bloco de perfil e antes do bloco de Sessão. A seção é puramente de UI/local (sem persistência no banco neste bloco — apenas estado local + mock de plano), seguindo o padrão dos blocos anteriores.
+Substituir a página atual (que mostra apenas "Postly Free") por uma comparação de 3 planos (Starter, Pro, Premium) com seleção real conectada ao banco. Manter os blocos de "Forma de pagamento" e "Histórico de cobrança" abaixo dos cards.
 
 ### Comportamento
 
-- **Plano atual** lido do `user_subscriptions.plan` (já existente). Mapeamento:
-  - `starter` / `pro` → campos Premium ficam **bloqueados** (cadeado + tooltip "Disponível no Premium")
-  - `premium` (ou superior) → campos liberados
-- **3 opções mutuamente exclusivas** via radio group:
-  1. **Usar IA da Postly (padrão)** — sempre disponível. Mostra "Créditos mensais incluídos no plano".
-  2. **Conectar minha API Key (Premium)** — bloqueada para Starter/Pro. Quando ativa, mostra dois campos:
-     - OpenAI (GPT-4) — input type password (API Key)
-     - Anthropic (Claude) — input type password (API Key)
-  3. **Usar meu agente personalizado (Premium)** — bloqueada para Starter/Pro. Quando ativa, mostra:
-     - Assistant ID (input)
-     - Aviso: "Requer API Key da OpenAI conectada" (chip de aviso se a opção 2 não estiver com a chave OpenAI preenchida)
-- Botão "Salvar integrações" exibe toast "Preferências salvas" (placeholder — sem persistência ainda, alinhado a outros blocos visuais).
-- Ícone `Lock` (lucide) sobre cards Premium quando o plano não permite, com `cursor-not-allowed`, opacidade reduzida e badge "Premium".
+- Carregar `user_subscriptions.plan` do usuário logado para identificar o plano atual.
+- Renderizar 3 cards lado a lado (md:grid-cols-3, empilhados no mobile):
+  - **Starter** — R$37/mês — 7 features
+  - **Pro** — R$87/mês — destaque "Mais popular" (borda primary + badge gradient) — 5 features
+  - **Premium** — R$197/mês — ícone de coroa — 5 features
+- Cada card mostra: nome, tagline curta, preço grande, lista de features com checkmark, botão de ação.
+- Card do plano atual exibe badge "Plano atual" e botão desabilitado com texto "Plano atual".
+- Demais cards: botão "Escolher {Plano}" que faz `upsert` em `user_subscriptions` (`{ user_id, plan }` com `onConflict: "user_id"`), atualiza estado local e dispara toast de sucesso.
+
+### Conteúdo dos planos (textual)
+
+**Starter — R$37/mês**
+- Clientes ilimitados
+- Hub de clientes completo
+- DNA da marca completo
+- Portal de aprovação visual
+- Studio: Criar copy + Criar carrossel
+- 20 créditos de IA/mês
+- Cola conteúdo manual sem limite
+
+**Pro — R$87/mês** (Mais popular)
+- Tudo do Starter
+- Studio: todos os modos desbloqueados
+- 100 créditos de IA/mês
+- Planner de conteúdo
+- Precificação guiada
+
+**Premium — R$197/mês**
+- Tudo do Pro
+- Créditos ilimitados
+- Conecta API Key própria
+- Conecta agente personalizado
+- Workspace para times (em breve)
 
 ### UI
 
-- Container: `rounded-xl border bg-card p-6`, título "Integrações de IA" + subtítulo descritivo.
-- 3 cards selecionáveis (estilo radio-card) com borda destacada no selecionado (`border-primary`).
-- Cada card: ícone (Sparkles / KeyRound / Bot), título, descrição curta, e área condicional de campos.
-- Inputs reutilizam `Input` + `Label` do design-system.
+- Cards: `rounded-2xl border bg-card p-6 shadow-sm`. Pro recebe `border-primary shadow-primary` + badge flutuante `-top-3 left-6` com gradient. Plano atual ganha `border-primary/50` (quando não é o Pro) + badge `-top-3 right-6`.
+- Botão do Pro usa `bg-gradient-primary shadow-primary` quando não é o atual.
+- Premium: ícone `Crown` em amber ao lado do nome.
 
 ### Arquivo modificado
 
-- `src/routes/dashboard.configuracoes.tsx` — adicionar `useEffect` para buscar plano, novo state (`aiMode`, `openaiKey`, `anthropicKey`, `assistantId`) e renderizar a nova `<section>`.
+- `src/routes/dashboard.plano.tsx` — reescrever conteúdo (mantém `head()`, `PageContainer`, `PageHeader`).
 
-### Imports adicionais
+### Imports
 
-- `KeyRound`, `Bot`, `Sparkles`, `Lock` de `lucide-react`
-- nada de novas dependências
+- `useEffect`, `useState` de react
+- `Check`, `Sparkles`, `CreditCard`, `Crown` de lucide-react
+- `supabase`, `toast`, `cn` (já disponíveis no projeto)
+
+Sem novas dependências, sem mudanças de schema (a tabela `user_subscriptions` já tem a coluna `plan`).
