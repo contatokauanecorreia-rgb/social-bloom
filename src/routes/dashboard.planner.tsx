@@ -48,10 +48,12 @@ function PlanoPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [weeks, setWeeks] = useState<ContentWeek[]>([]);
   const [posts, setPosts] = useState<ContentPost[]>([]);
+  const [clients, setClients] = useState<{ id: string; name: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [search, setSearch] = useState("");
   const [activeTags, setActiveTags] = useState<string[]>([]);
+  const [selectedClient, setSelectedClient] = useState<string>("all");
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPost, setEditingPost] = useState<ContentPost | null>(null);
@@ -66,7 +68,7 @@ function PlanoPage() {
   );
 
   const loadAll = useCallback(async (uid: string) => {
-    const [w, p] = await Promise.all([
+    const [w, p, c] = await Promise.all([
       supabase
         .from("content_weeks")
         .select("*")
@@ -79,11 +81,18 @@ function PlanoPage() {
         .eq("user_id", uid)
         .order("position", { ascending: true })
         .order("created_at", { ascending: true }),
+      supabase
+        .from("clients")
+        .select("id,name")
+        .eq("user_id", uid)
+        .order("name", { ascending: true }),
     ]);
     if (w.error) toast.error(w.error.message);
     if (p.error) toast.error(p.error.message);
+    if (c.error) toast.error(c.error.message);
     setWeeks((w.data ?? []) as ContentWeek[]);
     setPosts((p.data ?? []) as ContentPost[]);
+    setClients((c.data ?? []) as { id: string; name: string }[]);
   }, []);
 
   useEffect(() => {
