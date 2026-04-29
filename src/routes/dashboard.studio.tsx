@@ -95,6 +95,10 @@ function StudioPage() {
     fetchCredits().then(setCredits).catch(() => {});
   };
 
+  if (isChildRoute) {
+    return <Outlet />;
+  }
+
   if (!userId || !credits) {
     return (
       <div className="flex h-[60vh] items-center justify-center">
