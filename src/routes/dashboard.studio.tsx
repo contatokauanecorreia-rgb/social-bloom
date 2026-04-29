@@ -20,6 +20,8 @@ export const Route = createFileRoute("/dashboard/studio")({
 
 function StudioPage() {
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  const isChildRoute = pathname !== "/dashboard/studio" && pathname !== "/dashboard/studio/";
   const [userId, setUserId] = useState<string | null>(null);
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [clientId, setClientId] = useState<string | null>(null);
