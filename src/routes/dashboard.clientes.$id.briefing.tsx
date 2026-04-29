@@ -9,9 +9,30 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { TagInput } from "@/components/plano/TagInput";
-import { Loader2, ArrowLeft, ArrowRight, Sparkles, Check } from "lucide-react";
+import {
+  Loader2,
+  ArrowLeft,
+  ArrowRight,
+  Sparkles,
+  Check,
+  Heart,
+  Compass,
+  BookOpen,
+  Sword,
+  Flame,
+  Wand2,
+  Smile,
+  Star,
+  Laugh,
+  Shield,
+  Palette as PaletteIcon,
+  Crown,
+  Upload,
+  Search,
+} from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { extractPalette, ARCHETYPE_TONE } from "@/lib/extract-palette";
 
 export const Route = createFileRoute("/dashboard/clientes/$id/briefing")({
   component: BriefingPage,
@@ -21,15 +42,32 @@ type Persona = "amiga-especialista" | "autoridade" | "aspiracional" | "popular";
 type AgeRange = "18-24" | "25-35" | "36-45" | "46+";
 type Goal = "agendamentos" | "crescer-perfil" | "autoridade" | "vender";
 type Frequency = "1-2" | "3-4" | "5-6" | "7+";
-type Archetype = "cuidador" | "criador" | "sabio" | "heroi" | "rebelde" | "inocente";
+type Archetype =
+  | "inocente"
+  | "explorador"
+  | "sabio"
+  | "heroi"
+  | "fora-da-lei"
+  | "mago"
+  | "cara-comum"
+  | "amante"
+  | "bobo"
+  | "cuidador"
+  | "criador"
+  | "governante";
+
+type FontMode = "publica" | "exclusiva";
+type PaletteMode = "hex" | "imagem";
 
 type Form = {
   name: string;
   segment: string;
   archetype: Archetype | "";
   palette: [string, string, string];
+  paletteMode: PaletteMode;
   brandFont: string;
   brandFontUrl: string;
+  fontMode: FontMode;
   personality: string[];
   formality: number;
   persona: Persona | "";
@@ -47,9 +85,11 @@ const initial: Form = {
   name: "",
   segment: "",
   archetype: "",
-  palette: ["#E91E63", "#FFFFFF", "#2D2D2D"],
+  palette: ["#FF5C8A", "#1A1714", "#F5F0E8"],
+  paletteMode: "hex",
   brandFont: "",
   brandFontUrl: "",
+  fontMode: "publica",
   personality: [],
   formality: 3,
   persona: "",
@@ -69,14 +109,31 @@ const SEGMENTS = [
   "Serviços locais",
   "Educação",
   "E-commerce",
+  "Moda",
   "Outro",
 ];
 
 const PERSONAS: { id: Persona; label: string; hint: string }[] = [
-  { id: "amiga-especialista", label: "Uma amiga especialista", hint: "Próxima, didática, acolhedora" },
-  { id: "autoridade", label: "Uma autoridade do setor", hint: "Técnica, segura, referência" },
-  { id: "aspiracional", label: "Uma marca aspiracional", hint: "Inspiradora, sofisticada, desejo" },
-  { id: "popular", label: "Uma marca popular", hint: "Direta, divertida, cotidiana" },
+  {
+    id: "amiga-especialista",
+    label: "Uma amiga especialista",
+    hint: "Indica, não vende. Próxima e didática.",
+  },
+  {
+    id: "autoridade",
+    label: "Uma autoridade do setor",
+    hint: "Educa, inspira confiança.",
+  },
+  {
+    id: "aspiracional",
+    label: "Uma marca aspiracional",
+    hint: "Estilo de vida, desejo.",
+  },
+  {
+    id: "popular",
+    label: "Uma marca popular",
+    hint: "Acessível, próxima, direta.",
+  },
 ];
 
 const AGES: { id: AgeRange; label: string }[] = [
@@ -87,10 +144,26 @@ const AGES: { id: AgeRange; label: string }[] = [
 ];
 
 const GOALS: { id: Goal; label: string; cta: string }[] = [
-  { id: "agendamentos", label: "Gerar agendamentos", cta: "Inclua sempre uma chamada para agendamento (link na bio, WhatsApp ou DM)." },
-  { id: "crescer-perfil", label: "Crescer o perfil", cta: "Termine os conteúdos com um gancho que estimule salvar, compartilhar ou comentar." },
-  { id: "autoridade", label: "Construir autoridade", cta: "Sempre que possível, traga dados, fontes ou exemplos práticos que reforcem a expertise." },
-  { id: "vender", label: "Vender produto", cta: "Conduza o leitor para a oferta com prova social e CTA claro de compra." },
+  {
+    id: "agendamentos",
+    label: "Gerar agendamentos",
+    cta: "Inclua sempre uma chamada para agendamento (link na bio, WhatsApp ou DM).",
+  },
+  {
+    id: "crescer-perfil",
+    label: "Crescer o perfil",
+    cta: "Termine os conteúdos com um gancho que estimule salvar, compartilhar ou comentar.",
+  },
+  {
+    id: "autoridade",
+    label: "Construir autoridade",
+    cta: "Sempre que possível, traga dados, fontes ou exemplos práticos que reforcem a expertise.",
+  },
+  {
+    id: "vender",
+    label: "Vender produto",
+    cta: "Conduza o leitor para a oferta com prova social e CTA claro de compra.",
+  },
 ];
 
 const FREQUENCIES: { id: Frequency; label: string }[] = [
@@ -100,16 +173,41 @@ const FREQUENCIES: { id: Frequency; label: string }[] = [
   { id: "7+", label: "7x+ / semana" },
 ];
 
-const FORMALITY_LABELS = ["Muito informal", "Informal", "Equilibrado", "Formal", "Muito formal"];
-const STEPS = ["Identidade", "Marca", "Tom de voz", "Público", "Objetivos", "Revisão"];
+const FORMALITY_LABELS = [
+  "Muito informal",
+  "Informal",
+  "Equilibrado",
+  "Formal",
+  "Muito formal",
+];
 
-const ARCHETYPES: { id: Archetype; label: string; hint: string }[] = [
-  { id: "cuidador", label: "Cuidador", hint: "Acolhe, protege, ajuda" },
-  { id: "criador", label: "Criador", hint: "Inspira, inova, transforma" },
-  { id: "sabio", label: "Sábio", hint: "Ensina, aprofunda, esclarece" },
-  { id: "heroi", label: "Herói", hint: "Conquista, supera, motiva" },
-  { id: "rebelde", label: "Rebelde", hint: "Quebra regras, provoca" },
-  { id: "inocente", label: "Inocente", hint: "Otimista, simples, leve" },
+const STEPS = [
+  "Identidade",
+  "Tom de voz",
+  "Público",
+  "Objetivos",
+  "Branding",
+  "Revisão",
+];
+
+const ARCHETYPES: {
+  id: Archetype;
+  label: string;
+  hint: string;
+  Icon: typeof Heart;
+}[] = [
+  { id: "inocente", label: "Inocente", hint: "Otimista, puro, simples", Icon: Smile },
+  { id: "explorador", label: "Explorador", hint: "Aventureiro, autêntico", Icon: Compass },
+  { id: "sabio", label: "Sábio", hint: "Inteligente, confiável", Icon: BookOpen },
+  { id: "heroi", label: "Herói", hint: "Corajoso, inspirador", Icon: Sword },
+  { id: "fora-da-lei", label: "Fora da Lei", hint: "Rebelde, disruptivo", Icon: Flame },
+  { id: "mago", label: "Mago", hint: "Visionário, transformador", Icon: Wand2 },
+  { id: "cara-comum", label: "Cara Comum", hint: "Acessível, humano", Icon: Star },
+  { id: "amante", label: "Amante", hint: "Sensual, íntimo", Icon: Heart },
+  { id: "bobo", label: "Bobo da Corte", hint: "Divertido, irreverente", Icon: Laugh },
+  { id: "cuidador", label: "Cuidador", hint: "Protetor, generoso", Icon: Shield },
+  { id: "criador", label: "Criador", hint: "Criativo, original", Icon: PaletteIcon },
+  { id: "governante", label: "Governante", hint: "Líder, premium", Icon: Crown },
 ];
 
 function BriefingPage() {
@@ -215,10 +313,10 @@ function BriefingPage() {
     );
     setSaving(false);
     if (error) {
-      toast.error("Erro ao salvar briefing.");
+      toast.error("Erro ao salvar DNA da marca.");
       return;
     }
-    toast.success("Briefing salvo!");
+    toast.success("DNA da marca salvo!");
     navigate({ to: "/dashboard/clientes/$id", params: { id: clientId } });
   };
 
@@ -234,6 +332,13 @@ function BriefingPage() {
 
   return (
     <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">DNA da marca</h1>
+        <p className="text-sm text-muted-foreground">
+          Tudo o que a IA precisa saber para escrever como essa marca.
+        </p>
+      </div>
+
       <div className="space-y-3">
         <div className="flex flex-wrap gap-2">
           {STEPS.map((label, i) => {
@@ -263,10 +368,12 @@ function BriefingPage() {
       <Card>
         <CardContent className="pt-6">
           {step === 0 && <StepIdentidade form={form} update={update} />}
-          {step === 1 && <StepMarca form={form} update={update} />}
-          {step === 2 && <StepTomDeVoz form={form} update={update} />}
-          {step === 3 && <StepPublico form={form} update={update} />}
-          {step === 4 && <StepObjetivos form={form} update={update} />}
+          {step === 1 && <StepTomDeVoz form={form} update={update} />}
+          {step === 2 && <StepPublico form={form} update={update} />}
+          {step === 3 && <StepObjetivos form={form} update={update} />}
+          {step === 4 && (
+            <StepBranding form={form} update={update} clientId={clientId} />
+          )}
           {step === 5 && <StepRevisao form={form} aiContext={aiContext} />}
         </CardContent>
       </Card>
@@ -288,7 +395,7 @@ function BriefingPage() {
         ) : (
           <Button variant="gradient" onClick={save} disabled={saving}>
             {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-            Salvar briefing
+            Salvar DNA da marca
           </Button>
         )}
       </div>
@@ -306,7 +413,11 @@ function StepIdentidade({ form, update }: StepProps) {
     <div className="space-y-6">
       <Header title="Identidade" subtitle="Quem é a marca e como ela quer ser percebida." />
       <Field label="Nome do cliente">
-        <Input value={form.name} onChange={(e) => update("name", e.target.value)} placeholder="Ex: Studio Bela Forma" />
+        <Input
+          value={form.name}
+          onChange={(e) => update("name", e.target.value)}
+          placeholder="Ex: Studio Bela Forma"
+        />
       </Field>
       <Field label="Segmento">
         <ChoiceGrid
@@ -316,77 +427,15 @@ function StepIdentidade({ form, update }: StepProps) {
           cols={3}
         />
       </Field>
-      <Field label="Personalidade em 3 palavras" hint="Ex: acolhedora, técnica, divertida">
+      <Field
+        label="Personalidade em 3 palavras"
+        hint="Ex: acolhedora, técnica, divertida"
+      >
         <TagInput
           value={form.personality}
           onChange={(v) => update("personality", v)}
           placeholder="Digite uma palavra e pressione Enter"
         />
-      </Field>
-    </div>
-  );
-}
-
-function StepMarca({ form, update }: StepProps) {
-  const setColor = (i: 0 | 1 | 2, hex: string) => {
-    const next = [...form.palette] as [string, string, string];
-    next[i] = hex.toUpperCase();
-    update("palette", next);
-  };
-  return (
-    <div className="space-y-6">
-      <Header title="Marca" subtitle="A essência visual e simbólica da marca." />
-
-      <Field label="Arquétipo da marca" hint="Como a marca se posiciona no imaginário do público.">
-        <ChoiceGrid
-          options={ARCHETYPES.map((a) => ({ id: a.id, label: a.label, hint: a.hint }))}
-          value={form.archetype}
-          onChange={(v) => update("archetype", v as Archetype)}
-          cols={3}
-        />
-      </Field>
-
-      <Field label="Paleta de cores" hint="Até 3 cores principais da identidade visual.">
-        <div className="grid grid-cols-3 gap-3">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="flex flex-col items-center gap-2 rounded-xl border bg-background p-3">
-              <div
-                className="h-16 w-full rounded-lg border shadow-inner"
-                style={{ backgroundColor: form.palette[i as 0 | 1 | 2] }}
-              />
-              <input
-                type="color"
-                value={form.palette[i as 0 | 1 | 2]}
-                onChange={(e) => setColor(i as 0 | 1 | 2, e.target.value)}
-                className="h-8 w-full cursor-pointer rounded"
-              />
-              <Input
-                value={form.palette[i as 0 | 1 | 2]}
-                onChange={(e) => setColor(i as 0 | 1 | 2, e.target.value)}
-                className="h-8 text-center font-mono text-xs uppercase"
-                maxLength={7}
-              />
-            </div>
-          ))}
-        </div>
-      </Field>
-
-      <Field
-        label="Fonte da marca"
-        hint="Use o nome de uma Google Font (ex: Inter, Poppins) ou cole a URL de um arquivo .ttf/.otf."
-      >
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Input
-            placeholder="Nome da fonte (ex: Poppins)"
-            value={form.brandFont}
-            onChange={(e) => update("brandFont", e.target.value)}
-          />
-          <Input
-            placeholder="URL do arquivo .ttf (opcional)"
-            value={form.brandFontUrl}
-            onChange={(e) => update("brandFontUrl", e.target.value)}
-          />
-        </div>
       </Field>
     </div>
   );
@@ -499,7 +548,10 @@ function StepObjetivos({ form, update }: StepProps) {
         />
       </Field>
 
-      <Field label="Concorrentes que o cliente acompanha" hint="Até 3 perfis do Instagram.">
+      <Field
+        label="Concorrentes que o cliente acompanha"
+        hint="Até 3 perfis do Instagram."
+      >
         <div className="grid gap-2">
           {[0, 1, 2].map((i) => (
             <Input
@@ -524,10 +576,368 @@ function StepObjetivos({ form, update }: StepProps) {
   );
 }
 
+function StepBranding({
+  form,
+  update,
+  clientId,
+}: StepProps & { clientId: string }) {
+  return (
+    <div className="space-y-8">
+      <Header
+        title="Branding"
+        subtitle="Arquétipo, tipografia e paleta — a identidade visual e simbólica."
+      />
+
+      <ArchetypeGrid
+        value={form.archetype}
+        onChange={(v) => update("archetype", v)}
+      />
+
+      <FontPicker form={form} update={update} clientId={clientId} />
+
+      <PalettePicker form={form} update={update} clientId={clientId} />
+    </div>
+  );
+}
+
+function ArchetypeGrid({
+  value,
+  onChange,
+}: {
+  value: Archetype | "";
+  onChange: (v: Archetype) => void;
+}) {
+  return (
+    <Field
+      label="Arquétipo da marca"
+      hint="Apenas 1 pode ser selecionado. Ele guia o tom de cada texto."
+    >
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+        {ARCHETYPES.map((a) => {
+          const active = value === a.id;
+          const Icon = a.Icon;
+          return (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => onChange(a.id)}
+              className={cn(
+                "flex flex-col items-start gap-2 rounded-xl border bg-background p-3 text-left transition-all hover:border-foreground/30",
+                active && "border-primary bg-primary/5 ring-2 ring-primary/30",
+              )}
+            >
+              <div
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground",
+                  active && "bg-primary/15 text-primary",
+                )}
+              >
+                <Icon className="h-4 w-4" />
+              </div>
+              <div className="text-sm font-semibold">{a.label}</div>
+              <div className="text-[11px] leading-tight text-muted-foreground">
+                {a.hint}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </Field>
+  );
+}
+
+function FontPicker({
+  form,
+  update,
+  clientId,
+}: StepProps & { clientId: string }) {
+  const [uploading, setUploading] = useState(false);
+  const [preview, setPreview] = useState(false);
+
+  const loadGoogleFont = (name: string) => {
+    if (!name.trim() || typeof document === "undefined") return;
+    const family = name.trim();
+    const href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family).replace(/%20/g, "+")}:wght@400;700&display=swap`;
+    const id = `gf-${family.toLowerCase().replace(/\s+/g, "-")}`;
+    if (!document.getElementById(id)) {
+      const link = document.createElement("link");
+      link.id = id;
+      link.rel = "stylesheet";
+      link.href = href;
+      document.head.appendChild(link);
+    }
+    setPreview(true);
+  };
+
+  const onUploadFont = async (file: File) => {
+    setUploading(true);
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session) throw new Error("Sessão expirada");
+      const path = `${session.user.id}/${clientId}/font-${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage
+        .from("brand-assets")
+        .upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from("brand-assets").getPublicUrl(path);
+      update("brandFontUrl", data.publicUrl);
+      update("brandFont", file.name.replace(/\.(ttf|otf|woff2?)$/i, ""));
+      toast.success("Fonte enviada!");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro no upload");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <Field label="Tipografia" hint="A fonte usada nos textos da marca.">
+      <div className="space-y-3">
+        <div className="flex gap-2">
+          <ModeRadio
+            checked={form.fontMode === "publica"}
+            onClick={() => update("fontMode", "publica")}
+            label="Fonte pública"
+          />
+          <ModeRadio
+            checked={form.fontMode === "exclusiva"}
+            onClick={() => update("fontMode", "exclusiva")}
+            label="Fonte exclusiva"
+          />
+        </div>
+
+        {form.fontMode === "publica" ? (
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <Input
+                value={form.brandFont}
+                onChange={(e) => {
+                  update("brandFont", e.target.value);
+                  setPreview(false);
+                }}
+                placeholder="Ex: Montserrat, Playfair Display"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => loadGoogleFont(form.brandFont)}
+                disabled={!form.brandFont.trim()}
+              >
+                <Search className="h-4 w-4" />
+                Buscar
+              </Button>
+            </div>
+            {preview && form.brandFont.trim() && (
+              <div
+                className="rounded-lg border bg-background p-4"
+                style={{ fontFamily: `"${form.brandFont}", sans-serif` }}
+              >
+                <div className="text-2xl font-bold">AaBbCc 123</div>
+                <div className="text-sm text-muted-foreground">
+                  The quick brown fox jumps over the lazy dog.
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-background p-4 text-sm text-muted-foreground hover:border-foreground/30">
+              {uploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4" />
+              )}
+              {uploading ? "Enviando..." : "Anexar arquivo .ttf / .otf"}
+              <input
+                type="file"
+                accept=".ttf,.otf,.woff,.woff2"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onUploadFont(f);
+                }}
+              />
+            </label>
+            {form.brandFontUrl && (
+              <div className="rounded-md border bg-muted/30 p-2 text-xs text-muted-foreground">
+                Arquivo carregado: <span className="font-mono">{form.brandFont || "fonte personalizada"}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </Field>
+  );
+}
+
+function PalettePicker({
+  form,
+  update,
+  clientId: _clientId,
+}: StepProps & { clientId: string }) {
+  const [extracting, setExtracting] = useState(false);
+  const [sourceImg, setSourceImg] = useState<string | null>(null);
+
+  const setColor = (i: 0 | 1 | 2, hex: string) => {
+    const next = [...form.palette] as [string, string, string];
+    next[i] = hex.toUpperCase();
+    update("palette", next);
+  };
+
+  const onExtract = async (file: File) => {
+    setExtracting(true);
+    try {
+      setSourceImg(URL.createObjectURL(file));
+      const colors = await extractPalette(file);
+      update("palette", colors);
+      toast.success("3 cores extraídas!");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao extrair cores");
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const labels = ["Cor primária", "Cor secundária", "Cor de destaque"];
+
+  return (
+    <Field label="Paleta de cores" hint="3 cores principais da identidade visual.">
+      <div className="space-y-3">
+        <div className="flex gap-2">
+          <ModeRadio
+            checked={form.paletteMode === "hex"}
+            onClick={() => update("paletteMode", "hex")}
+            label="Inserir códigos HEX"
+          />
+          <ModeRadio
+            checked={form.paletteMode === "imagem"}
+            onClick={() => update("paletteMode", "imagem")}
+            label="Extrair de imagem"
+          />
+        </div>
+
+        {form.paletteMode === "imagem" && (
+          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-background p-4 text-sm text-muted-foreground hover:border-foreground/30">
+            {extracting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4" />
+            )}
+            {extracting ? "Analisando..." : "Enviar imagem da marca"}
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) onExtract(f);
+              }}
+            />
+          </label>
+        )}
+
+        {form.paletteMode === "imagem" && sourceImg && (
+          <img
+            src={sourceImg}
+            alt="Imagem fonte"
+            className="h-24 w-full rounded-md border object-cover"
+          />
+        )}
+
+        <div className="grid grid-cols-3 gap-3">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="flex flex-col items-center gap-2 rounded-xl border bg-background p-3"
+            >
+              <div className="text-[11px] font-medium text-muted-foreground">
+                {labels[i]}
+              </div>
+              <div
+                className="h-14 w-full rounded-lg border shadow-inner"
+                style={{ backgroundColor: form.palette[i as 0 | 1 | 2] }}
+              />
+              <input
+                type="color"
+                value={form.palette[i as 0 | 1 | 2]}
+                onChange={(e) => setColor(i as 0 | 1 | 2, e.target.value)}
+                className="h-7 w-full cursor-pointer rounded"
+              />
+              <Input
+                value={form.palette[i as 0 | 1 | 2]}
+                onChange={(e) => setColor(i as 0 | 1 | 2, e.target.value)}
+                className="h-7 text-center font-mono text-xs uppercase"
+                maxLength={7}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </Field>
+  );
+}
+
+function ModeRadio({
+  checked,
+  onClick,
+  label,
+}: {
+  checked: boolean;
+  onClick: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex flex-1 items-center gap-2 rounded-lg border bg-background px-3 py-2 text-sm transition-all",
+        checked
+          ? "border-primary bg-primary/5 ring-2 ring-primary/30"
+          : "hover:border-foreground/30",
+      )}
+    >
+      <span
+        className={cn(
+          "flex h-4 w-4 items-center justify-center rounded-full border",
+          checked ? "border-primary" : "border-muted-foreground/40",
+        )}
+      >
+        {checked && <span className="h-2 w-2 rounded-full bg-primary" />}
+      </span>
+      {label}
+    </button>
+  );
+}
+
 function StepRevisao({ form, aiContext }: { form: Form; aiContext: string }) {
   const personaLabel = PERSONAS.find((p) => p.id === form.persona)?.label ?? "—";
   const goalLabel = GOALS.find((g) => g.id === form.goal)?.label ?? "—";
   const ageLabel = AGES.find((a) => a.id === form.age)?.label ?? "—";
+  const archetypeLabel =
+    ARCHETYPES.find((a) => a.id === form.archetype)?.label ?? "—";
+
+  // load preview font
+  useEffect(() => {
+    if (form.fontMode === "publica" && form.brandFont.trim() && typeof document !== "undefined") {
+      const family = form.brandFont.trim();
+      const id = `gf-${family.toLowerCase().replace(/\s+/g, "-")}`;
+      if (!document.getElementById(id)) {
+        const link = document.createElement("link");
+        link.id = id;
+        link.rel = "stylesheet";
+        link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family).replace(/%20/g, "+")}:wght@400;700&display=swap`;
+        document.head.appendChild(link);
+      }
+    }
+  }, [form.brandFont, form.fontMode]);
+
+  const fontFamily = form.brandFont.trim()
+    ? `"${form.brandFont}", sans-serif`
+    : undefined;
+
   return (
     <div className="space-y-6">
       <Header title="Revisão" subtitle="Confira o contexto que será injetado nas gerações." />
@@ -542,11 +952,56 @@ function StepRevisao({ form, aiContext }: { form: Form; aiContext: string }) {
         </p>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <SummaryCard label="Segmento" value={form.segment || "—"} />
         <SummaryCard label="Público" value={ageLabel} />
-        <SummaryCard label="Tom de voz" value={personaLabel} />
+        <SummaryCard label="Tom" value={personaLabel} />
         <SummaryCard label="Objetivo" value={goalLabel} />
+        <SummaryCard label="Arquétipo" value={archetypeLabel} />
+      </div>
+
+      <div>
+        <div className="mb-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Preview visual
+        </div>
+        <div
+          className="overflow-hidden rounded-2xl border p-8 shadow-sm"
+          style={{ backgroundColor: form.palette[0] }}
+        >
+          <div
+            className="text-3xl font-bold"
+            style={{ color: form.palette[2], fontFamily }}
+          >
+            {form.name || "Sua marca"}
+          </div>
+          <div
+            className="mt-2 text-sm"
+            style={{ color: form.palette[2], fontFamily, opacity: 0.85 }}
+          >
+            {personaLabel !== "—"
+              ? personaLabel
+              : "Tom de voz da sua marca"}
+          </div>
+          <div className="mt-6 flex gap-2">
+            {form.palette.map((c, i) => (
+              <div
+                key={i}
+                className="h-8 w-8 rounded-full border-2"
+                style={{ backgroundColor: c, borderColor: form.palette[2] }}
+              />
+            ))}
+          </div>
+          <div
+            className="mt-6 inline-block rounded-full px-4 py-2 text-xs font-semibold"
+            style={{
+              backgroundColor: form.palette[1],
+              color: form.palette[2],
+              fontFamily,
+            }}
+          >
+            Botão de ação
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -556,6 +1011,7 @@ function buildContext(f: Form): string {
   const personaLabel = PERSONAS.find((p) => p.id === f.persona)?.label;
   const goal = GOALS.find((g) => g.id === f.goal);
   const ageLabel = AGES.find((a) => a.id === f.age)?.label;
+  const archetype = ARCHETYPES.find((a) => a.id === f.archetype);
 
   const parts: string[] = [];
   parts.push(
@@ -565,7 +1021,15 @@ function buildContext(f: Form): string {
     parts.push(`A marca tem personalidade ${f.personality.join(", ")}.`);
   }
   if (personaLabel) {
-    parts.push(`Tom de voz: ${personaLabel.toLowerCase()} (${FORMALITY_LABELS[f.formality - 1].toLowerCase()}).`);
+    parts.push(
+      `Tom de voz: ${personaLabel.toLowerCase()} (${FORMALITY_LABELS[f.formality - 1].toLowerCase()}).`,
+    );
+  }
+  if (archetype) {
+    const tone = ARCHETYPE_TONE[archetype.id];
+    parts.push(
+      `Arquétipo: ${archetype.label}. Direção de linguagem: ${tone}.`,
+    );
   }
   if (f.dos.length) parts.push(`Use sempre: ${f.dos.join(", ")}.`);
   if (f.donts.length) parts.push(`Nunca use: ${f.donts.join(", ")}.`);
@@ -636,7 +1100,11 @@ function ChoiceGrid({
             )}
           >
             <div className="text-sm font-medium">{o.label}</div>
-            {o.hint && <div className="mt-0.5 text-[11px] text-muted-foreground">{o.hint}</div>}
+            {o.hint && (
+              <div className="mt-0.5 text-[11px] text-muted-foreground">
+                {o.hint}
+              </div>
+            )}
           </button>
         );
       })}
