@@ -78,6 +78,7 @@ export type Database = {
       }
       client_briefings: {
         Row: {
+          archetype: string | null
           business_description: string | null
           client_id: string
           content_pillars: string[]
@@ -87,6 +88,7 @@ export type Database = {
           extra: Json
           goals: string[]
           id: string
+          palette: string[]
           references: string | null
           target_audience: string | null
           tone_of_voice: string | null
@@ -94,6 +96,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          archetype?: string | null
           business_description?: string | null
           client_id: string
           content_pillars?: string[]
@@ -103,6 +106,7 @@ export type Database = {
           extra?: Json
           goals?: string[]
           id?: string
+          palette?: string[]
           references?: string | null
           target_audience?: string | null
           tone_of_voice?: string | null
@@ -110,6 +114,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          archetype?: string | null
           business_description?: string | null
           client_id?: string
           content_pillars?: string[]
@@ -119,6 +124,7 @@ export type Database = {
           extra?: Json
           goals?: string[]
           id?: string
+          palette?: string[]
           references?: string | null
           target_audience?: string | null
           tone_of_voice?: string | null
@@ -270,6 +276,36 @@ export type Database = {
           display_name?: string | null
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      user_subscriptions: {
+        Row: {
+          created_at: string
+          credits_used: number
+          id: string
+          period_start: string
+          plan: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credits_used?: number
+          id?: string
+          period_start?: string
+          plan?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credits_used?: number
+          id?: string
+          period_start?: string
+          plan?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
