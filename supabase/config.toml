@@ -2,3 +2,6 @@ project_id = "shzmxkusrlwhpehawubi"
 
 [functions.agent-chat]
 verify_jwt = true
+
+[functions.studio-generate]
+verify_jwt = true
