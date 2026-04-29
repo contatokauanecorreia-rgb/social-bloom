@@ -211,6 +211,7 @@ function PlanoPage() {
         .update({
           title: value.title,
           week_id: value.week_id,
+          client_id: value.client_id,
           tags: value.tags,
           notes: value.notes || null,
           status: value.status,
