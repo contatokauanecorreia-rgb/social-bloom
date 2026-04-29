@@ -189,6 +189,7 @@ export type Database = {
       }
       content_posts: {
         Row: {
+          client_id: string | null
           created_at: string
           id: string
           notes: string | null
@@ -201,6 +202,7 @@ export type Database = {
           week_id: string
         }
         Insert: {
+          client_id?: string | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -213,6 +215,7 @@ export type Database = {
           week_id: string
         }
         Update: {
+          client_id?: string | null
           created_at?: string
           id?: string
           notes?: string | null
@@ -225,6 +228,13 @@ export type Database = {
           week_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "content_posts_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "content_posts_week_id_fkey"
             columns: ["week_id"]
