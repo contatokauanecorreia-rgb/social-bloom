@@ -22,6 +22,7 @@ import { Route as DashboardConfiguracoesRouteImport } from './routes/dashboard.c
 import { Route as DashboardCarrosseisRouteImport } from './routes/dashboard.carrosseis'
 import { Route as AprovarTokenRouteImport } from './routes/aprovar.$token'
 import { Route as DashboardClientesIndexRouteImport } from './routes/dashboard.clientes.index'
+import { Route as DashboardStudioCarrosselRouteImport } from './routes/dashboard.studio.carrossel'
 import { Route as DashboardClientesIdRouteImport } from './routes/dashboard.clientes.$id'
 import { Route as DashboardClientesIdIndexRouteImport } from './routes/dashboard.clientes.$id.index'
 import { Route as DashboardClientesIdPrecificacaoRouteImport } from './routes/dashboard.clientes.$id.precificacao'
@@ -94,6 +95,12 @@ const DashboardClientesIndexRoute = DashboardClientesIndexRouteImport.update({
   path: '/clientes/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardStudioCarrosselRoute =
+  DashboardStudioCarrosselRouteImport.update({
+    id: '/carrossel',
+    path: '/carrossel',
+    getParentRoute: () => DashboardStudioRoute,
+  } as any)
 const DashboardClientesIdRoute = DashboardClientesIdRouteImport.update({
   id: '/clientes/$id',
   path: '/clientes/$id',
@@ -141,9 +148,10 @@ export interface FileRoutesByFullPath {
   '/dashboard/planner': typeof DashboardPlannerRoute
   '/dashboard/plano': typeof DashboardPlanoRoute
   '/dashboard/precificacao': typeof DashboardPrecificacaoRoute
-  '/dashboard/studio': typeof DashboardStudioRoute
+  '/dashboard/studio': typeof DashboardStudioRouteWithChildren
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/clientes/$id': typeof DashboardClientesIdRouteWithChildren
+  '/dashboard/studio/carrossel': typeof DashboardStudioCarrosselRoute
   '/dashboard/clientes/': typeof DashboardClientesIndexRoute
   '/dashboard/clientes/$id/aprovacao': typeof DashboardClientesIdAprovacaoRoute
   '/dashboard/clientes/$id/briefing': typeof DashboardClientesIdBriefingRoute
@@ -161,8 +169,9 @@ export interface FileRoutesByTo {
   '/dashboard/planner': typeof DashboardPlannerRoute
   '/dashboard/plano': typeof DashboardPlanoRoute
   '/dashboard/precificacao': typeof DashboardPrecificacaoRoute
-  '/dashboard/studio': typeof DashboardStudioRoute
+  '/dashboard/studio': typeof DashboardStudioRouteWithChildren
   '/dashboard': typeof DashboardIndexRoute
+  '/dashboard/studio/carrossel': typeof DashboardStudioCarrosselRoute
   '/dashboard/clientes': typeof DashboardClientesIndexRoute
   '/dashboard/clientes/$id/aprovacao': typeof DashboardClientesIdAprovacaoRoute
   '/dashboard/clientes/$id/briefing': typeof DashboardClientesIdBriefingRoute
@@ -182,9 +191,10 @@ export interface FileRoutesById {
   '/dashboard/planner': typeof DashboardPlannerRoute
   '/dashboard/plano': typeof DashboardPlanoRoute
   '/dashboard/precificacao': typeof DashboardPrecificacaoRoute
-  '/dashboard/studio': typeof DashboardStudioRoute
+  '/dashboard/studio': typeof DashboardStudioRouteWithChildren
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/clientes/$id': typeof DashboardClientesIdRouteWithChildren
+  '/dashboard/studio/carrossel': typeof DashboardStudioCarrosselRoute
   '/dashboard/clientes/': typeof DashboardClientesIndexRoute
   '/dashboard/clientes/$id/aprovacao': typeof DashboardClientesIdAprovacaoRoute
   '/dashboard/clientes/$id/briefing': typeof DashboardClientesIdBriefingRoute
@@ -208,6 +218,7 @@ export interface FileRouteTypes {
     | '/dashboard/studio'
     | '/dashboard/'
     | '/dashboard/clientes/$id'
+    | '/dashboard/studio/carrossel'
     | '/dashboard/clientes/'
     | '/dashboard/clientes/$id/aprovacao'
     | '/dashboard/clientes/$id/briefing'
@@ -227,6 +238,7 @@ export interface FileRouteTypes {
     | '/dashboard/precificacao'
     | '/dashboard/studio'
     | '/dashboard'
+    | '/dashboard/studio/carrossel'
     | '/dashboard/clientes'
     | '/dashboard/clientes/$id/aprovacao'
     | '/dashboard/clientes/$id/briefing'
@@ -248,6 +260,7 @@ export interface FileRouteTypes {
     | '/dashboard/studio'
     | '/dashboard/'
     | '/dashboard/clientes/$id'
+    | '/dashboard/studio/carrossel'
     | '/dashboard/clientes/'
     | '/dashboard/clientes/$id/aprovacao'
     | '/dashboard/clientes/$id/briefing'
@@ -357,6 +370,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardClientesIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/studio/carrossel': {
+      id: '/dashboard/studio/carrossel'
+      path: '/carrossel'
+      fullPath: '/dashboard/studio/carrossel'
+      preLoaderRoute: typeof DashboardStudioCarrosselRouteImport
+      parentRoute: typeof DashboardStudioRoute
+    }
     '/dashboard/clientes/$id': {
       id: '/dashboard/clientes/$id'
       path: '/clientes/$id'
@@ -402,6 +422,18 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface DashboardStudioRouteChildren {
+  DashboardStudioCarrosselRoute: typeof DashboardStudioCarrosselRoute
+}
+
+const DashboardStudioRouteChildren: DashboardStudioRouteChildren = {
+  DashboardStudioCarrosselRoute: DashboardStudioCarrosselRoute,
+}
+
+const DashboardStudioRouteWithChildren = DashboardStudioRoute._addFileChildren(
+  DashboardStudioRouteChildren,
+)
+
 interface DashboardClientesIdRouteChildren {
   DashboardClientesIdAprovacaoRoute: typeof DashboardClientesIdAprovacaoRoute
   DashboardClientesIdBriefingRoute: typeof DashboardClientesIdBriefingRoute
@@ -427,7 +459,7 @@ interface DashboardRouteChildren {
   DashboardPlannerRoute: typeof DashboardPlannerRoute
   DashboardPlanoRoute: typeof DashboardPlanoRoute
   DashboardPrecificacaoRoute: typeof DashboardPrecificacaoRoute
-  DashboardStudioRoute: typeof DashboardStudioRoute
+  DashboardStudioRoute: typeof DashboardStudioRouteWithChildren
   DashboardIndexRoute: typeof DashboardIndexRoute
   DashboardClientesIdRoute: typeof DashboardClientesIdRouteWithChildren
   DashboardClientesIndexRoute: typeof DashboardClientesIndexRoute
@@ -439,7 +471,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardPlannerRoute: DashboardPlannerRoute,
   DashboardPlanoRoute: DashboardPlanoRoute,
   DashboardPrecificacaoRoute: DashboardPrecificacaoRoute,
-  DashboardStudioRoute: DashboardStudioRoute,
+  DashboardStudioRoute: DashboardStudioRouteWithChildren,
   DashboardIndexRoute: DashboardIndexRoute,
   DashboardClientesIdRoute: DashboardClientesIdRouteWithChildren,
   DashboardClientesIndexRoute: DashboardClientesIndexRoute,
