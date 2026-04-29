@@ -17,11 +17,30 @@ const MODE_INSTRUCTIONS: Record<Mode, string> = {
   copy: `Você é um copywriter brasileiro especialista em redes sociais. Gere UMA legenda pronta para postar (máx. 4 parágrafos curtos), com gancho forte na primeira linha, desenvolvimento, e CTA claro no final. Use emojis com moderação. NÃO use listas em formato de markdown. Responda apenas com a legenda — nada de explicação ou cabeçalho.`,
 };
 
+const ARCHETYPE_TONE: Record<string, string> = {
+  inocente: "linguagem acolhedora, otimista e sem pressão",
+  cuidador: "linguagem acolhedora, empática e sem pressão",
+  heroi: "linguagem provocadora, desafiadora e motivacional",
+  "fora-da-lei": "linguagem provocadora, disruptiva e direta",
+  sabio: "linguagem de autoridade, premium e fundamentada",
+  governante: "linguagem de autoridade, sofisticada e premium",
+  bobo: "linguagem leve, próxima e com bom humor",
+  "cara-comum": "linguagem leve, próxima e cotidiana",
+  explorador: "linguagem aventureira, curiosa e independente",
+  amante: "linguagem sensual, íntima e emocional",
+  mago: "linguagem visionária, transformadora e inspiradora",
+  criador: "linguagem criativa, imaginativa e original",
+};
+
 function buildBriefingContext(b: any | null): string {
   if (!b) return "Sem briefing específico — escreva de forma genérica e profissional em português do Brasil.";
 
   const parts: string[] = [];
-  if (b.archetype) parts.push(`Arquétipo de marca: ${b.archetype}.`);
+  if (b.archetype) {
+    parts.push(`Arquétipo de marca: ${b.archetype}.`);
+    const tone = ARCHETYPE_TONE[b.archetype as string];
+    if (tone) parts.push(`Direção de linguagem: ${tone}.`);
+  }
   if (b.tone_of_voice) parts.push(`Tom de voz: ${b.tone_of_voice}.`);
   if (Array.isArray(b.content_pillars) && b.content_pillars.length)
     parts.push(`Personalidade da marca: ${b.content_pillars.join(", ")}.`);
