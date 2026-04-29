@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Download,
   Image as ImageIcon,
+  LayoutGrid,
   Loader2,
   Plus,
   Save,
@@ -52,7 +53,7 @@ import {
 } from "@/components/ui/dialog";
 import { ACTIVE_CLIENT_STORAGE_KEY } from "@/lib/client-context";
 import { cn } from "@/lib/utils";
-import { ensureBrandFont, brandFontFamily } from "@/lib/brand-font";
+import { ensureBrandFont, brandFontFamily, loadGoogleFont } from "@/lib/brand-font";
 import { markPlannerHasDraft } from "@/lib/planner-notification";
 
 export const Route = createFileRoute("/dashboard/studio/carrossel")({
@@ -72,6 +73,9 @@ type SignaturePos = "bl" | "br" | "tl" | "tr";
 type Slide = {
   id: string;
   bgImage: string | null;
+  bgPos: { x: number; y: number };
+  bgZoom: number;
+  grid: { enabled: boolean };
   overlay: { enabled: boolean; intensity: number; type: OverlayType };
   text: { title: string; subtitle: string; body: string };
   fontSize: { title: number; subtitle: number; body: number };
@@ -107,6 +111,9 @@ const newId = () =>
 const makeSlide = (template?: Slide, paletteColor?: string): Slide => ({
   id: newId(),
   bgImage: template?.bgImage ?? null,
+  bgPos: template ? { ...template.bgPos } : { x: 0.5, y: 0.5 },
+  bgZoom: template?.bgZoom ?? 1,
+  grid: template ? { ...template.grid } : { enabled: false },
   overlay: template ? { ...template.overlay } : { enabled: false, intensity: 40, type: "dark" },
   text: { title: "", subtitle: "", body: "" },
   fontSize: template
@@ -148,9 +155,25 @@ function CarrosselEditorPage() {
   const [format, setFormat] = useState<Format | null>(null);
   const [formatPickerOpen, setFormatPickerOpen] = useState(true);
 
+  // Bootstrap state populated from sessionStorage (when user came from AI wizard)
+  const bootstrapRef = useRef<{
+    slides?: Array<{
+      title: string;
+      subtitle?: string;
+      body: string;
+      imagePrompt?: string;
+      imageDataUrl: string | null;
+    }>;
+    fontPair?: { heading: string; body: string } | null;
+    palette?: [string, string, string];
+    imageMode?: "none" | "bg" | "grid" | "mixed";
+    signature?: { enabled: boolean; handle: string; position: SignaturePos; color: string } | null;
+  } | null>(null);
+
   const [slides, setSlides] = useState<Slide[]>([makeSlide()]);
   const [activeId, setActiveId] = useState<string>(() => "");
   const [selectedField, setSelectedField] = useState<TextField | null>(null);
+  const [pageFontPair, setPageFontPair] = useState<{ heading: string; body: string } | null>(null);
 
   const [exporting, setExporting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -160,6 +183,55 @@ function CarrosselEditorPage() {
   useEffect(() => {
     if (slides.length > 0 && !activeId) setActiveId(slides[0].id);
   }, [slides, activeId]);
+
+  // Consume bootstrap from AI wizard (sessionStorage) on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.sessionStorage.getItem("studio:carrossel:bootstrap");
+    if (!raw) return;
+    try {
+      const data = JSON.parse(raw);
+      bootstrapRef.current = data;
+      window.sessionStorage.removeItem("studio:carrossel:bootstrap");
+
+      // Auto-pick default format (carrossel 4:5) when arriving from AI flow
+      setFormat(FORMATS[0]);
+      setFormatPickerOpen(false);
+
+      const aiSlides = Array.isArray(data.slides) ? data.slides : [];
+      const sigBase = data.signature ?? null;
+      const palette: [string, string, string] | undefined = data.palette;
+
+      const built: Slide[] = aiSlides.map((s: any) => {
+        const slide = makeSlide(undefined, palette?.[0]);
+        slide.text = {
+          title: s.title ?? "",
+          subtitle: s.subtitle ?? "",
+          body: s.body ?? "",
+        };
+        if (s.imageDataUrl) slide.bgImage = s.imageDataUrl;
+        if (sigBase) slide.signature = { ...sigBase };
+        // If image is set, ensure title contrasts against image (white)
+        if (s.imageDataUrl) {
+          slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
+          slide.overlay = { enabled: true, intensity: 40, type: "dark" };
+        }
+        return slide;
+      });
+      if (built.length > 0) {
+        setSlides(built);
+        setActiveId(built[0].id);
+      }
+
+      if (data.fontPair?.heading) {
+        loadGoogleFont(data.fontPair.heading);
+        loadGoogleFont(data.fontPair.body);
+        setPageFontPair(data.fontPair);
+      }
+    } catch (e) {
+      console.warn("bootstrap parse error", e);
+    }
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -207,8 +279,9 @@ function CarrosselEditorPage() {
     ]).then(([c, b, p]) => {
       setClientName(c.data?.name ?? "");
       const palette = (b.data?.palette ?? []) as string[];
+      const bootstrapPalette = bootstrapRef.current?.palette;
       const next: BriefingDNA = {
-        palette: [
+        palette: bootstrapPalette ?? [
           palette[0] ?? DEFAULT_PALETTE[0],
           palette[1] ?? DEFAULT_PALETTE[1],
           palette[2] ?? DEFAULT_PALETTE[2],

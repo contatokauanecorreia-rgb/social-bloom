@@ -5,3 +5,6 @@ verify_jwt = true
 
 [functions.studio-generate]
 verify_jwt = true
+
+[functions.carrossel-generate]
+verify_jwt = true
