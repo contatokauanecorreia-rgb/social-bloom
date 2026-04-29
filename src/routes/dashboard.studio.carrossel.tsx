@@ -414,9 +414,9 @@ function CarrosselEditorPage() {
 
       {format && activeSlide && (
         <>
-          <div className="flex flex-1 flex-col lg:flex-row">
+          <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
             {/* Painel esquerdo */}
-            <aside className="w-full shrink-0 border-b bg-card lg:w-[280px] lg:border-b-0 lg:border-r">
+            <aside className="w-full shrink-0 border-b bg-card lg:w-[300px] lg:border-b-0 lg:border-r">
               <div className="max-h-[60vh] overflow-y-auto p-4 lg:max-h-[calc(100vh-12rem)]">
                 <EditorPanel
                   slide={activeSlide}
@@ -426,6 +426,7 @@ function CarrosselEditorPage() {
                   onUpdateActive={updateActive}
                   onApplyToAll={applyToAll}
                   onPickImage={setBgImage}
+                  plannerTitles={plannerTitles}
                 />
               </div>
               <div className="space-y-2 border-t p-3">
@@ -454,8 +455,13 @@ function CarrosselEditorPage() {
             </aside>
 
             {/* Preview central */}
-            <main className="flex flex-1 items-center justify-center overflow-auto p-6">
-              <ScaledPreview slide={activeSlide} format={format} dna={dna} />
+            <main className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-6">
+              <ScaledPreview
+                slide={activeSlide}
+                format={format}
+                dna={dna}
+                onMoveText={moveActiveText}
+              />
             </main>
           </div>
 
