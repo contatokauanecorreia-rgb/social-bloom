@@ -127,7 +127,7 @@ function BriefingPage() {
       supabase.from("clients").select("name").eq("id", clientId).maybeSingle(),
       supabase
         .from("client_briefings")
-        .select("dos, donts, extra, archetype, palette")
+        .select("dos, donts, extra, archetype, palette, brand_font, brand_font_url")
         .eq("client_id", clientId)
         .maybeSingle(),
     ]).then(([c, b]) => {
@@ -146,6 +146,8 @@ function BriefingPage() {
           palette[1] ?? extra.palette?.[1] ?? initial.palette[1],
           palette[2] ?? extra.palette?.[2] ?? initial.palette[2],
         ] as [string, string, string],
+        brandFont: (b.data?.brand_font as string | null) ?? extra.brandFont ?? "",
+        brandFontUrl: (b.data?.brand_font_url as string | null) ?? extra.brandFontUrl ?? "",
         competitors:
           extra.competitors && extra.competitors.length === 3
             ? extra.competitors
@@ -204,6 +206,8 @@ function BriefingPage() {
           donts: form.donts,
           archetype: form.archetype || null,
           palette: form.palette,
+          brand_font: form.brandFont.trim() || null,
+          brand_font_url: form.brandFontUrl.trim() || null,
           extra: form as unknown as never,
         },
       ],
