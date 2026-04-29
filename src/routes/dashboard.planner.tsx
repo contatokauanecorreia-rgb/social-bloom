@@ -557,7 +557,9 @@ function PlanoPage() {
         onOpenChange={setDialogOpen}
         post={editingPost}
         defaultWeekId={defaultWeekId}
+        defaultClientId={selectedClient !== "all" ? selectedClient : null}
         weeks={weeks}
+        clients={clients}
         onSave={handleSavePost}
         onDelete={handleDeletePost}
       />
