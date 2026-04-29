@@ -591,6 +591,7 @@ function EditorPanel({
   onUpdateActive,
   onApplyToAll,
   onPickImage,
+  plannerTitles,
 }: {
   slide: Slide;
   dna: BriefingDNA;
@@ -599,8 +600,16 @@ function EditorPanel({
   onUpdateActive: (m: (s: Slide) => Slide) => void;
   onApplyToAll: (m: (s: Slide, source: Slide) => Slide) => void;
   onPickImage: (f: File, applyAll: boolean) => void;
+  plannerTitles: string[];
 }) {
   const [applyImageAll, setApplyImageAll] = useState(false);
+  const [applySigAll, setApplySigAll] = useState(false);
+
+  const setAlign = (field: TextField, value: TextAlign) =>
+    onUpdateActive((s) => ({ ...s, textAlign: { ...s.textAlign, [field]: value } }));
+
+  const setWeight = (field: TextField, value: number) =>
+    onUpdateActive((s) => ({ ...s, fontWeight: { ...s.fontWeight, [field]: value } }));
 
   return (
     <div className="space-y-6">
@@ -713,6 +722,8 @@ function EditorPanel({
           label="Título"
           value={slide.text.title}
           field="title"
+          align={slide.textAlign.title}
+          onAlign={(a) => setAlign("title", a)}
           selected={selectedField === "title"}
           onSelect={() => setSelectedField("title")}
           onChange={(v) =>
@@ -725,11 +736,14 @@ function EditorPanel({
             }))
           }
           isTextarea={false}
+          suggestions={plannerTitles}
         />
         <TextFieldRow
           label="Subtítulo"
           value={slide.text.subtitle}
           field="subtitle"
+          align={slide.textAlign.subtitle}
+          onAlign={(a) => setAlign("subtitle", a)}
           selected={selectedField === "subtitle"}
           onSelect={() => setSelectedField("subtitle")}
           onChange={(v) =>
@@ -747,6 +761,8 @@ function EditorPanel({
           label="Texto do corpo"
           value={slide.text.body}
           field="body"
+          align={slide.textAlign.body}
+          onAlign={(a) => setAlign("body", a)}
           selected={selectedField === "body"}
           onSelect={() => setSelectedField("body")}
           onChange={(v) =>
@@ -776,24 +792,40 @@ function EditorPanel({
         </div>
 
         {(["title", "subtitle", "body"] as TextField[]).map((f) => (
-          <div key={f} className="mt-3">
-            <Label className="text-[11px] capitalize text-muted-foreground">
-              Tamanho — {f === "title" ? "Título" : f === "subtitle" ? "Subtítulo" : "Corpo"} (
-              {slide.fontSize[f]}px)
-            </Label>
-            <Slider
-              className="mt-1"
-              value={[slide.fontSize[f]]}
-              min={f === "title" ? 32 : f === "subtitle" ? 20 : 14}
-              max={f === "title" ? 140 : f === "subtitle" ? 100 : 80}
-              step={1}
-              onValueChange={(v) =>
-                onUpdateActive((s) => ({
-                  ...s,
-                  fontSize: { ...s.fontSize, [f]: v[0] },
-                }))
-              }
-            />
+          <div key={f} className="mt-3 space-y-2">
+            <div>
+              <Label className="text-[11px] capitalize text-muted-foreground">
+                Tamanho — {f === "title" ? "Título" : f === "subtitle" ? "Subtítulo" : "Corpo"} (
+                {slide.fontSize[f]}px)
+              </Label>
+              <Slider
+                className="mt-1"
+                value={[slide.fontSize[f]]}
+                min={f === "title" ? 32 : f === "subtitle" ? 20 : 14}
+                max={f === "title" ? 140 : f === "subtitle" ? 100 : 80}
+                step={1}
+                onValueChange={(v) =>
+                  onUpdateActive((s) => ({
+                    ...s,
+                    fontSize: { ...s.fontSize, [f]: v[0] },
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <Label className="text-[11px] text-muted-foreground">Peso da fonte</Label>
+              <select
+                className="mt-1 w-full rounded-md border bg-background px-2 py-1.5 text-xs"
+                value={slide.fontWeight[f]}
+                onChange={(e) => setWeight(f, Number(e.target.value))}
+              >
+                <option value={300}>Light (300)</option>
+                <option value={400}>Regular (400)</option>
+                <option value={500}>Medium (500)</option>
+                <option value={600}>SemiBold (600)</option>
+                <option value={700}>Bold (700)</option>
+              </select>
+            </div>
           </div>
         ))}
       </Section>
@@ -834,6 +866,105 @@ function EditorPanel({
           ))}
         </div>
       </Section>
+
+      {/* ASSINATURA */}
+      <Section title="Assinatura">
+        <div className="flex items-center justify-between">
+          <span className="text-xs">Ativar assinatura</span>
+          <Switch
+            checked={slide.signature.enabled}
+            onCheckedChange={(v) =>
+              onUpdateActive((s) => ({
+                ...s,
+                signature: { ...s.signature, enabled: v },
+              }))
+            }
+          />
+        </div>
+        {slide.signature.enabled && (
+          <>
+            <div className="mt-3">
+              <Label className="text-[11px] text-muted-foreground">@ da marca</Label>
+              <Input
+                value={slide.signature.handle}
+                onChange={(e) =>
+                  onUpdateActive((s) => ({
+                    ...s,
+                    signature: { ...s.signature, handle: e.target.value },
+                  }))
+                }
+                placeholder="@suamarca"
+                className="mt-1 text-sm"
+              />
+            </div>
+            <div className="mt-3">
+              <Label className="text-[11px] text-muted-foreground">Posição</Label>
+              <div className="mt-1 grid grid-cols-2 gap-1.5">
+                {([
+                  ["tl", "Sup. esquerdo"],
+                  ["tr", "Sup. direito"],
+                  ["bl", "Inf. esquerdo"],
+                  ["br", "Inf. direito"],
+                ] as [SignaturePos, string][]).map(([k, label]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() =>
+                      onUpdateActive((s) => ({
+                        ...s,
+                        signature: { ...s.signature, position: k },
+                      }))
+                    }
+                    className={cn(
+                      "rounded-md border px-2 py-1.5 text-[11px]",
+                      slide.signature.position === k
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border bg-background",
+                    )}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mt-3">
+              <Label className="text-[11px] text-muted-foreground">Cor</Label>
+              <div className="mt-1 flex gap-2">
+                {dna.palette.map((c, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() =>
+                      onUpdateActive((s) => ({
+                        ...s,
+                        signature: { ...s.signature, color: c },
+                      }))
+                    }
+                    className={cn(
+                      "h-7 w-7 rounded-full border-2 transition hover:scale-105",
+                      slide.signature.color === c ? "border-foreground" : "border-border",
+                    )}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+              </div>
+            </div>
+            <label className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
+              <Checkbox
+                checked={applySigAll}
+                onCheckedChange={(v) => {
+                  const checked = !!v;
+                  setApplySigAll(checked);
+                  if (checked) {
+                    onApplyToAll((s, src) => ({ ...s, signature: { ...src.signature } }));
+                  }
+                }}
+              />
+              Aplicar em todos os slides
+            </label>
+          </>
+        )}
+      </Section>
     </div>
   );
 }
@@ -853,20 +984,34 @@ function TextFieldRow({
   label,
   value,
   selected,
+  align,
+  onAlign,
   onSelect,
   onChange,
   onApplyAll,
   isTextarea,
+  suggestions,
 }: {
   label: string;
   value: string;
   field: TextField;
   selected: boolean;
+  align: TextAlign;
+  onAlign: (a: TextAlign) => void;
   onSelect: () => void;
   onChange: (v: string) => void;
   onApplyAll: () => void;
   isTextarea: boolean;
+  suggestions?: string[];
 }) {
+  const [showSugg, setShowSugg] = useState(false);
+  const filteredSugg =
+    suggestions && value.trim().length >= 2
+      ? suggestions
+          .filter((t) => t.toLowerCase().includes(value.toLowerCase()) && t !== value)
+          .slice(0, 6)
+      : [];
+
   return (
     <div
       className={cn(
@@ -874,25 +1019,78 @@ function TextFieldRow({
         selected ? "border-primary bg-primary/5" : "border-border",
       )}
     >
-      <Label className="text-[11px] text-muted-foreground">{label}</Label>
-      {isTextarea ? (
-        <Textarea
-          value={value}
-          onFocus={onSelect}
-          onChange={(e) => onChange(e.target.value)}
-          rows={3}
-          className="mt-1 text-sm"
-          placeholder="Digite aqui..."
-        />
-      ) : (
-        <Input
-          value={value}
-          onFocus={onSelect}
-          onChange={(e) => onChange(e.target.value)}
-          className="mt-1 text-sm"
-          placeholder="Digite aqui..."
-        />
-      )}
+      <div className="flex items-center justify-between">
+        <Label className="text-[11px] text-muted-foreground">{label}</Label>
+        <div className="flex gap-0.5">
+          {(
+            [
+              ["left", AlignLeft],
+              ["center", AlignCenter],
+              ["right", AlignRight],
+            ] as [TextAlign, typeof AlignLeft][]
+          ).map(([a, Icon]) => (
+            <button
+              key={a}
+              type="button"
+              onClick={() => onAlign(a)}
+              className={cn(
+                "rounded p-1 transition",
+                align === a ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent",
+              )}
+              title={`Alinhar ${a}`}
+            >
+              <Icon className="h-3 w-3" />
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="relative">
+        {isTextarea ? (
+          <Textarea
+            value={value}
+            onFocus={onSelect}
+            onChange={(e) => onChange(e.target.value)}
+            rows={3}
+            className="mt-1 text-sm"
+            placeholder="Digite aqui..."
+          />
+        ) : (
+          <Input
+            value={value}
+            onFocus={() => {
+              onSelect();
+              setShowSugg(true);
+            }}
+            onBlur={() => setTimeout(() => setShowSugg(false), 150)}
+            onChange={(e) => {
+              onChange(e.target.value);
+              setShowSugg(true);
+            }}
+            className="mt-1 text-sm"
+            placeholder="Digite aqui..."
+          />
+        )}
+        {!isTextarea && showSugg && filteredSugg.length > 0 && (
+          <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-md border bg-popover shadow-md">
+            {filteredSugg.map((s) => (
+              <li key={s}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onChange(s);
+                    setShowSugg(false);
+                  }}
+                  className="block w-full truncate px-2 py-1.5 text-left text-xs hover:bg-accent"
+                  title={s}
+                >
+                  {s}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
       <button
         type="button"
         onClick={onApplyAll}
@@ -908,10 +1106,12 @@ function ScaledPreview({
   slide,
   format,
   dna,
+  onMoveText,
 }: {
   slide: Slide;
   format: Format;
   dna: BriefingDNA;
+  onMoveText?: (dxFraction: number, dyFraction: number) => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(0.4);
@@ -922,10 +1122,11 @@ function ScaledPreview({
       if (!el) return;
       const parent = el.parentElement;
       if (!parent) return;
-      const pw = parent.clientWidth - 32;
-      const ph = parent.clientHeight - 32;
-      const s = Math.min(pw / format.w, ph / format.h, 0.8);
-      setScale(s > 0 ? s : 0.3);
+      const pw = parent.clientWidth - 48;
+      const ph = parent.clientHeight - 48;
+      if (pw <= 0 || ph <= 0) return;
+      const s = Math.min(pw / format.w, ph / format.h);
+      setScale(Math.max(0.05, s));
     };
     compute();
     const ro = new ResizeObserver(compute);
@@ -945,7 +1146,7 @@ function ScaledPreview({
         height: format.h * scale,
         position: "relative",
       }}
-      className="rounded-2xl shadow-lg ring-1 ring-border"
+      className="rounded-2xl shadow-lg ring-1 ring-border overflow-hidden bg-white"
     >
       <div
         style={{
@@ -958,7 +1159,13 @@ function ScaledPreview({
           left: 0,
         }}
       >
-        <SlideContent slide={slide} format={format} dna={dna} />
+        <SlideContent
+          slide={slide}
+          format={format}
+          dna={dna}
+          scale={scale}
+          onMoveText={onMoveText}
+        />
       </div>
     </div>
   );
@@ -968,10 +1175,14 @@ function SlideContent({
   slide,
   format,
   dna,
+  scale,
+  onMoveText,
 }: {
   slide: Slide;
   format: Format;
   dna: BriefingDNA;
+  scale?: number;
+  onMoveText?: (dxFraction: number, dyFraction: number) => void;
 }) {
   const overlayBg = (() => {
     if (!slide.overlay.enabled) return "transparent";
@@ -982,6 +1193,75 @@ function SlideContent({
   })();
 
   const family = brandFontFamily(dna.brandFont);
+  const draggable = !!onMoveText && !!scale && scale > 0;
+
+  // alinhamento do bloco como um todo derivado do alinhamento do título
+  const blockAlignItems =
+    slide.textAlign.title === "left"
+      ? "flex-start"
+      : slide.textAlign.title === "right"
+      ? "flex-end"
+      : "center";
+
+  // drag state
+  const dragRef = useRef<{ startX: number; startY: number } | null>(null);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggable) return;
+    e.preventDefault();
+    e.stopPropagation();
+    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    dragRef.current = { startX: e.clientX, startY: e.clientY };
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!draggable || !dragRef.current || !onMoveText || !scale) return;
+    const dxScreen = e.clientX - dragRef.current.startX;
+    const dyScreen = e.clientY - dragRef.current.startY;
+    const dxFraction = dxScreen / scale / format.w;
+    const dyFraction = dyScreen / scale / format.h;
+    if (Math.abs(dxScreen) < 1 && Math.abs(dyScreen) < 1) return;
+    dragRef.current = { startX: e.clientX, startY: e.clientY };
+    onMoveText(dxFraction, dyFraction);
+  };
+
+  const handlePointerUp = () => {
+    dragRef.current = null;
+  };
+
+  const sigPadding = format.w * 0.05;
+  const sigStyle: React.CSSProperties = {
+    position: "absolute",
+    fontSize: format.w * 0.025,
+    fontWeight: 600,
+    color: slide.signature.color,
+    fontFamily: family,
+    pointerEvents: "none",
+    whiteSpace: "nowrap",
+  };
+  if (slide.signature.position === "tl") {
+    sigStyle.top = sigPadding;
+    sigStyle.left = sigPadding;
+  } else if (slide.signature.position === "tr") {
+    sigStyle.top = sigPadding;
+    sigStyle.right = sigPadding;
+  } else if (slide.signature.position === "bl") {
+    sigStyle.bottom = sigPadding;
+    sigStyle.left = sigPadding;
+  } else {
+    sigStyle.bottom = sigPadding;
+    sigStyle.right = sigPadding;
+  }
+
+  // dot grid pattern só quando não há imagem
+  const dotBg: React.CSSProperties = !slide.bgImage
+    ? {
+        backgroundColor: "#ffffff",
+        backgroundImage:
+          "radial-gradient(circle, rgba(0,0,0,0.18) 1.5px, transparent 1.5px)",
+        backgroundSize: "32px 32px",
+      }
+    : { backgroundColor: "#ffffff" };
 
   return (
     <div
@@ -990,8 +1270,8 @@ function SlideContent({
         height: format.h,
         position: "relative",
         overflow: "hidden",
-        backgroundColor: dna.palette[2] || "#111",
         fontFamily: family,
+        ...dotBg,
       }}
     >
       {slide.bgImage && (
@@ -1009,17 +1289,25 @@ function SlideContent({
         />
       )}
       <div style={{ position: "absolute", inset: 0, background: overlayBg }} />
+
+      {/* bloco de texto arrastável */}
       <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         style={{
           position: "absolute",
-          inset: 0,
+          left: `${slide.textPos.x * 100}%`,
+          top: `${slide.textPos.y * 100}%`,
+          transform: "translate(-50%, -50%)",
+          width: format.w * 0.84,
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: format.w * 0.08,
-          textAlign: "center",
-          gap: 24,
+          alignItems: blockAlignItems,
+          cursor: draggable ? "move" : "default",
+          touchAction: draggable ? "none" : "auto",
+          userSelect: "none",
         }}
       >
         {slide.text.title && (
@@ -1027,9 +1315,11 @@ function SlideContent({
             style={{
               fontSize: slide.fontSize.title,
               color: slide.textColor.title,
-              fontWeight: 800,
+              fontWeight: slide.fontWeight.title,
               lineHeight: 1.1,
               margin: 0,
+              textAlign: slide.textAlign.title,
+              width: "100%",
             }}
           >
             {slide.text.title}
@@ -1040,9 +1330,12 @@ function SlideContent({
             style={{
               fontSize: slide.fontSize.subtitle,
               color: slide.textColor.subtitle,
-              fontWeight: 600,
+              fontWeight: slide.fontWeight.subtitle,
               lineHeight: 1.2,
               margin: 0,
+              marginTop: slide.text.title ? TITLE_TO_SUBTITLE : 0,
+              textAlign: slide.textAlign.subtitle,
+              width: "100%",
             }}
           >
             {slide.text.subtitle}
@@ -1053,16 +1346,28 @@ function SlideContent({
             style={{
               fontSize: slide.fontSize.body,
               color: slide.textColor.body,
-              fontWeight: 400,
+              fontWeight: slide.fontWeight.body,
               lineHeight: 1.4,
               margin: 0,
+              marginTop:
+                slide.text.subtitle
+                  ? SUBTITLE_TO_BODY
+                  : slide.text.title
+                  ? TITLE_TO_SUBTITLE
+                  : 0,
               whiteSpace: "pre-wrap",
+              textAlign: slide.textAlign.body,
+              width: "100%",
             }}
           >
             {slide.text.body}
           </p>
         )}
       </div>
+
+      {slide.signature.enabled && slide.signature.handle && (
+        <div style={sigStyle}>{slide.signature.handle}</div>
+      )}
     </div>
   );
 }
