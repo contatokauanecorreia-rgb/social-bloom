@@ -299,7 +299,7 @@ function BriefingPage() {
             .filter(Boolean)
             .join(". "),
           content_pillars: form.personality,
-          goals: goalLabel ? [goalLabel] : [],
+          goals: goalLabels,
           dos: form.dos,
           donts: form.donts,
           archetype: form.archetype || null,
