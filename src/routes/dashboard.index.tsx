@@ -57,7 +57,7 @@ function DashboardHome() {
 
   const shortcuts = [
     { to: "/dashboard/studio", icon: Sparkles, title: "Studio de conteúdo", desc: "Crie posts com a ajuda dos agentes IA." },
-    { to: "/dashboard/plano", icon: ClipboardList, title: "Planner de conteúdo", desc: "Organize seus posts por semana." },
+    { to: "/dashboard/planner", icon: ClipboardList, title: "Planner de conteúdo", desc: "Organize seus posts por semana." },
     { to: "/dashboard/clientes", icon: Users, title: "Hub de clientes", desc: "Gerencie clientes e briefings." },
     { to: "/dashboard/carrosseis", icon: LayoutGrid, title: "Gerar carrosséis", desc: "Em breve: gerador automático." },
     { to: "/dashboard/precificacao", icon: Calculator, title: "Precificação", desc: "Calcule o valor dos seus pacotes." },

@@ -2,11 +2,11 @@ import { Link, useLocation } from "@tanstack/react-router";
 import {
   Home,
   ClipboardList,
-  LayoutGrid,
   Sparkles,
   Settings,
   Users,
   Calculator,
+  CreditCard,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -17,10 +17,10 @@ type SidebarItem = {
   to:
     | "/dashboard"
     | "/dashboard/studio"
-    | "/dashboard/plano"
-    | "/dashboard/carrosseis"
+    | "/dashboard/planner"
     | "/dashboard/clientes"
     | "/dashboard/precificacao"
+    | "/dashboard/plano"
     | "/dashboard/configuracoes";
   label: string;
   icon: typeof Home;
@@ -41,8 +41,7 @@ const sections: SidebarSection[] = [
     label: "Criar",
     items: [
       { to: "/dashboard/studio", label: "Studio de conteúdo", icon: Sparkles },
-      { to: "/dashboard/plano", label: "Planner de conteúdo", icon: ClipboardList },
-      { to: "/dashboard/carrosseis", label: "Gerar carrosséis", icon: LayoutGrid },
+      { to: "/dashboard/planner", label: "Planner de conteúdo", icon: ClipboardList },
     ],
   },
   {
@@ -55,7 +54,10 @@ const sections: SidebarSection[] = [
   },
   {
     label: "Conta",
-    items: [{ to: "/dashboard/configuracoes", label: "Configurações", icon: Settings }],
+    items: [
+      { to: "/dashboard/plano", label: "Plano", icon: CreditCard },
+      { to: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
+    ],
   },
 ];
 

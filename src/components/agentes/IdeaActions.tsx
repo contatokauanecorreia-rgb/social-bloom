@@ -9,7 +9,7 @@ export function IdeaActions() {
   };
 
   const goToPlanner = () => {
-    navigate({ to: "/dashboard/plano" });
+    navigate({ to: "/dashboard/planner" });
   };
 
   return (
