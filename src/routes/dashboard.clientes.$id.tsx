@@ -69,7 +69,7 @@ function ClientLayout() {
     exact?: boolean;
   }> = [
     { to: "/dashboard/clientes/$id", label: "Visão geral", exact: true },
-    { to: "/dashboard/clientes/$id/briefing", label: "Briefing" },
+    { to: "/dashboard/clientes/$id/briefing", label: "DNA da marca" },
     { to: "/dashboard/clientes/$id/conteudos", label: "Conteúdos" },
     { to: "/dashboard/clientes/$id/aprovacao", label: "Aprovação" },
     { to: "/dashboard/clientes/$id/precificacao", label: "Precificação" },
