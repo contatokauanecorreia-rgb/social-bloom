@@ -17,9 +17,55 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Calculator, Copy, TrendingDown, TrendingUp } from "lucide-react";
+import { Calculator, Copy, Sparkles, TrendingDown, TrendingUp, Zap, Crown } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+
+type PresetKey = "starter" | "padrao" | "avancado";
+
+const PRESETS: Array<{
+  key: PresetKey;
+  name: string;
+  subtitle: string;
+  clients: number;
+  posts: number;
+  perClient: number;
+  badge: string;
+  highlight?: boolean;
+  icon: typeof Sparkles;
+}> = [
+  {
+    key: "starter",
+    name: "Starter",
+    subtitle: "Pra começar com tudo",
+    clients: 3,
+    posts: 12,
+    perClient: 800,
+    badge: "Início",
+    icon: Sparkles,
+  },
+  {
+    key: "padrao",
+    name: "Padrão",
+    subtitle: "Operação madura",
+    clients: 6,
+    posts: 16,
+    perClient: 1500,
+    badge: "Mais escolhido",
+    highlight: true,
+    icon: Zap,
+  },
+  {
+    key: "avancado",
+    name: "Avançado",
+    subtitle: "Estúdio premium",
+    clients: 10,
+    posts: 20,
+    perClient: 2500,
+    badge: "Premium",
+    icon: Crown,
+  },
+];
 
 export const Route = createFileRoute("/dashboard/precificacao")({
   head: () => ({ meta: [{ title: "Precificação — Postly" }] }),
