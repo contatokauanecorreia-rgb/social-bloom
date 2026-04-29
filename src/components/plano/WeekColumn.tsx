@@ -146,6 +146,8 @@ export function WeekColumn({
               onDuplicate={onDuplicatePost}
               onDelete={onDeletePost}
               draggable={!dndDisabled}
+              clientName={getClientName?.(p.client_id) ?? undefined}
+              showClientChip={showClientChip}
             />
           ))}
         </SortableContext>
