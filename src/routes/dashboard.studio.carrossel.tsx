@@ -184,6 +184,55 @@ function CarrosselEditorPage() {
     if (slides.length > 0 && !activeId) setActiveId(slides[0].id);
   }, [slides, activeId]);
 
+  // Consume bootstrap from AI wizard (sessionStorage) on mount
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.sessionStorage.getItem("studio:carrossel:bootstrap");
+    if (!raw) return;
+    try {
+      const data = JSON.parse(raw);
+      bootstrapRef.current = data;
+      window.sessionStorage.removeItem("studio:carrossel:bootstrap");
+
+      // Auto-pick default format (carrossel 4:5) when arriving from AI flow
+      setFormat(FORMATS[0]);
+      setFormatPickerOpen(false);
+
+      const aiSlides = Array.isArray(data.slides) ? data.slides : [];
+      const sigBase = data.signature ?? null;
+      const palette: [string, string, string] | undefined = data.palette;
+
+      const built: Slide[] = aiSlides.map((s: any) => {
+        const slide = makeSlide(undefined, palette?.[0]);
+        slide.text = {
+          title: s.title ?? "",
+          subtitle: s.subtitle ?? "",
+          body: s.body ?? "",
+        };
+        if (s.imageDataUrl) slide.bgImage = s.imageDataUrl;
+        if (sigBase) slide.signature = { ...sigBase };
+        // If image is set, ensure title contrasts against image (white)
+        if (s.imageDataUrl) {
+          slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
+          slide.overlay = { enabled: true, intensity: 40, type: "dark" };
+        }
+        return slide;
+      });
+      if (built.length > 0) {
+        setSlides(built);
+        setActiveId(built[0].id);
+      }
+
+      if (data.fontPair?.heading) {
+        loadGoogleFont(data.fontPair.heading);
+        loadGoogleFont(data.fontPair.body);
+        setPageFontPair(data.fontPair);
+      }
+    } catch (e) {
+      console.warn("bootstrap parse error", e);
+    }
+  }, []);
+
   useEffect(() => {
     let alive = true;
     supabase.auth.getSession().then(({ data }) => {
