@@ -21,10 +21,13 @@ type Persona = "amiga-especialista" | "autoridade" | "aspiracional" | "popular";
 type AgeRange = "18-24" | "25-35" | "36-45" | "46+";
 type Goal = "agendamentos" | "crescer-perfil" | "autoridade" | "vender";
 type Frequency = "1-2" | "3-4" | "5-6" | "7+";
+type Archetype = "cuidador" | "criador" | "sabio" | "heroi" | "rebelde" | "inocente";
 
 type Form = {
   name: string;
   segment: string;
+  archetype: Archetype | "";
+  palette: [string, string, string];
   personality: string[];
   formality: number;
   persona: Persona | "";
@@ -41,6 +44,8 @@ type Form = {
 const initial: Form = {
   name: "",
   segment: "",
+  archetype: "",
+  palette: ["#E91E63", "#FFFFFF", "#2D2D2D"],
   personality: [],
   formality: 3,
   persona: "",
