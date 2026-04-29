@@ -87,7 +87,9 @@ export function PostDialog({
   onOpenChange,
   post,
   defaultWeekId,
+  defaultClientId,
   weeks,
+  clients,
   onSave,
   onDelete,
 }: {
@@ -95,7 +97,9 @@ export function PostDialog({
   onOpenChange: (open: boolean) => void;
   post: ContentPost | null;
   defaultWeekId?: string;
+  defaultClientId?: string | null;
   weeks: ContentWeek[];
+  clients: { id: string; name: string }[];
   onSave: (value: PostDialogValue) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 }) {
