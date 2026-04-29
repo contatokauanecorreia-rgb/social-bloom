@@ -541,11 +541,12 @@ function StepObjetivos({ form, update }: StepProps) {
     <div className="space-y-6">
       <Header title="Objetivos" subtitle="O que cada conteúdo precisa entregar." />
 
-      <Field label="Objetivo principal">
+      <Field label="Objetivo principal" hint="Selecione um ou mais objetivos.">
         <ChoiceGrid
+          multi
           options={GOALS.map((g) => ({ id: g.id, label: g.label }))}
           value={form.goal}
-          onChange={(v) => update("goal", v as Goal)}
+          onChange={(v) => update("goal", v as Goal[])}
           cols={2}
         />
       </Field>
