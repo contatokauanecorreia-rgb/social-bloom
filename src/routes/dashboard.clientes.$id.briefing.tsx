@@ -28,6 +28,8 @@ type Form = {
   segment: string;
   archetype: Archetype | "";
   palette: [string, string, string];
+  brandFont: string;
+  brandFontUrl: string;
   personality: string[];
   formality: number;
   persona: Persona | "";
@@ -46,6 +48,8 @@ const initial: Form = {
   segment: "",
   archetype: "",
   palette: ["#E91E63", "#FFFFFF", "#2D2D2D"],
+  brandFont: "",
+  brandFontUrl: "",
   personality: [],
   formality: 3,
   persona: "",
