@@ -365,6 +365,8 @@ function StepMarca({ form, update }: StepProps) {
     </div>
   );
 }
+
+function StepTomDeVoz({ form, update }: StepProps) {
   return (
     <div className="space-y-6">
       <Header title="Tom de voz" subtitle="Como a marca conversa com o público." />
