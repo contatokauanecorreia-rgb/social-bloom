@@ -34,6 +34,7 @@ export type PostDialogValue = {
   id?: string;
   title: string;
   week_id: string;
+  client_id: string | null;
   tags: string[];
   notes: string;
   status: PostStatus;
@@ -42,6 +43,7 @@ export type PostDialogValue = {
 type DraftPayload = {
   title: string;
   weekId: string;
+  clientId: string | null;
   tags: string[];
   noteBlocks: string[];
   status: PostStatus;
