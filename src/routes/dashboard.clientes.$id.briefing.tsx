@@ -76,7 +76,7 @@ type Form = {
   age: AgeRange | "";
   pains: string;
   dreams: string;
-  goal: Goal | "";
+  goal: Goal[];
   competitors: string[];
   frequency: Frequency | "";
 };
