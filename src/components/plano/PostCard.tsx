@@ -30,6 +30,8 @@ export function PostCard({
   onDelete,
   draggable = true,
   isOverlay = false,
+  clientName,
+  showClientChip = false,
 }: {
   post: ContentPost;
   onClick: () => void;
@@ -37,6 +39,8 @@ export function PostCard({
   onDelete?: (post: ContentPost) => void;
   draggable?: boolean;
   isOverlay?: boolean;
+  clientName?: string;
+  showClientChip?: boolean;
 }) {
   const sortable = useSortable({
     id: post.id,
