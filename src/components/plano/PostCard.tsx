@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { ContentPost } from "@/lib/content-types";
+import { clientColorFromId } from "@/lib/content-types";
 import { TagChip } from "./TagChip";
 import { CheckCircle2, MoreHorizontal, Copy, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
