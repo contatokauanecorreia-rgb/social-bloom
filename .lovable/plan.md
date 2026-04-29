@@ -1,55 +1,80 @@
 ## Objetivo
 
-No diálogo de edição de post (Plano de Conteúdo), substituir o campo único de **Notas** por uma lista de **blocos de notas** que o usuário pode adicionar/remover livremente, com um botão **"+ Adicionar bloco"** abaixo da lista — semelhante a blocos de texto do Notion.
+Reestruturar o menu lateral (BLOCO 1) com novas seções, rotas e item "Plano" novo. Manter tudo dentro do layout `/dashboard` (URLs amigáveis no menu, mas tecnicamente sob `/dashboard/...` para preservar header, autenticação e rotas existentes).
 
-## Como vai funcionar
+## Mapeamento de rotas
 
-- Cada bloco é um `Textarea` independente, empilhado verticalmente.
-- Acima/à direita de cada bloco aparece um botão discreto de remover (ícone de lixeira ou "X") — só aparece no hover, para não poluir.
-- Abaixo do último bloco, um botão **"+ Adicionar bloco de notas"** (variant `ghost`, com ícone `Plus`) cria um novo bloco vazio e foca nele.
-- Sempre há pelo menos 1 bloco visível (mesmo vazio). Não é possível remover o último bloco — apenas limpar o conteúdo.
-- Blocos vazios são descartados ao salvar.
+| Label sidebar | Rota técnica | Status |
+|---|---|---|
+| Dashboard | `/dashboard` | já existe |
+| Studio de conteúdo | `/dashboard/studio` | já existe |
+| Planner de conteúdo | `/dashboard/planner` | **renomear** de `dashboard.plano.tsx` |
+| Hub de clientes | `/dashboard/clientes` | já existe |
+| Precificação | `/dashboard/precificacao` | já existe |
+| Plano | `/dashboard/plano` | **criar nova** (assinatura/billing) |
+| Configurações | `/dashboard/configuracoes` | já existe |
 
-## Persistência (sem migração de banco)
+Itens removidos do sidebar: **Gerar carrosséis** (rota `/dashboard/carrosseis` continua existindo no código, só some do menu — não foi listada). Confirmar com usuário se quer manter o arquivo ou também excluir do menu apenas.
 
-A coluna `notes` no banco continua sendo `text`. Os blocos são serializados/deserializados usando um separador estável:
-
-- **Separador:** `\n\n---\n\n` (linha em branco + `---` + linha em branco — formato Markdown padrão de divisor, fácil de visualizar até em export futuro).
-- **Salvar:** `blocks.map(b => b.trim()).filter(Boolean).join("\n\n---\n\n")` → string ou `null` se vazio.
-- **Carregar:** `(post.notes ?? "").split(/\n\n---\n\n/)` → array; se vazio, inicia com `[""]`.
-- Posts antigos com uma única nota continuam funcionando: viram um único bloco.
-
-Sem mudança no schema, sem migração, totalmente retrocompatível.
+> Observação: a rota `/agentes` mencionada pelo usuário não existe no projeto atual — nada a remover além de garantir que não está no sidebar (e não está).
 
 ## Arquivos alterados
 
-### `src/components/plano/PostDialog.tsx`
-- Trocar `const [notes, setNotes] = useState("")` por `const [noteBlocks, setNoteBlocks] = useState<string[]>([""])`.
-- No `useEffect` de inicialização: parsear `post?.notes` com o split acima (ou `[""]` se vazio/null).
-- Adicionar handlers: `addBlock()`, `removeBlock(index)`, `updateBlock(index, value)`.
-- No `handleSave`: serializar com `.filter(Boolean).join(...)` e enviar como `notes` no payload (mantém o tipo `string` em `PostDialogValue` — nenhuma mudança em quem consome).
-- JSX: substituir o `<Textarea>` único por um `map` sobre `noteBlocks`, cada um com:
-  - Um `Textarea` (`rows={4}`).
-  - Um botão de remover no canto superior direito (visível em `hover` no container, ou sempre se houver mais de 1 bloco), desabilitado quando `noteBlocks.length === 1`.
-- Abaixo da lista, botão `<Button variant="ghost" size="sm" onClick={addBlock}><Plus /> Adicionar bloco</Button>`.
-- O Label "NOTAS" continua aparecendo uma vez no topo da seção.
+### 1. `src/components/dashboard/AppSidebar.tsx`
+Reescrever array `sections` com a estrutura exata pedida:
 
-### Nada mais muda
-- `src/routes/dashboard.plano.tsx`: nenhuma alteração — continua recebendo/enviando `notes: string` para o Supabase.
-- `src/lib/content-types.ts`: `notes: string | null` permanece.
-- Filtro de busca (`p.notes ?? ""` em `dashboard.plano.tsx:105`) continua funcionando — busca no texto inteiro, incluindo separadores.
+```ts
+const sections = [
+  { label: "Início", items: [
+    { to: "/dashboard", label: "Dashboard", icon: Home, exact: true }
+  ]},
+  { label: "Criar", items: [
+    { to: "/dashboard/studio", label: "Studio de conteúdo", icon: Sparkles },
+    { to: "/dashboard/planner", label: "Planner de conteúdo", icon: ClipboardList },
+  ]},
+  { label: "Clientes", items: [
+    { to: "/dashboard/clientes", label: "Hub de clientes", icon: Users }
+  ]},
+  { label: "Negócio", items: [
+    { to: "/dashboard/precificacao", label: "Precificação", icon: Calculator }
+  ]},
+  { label: "Conta", items: [
+    { to: "/dashboard/plano", label: "Plano", icon: CreditCard },
+    { to: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
+  ]},
+];
+```
 
-## Detalhes de UX
+Remove o item "Gerar carrosséis" do menu. Atualiza tipo `to` da union `SidebarItem` para refletir as rotas novas.
 
-- Espaçamento entre blocos: `space-y-2`.
-- Botão de remover: `variant="ghost"`, `size="icon"`, `className="h-7 w-7 text-muted-foreground hover:text-destructive"`, posicionado com `absolute top-2 right-2` em um container `relative` (ou inline acima do textarea — defino na implementação para ficar limpo).
-- Ao adicionar um bloco, focar automaticamente o novo `Textarea` (via `ref` no último item).
-- Placeholder do primeiro bloco: `"Roteiro, ideias, hooks..."`. Dos blocos seguintes: `"Mais notas..."`.
+### 2. Renomear `src/routes/dashboard.plano.tsx` → `src/routes/dashboard.planner.tsx`
+- Mover o arquivo (cópia + delete).
+- Atualizar `createFileRoute("/dashboard/plano")` → `createFileRoute("/dashboard/planner")`.
+- Atualizar `head().meta.title` para "Planner de conteúdo — Postly".
+- `routeTree.gen.ts` é regenerado automaticamente.
 
-## Fora do escopo
+### 3. Criar `src/routes/dashboard.plano.tsx` (novo — tela de Plano/Assinatura)
+Página placeholder com mesmo design system (rosa, cards, fonte atual):
+- Header: "Plano e assinatura"
+- Seção "Plano atual" com card mostrando plano fictício (ex: "Free" ou "Pro") e botão "Fazer upgrade".
+- Seção "Histórico de cobrança" vazia ("Nenhuma cobrança ainda").
+- Conteúdo simples e limpo, pronto para ser preenchido depois com integração de pagamento.
 
-- Reordenar blocos por drag-and-drop (pode vir depois se quiser estilo Notion completo).
-- Tipos diferentes de bloco (checklist, citação, etc.) — só texto por enquanto.
-- Migração para uma tabela `post_note_blocks` separada — desnecessária para o caso atual.
+### 4. Verificar referências internas a `/dashboard/plano` antigo
+Buscar com `rg "dashboard/plano|dashboard.plano"` e atualizar qualquer link interno (ex: cards do dashboard.index, rotas de cliente que linkam pra planner) para `/dashboard/planner`.
+
+## Fora do escopo (próximos blocos)
+
+- BLOCO 2+ não foi enviado — apenas navegação agora.
+- Não alterar conteúdo do Planner em si, só renomear a rota.
+- Não implementar lógica real de assinatura na tela "Plano" — só o placeholder visual.
+
+## Pergunta antes de implementar
+
+O arquivo `dashboard.carrosseis.tsx` (Gerar carrosséis) deve ser:
+- (a) mantido no projeto, só removido do sidebar; ou
+- (b) excluído por completo?
+
+Se não responder, sigo com (a) por segurança.
 
 Posso implementar?
