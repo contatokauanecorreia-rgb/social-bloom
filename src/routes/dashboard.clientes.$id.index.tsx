@@ -1,8 +1,9 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Loader2,
@@ -13,6 +14,7 @@ import {
   Sparkles,
   Copy,
   Pencil,
+  Palette,
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -34,6 +36,10 @@ type BriefingRow = {
   goals: string[];
   dos: string[];
   donts: string[];
+  archetype: string | null;
+  palette: string[];
+  brand_font: string | null;
+  brand_font_url: string | null;
 };
 
 function VisaoGeralCliente() {
@@ -49,7 +55,7 @@ function VisaoGeralCliente() {
       supabase
         .from("client_briefings")
         .select(
-          "business_description, target_audience, tone_of_voice, content_pillars, goals, dos, donts",
+          "business_description, target_audience, tone_of_voice, content_pillars, goals, dos, donts, archetype, palette, brand_font, brand_font_url",
         )
         .eq("client_id", id)
         .maybeSingle(),
@@ -64,6 +70,20 @@ function VisaoGeralCliente() {
     };
   }, [id]);
 
+  // Carrega Google Font dinamicamente quando brand_font_url aponta para fonts.googleapis
+  useEffect(() => {
+    const url = briefing?.brand_font_url;
+    if (!url || !/^https?:\/\//.test(url)) return;
+    if (!url.includes("fonts.googleapis.com")) return;
+    const existing = document.querySelector(`link[data-brand-font="${url}"]`);
+    if (existing) return;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = url;
+    link.dataset.brandFont = url;
+    document.head.appendChild(link);
+  }, [briefing?.brand_font_url]);
+
   if (loading) {
     return (
       <div className="flex justify-center py-12">
@@ -72,10 +92,11 @@ function VisaoGeralCliente() {
     );
   }
 
-  // Métricas mock — futuramente derivadas de content_posts vinculados ao cliente
+  // Métricas — content_posts ainda não tem client_id; quando adicionarmos
+  // a coluna, basta filtrar aqui. Por enquanto, exibimos zerado com nota.
   const metrics = [
     {
-      label: "Posts no mês",
+      label: "Posts criados",
       value: 0,
       icon: FileText,
       tone: "text-foreground",
@@ -101,7 +122,6 @@ function VisaoGeralCliente() {
       icon: TrendingUp,
       tone: "text-foreground",
       bg: "bg-background/40",
-      suffix: "%",
     },
   ] as const;
 
@@ -113,11 +133,21 @@ function VisaoGeralCliente() {
   const dos = briefing?.dos ?? [];
   const donts = briefing?.donts ?? [];
 
+  const palette = useMemo(() => {
+    const p = briefing?.palette ?? [];
+    return [p[0] ?? null, p[1] ?? null, p[2] ?? null] as Array<string | null>;
+  }, [briefing]);
+
+  const brandFont = briefing?.brand_font?.trim() || null;
+  const archetype = briefing?.archetype?.trim() || null;
+  const hasBranding = palette.some(Boolean) || brandFont || archetype;
+
   const aiContext = briefing
     ? [
         `Você está criando conteúdo para ${client?.name ?? "este cliente"}${niche ? ` (${niche})` : ""}.`,
         audience ? `Público-alvo: ${audience}` : null,
         tone ? `Tom de voz: ${tone}` : null,
+        archetype ? `Arquétipo: ${archetype}` : null,
         briefing.content_pillars?.length
           ? `Pilares de conteúdo: ${briefing.content_pillars.join(", ")}`
           : null,
@@ -127,7 +157,7 @@ function VisaoGeralCliente() {
       ]
         .filter(Boolean)
         .join("\n")
-    : "Preencha o briefing para gerar o contexto da IA deste cliente.";
+    : "Preencha o DNA da marca para gerar o contexto da IA deste cliente.";
 
   const copyContext = async () => {
     await navigator.clipboard.writeText(aiContext);
@@ -148,17 +178,19 @@ function VisaoGeralCliente() {
               </div>
               <div className={cn("mt-1.5 text-2xl font-bold tabular-nums", m.tone)}>
                 {m.value}
-                {"suffix" in m && typeof m.value === "number" ? (m as { suffix: string }).suffix : ""}
               </div>
             </div>
           );
         })}
       </div>
+      <p className="-mt-3 text-[11px] text-muted-foreground/80">
+        ✦ Métricas ficarão dinâmicas assim que os conteúdos forem vinculados a este cliente no Planner.
+      </p>
 
-      {/* Perfil da marca */}
+      {/* DNA da marca — Perfil */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Perfil da marca</CardTitle>
+          <CardTitle className="text-base">DNA da marca · Perfil</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <BrandField label="Nicho" value={niche} />
@@ -186,6 +218,93 @@ function VisaoGeralCliente() {
             chipClass="border-rose-200 bg-rose-50 text-rose-700"
             empty="Nenhuma palavra a evitar definida."
           />
+        </CardContent>
+      </Card>
+
+      {/* Branding */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Palette className="h-4 w-4 text-primary" />
+            Branding
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {!hasBranding && (
+            <p className="text-sm text-muted-foreground/80">
+              — Defina paleta, fonte e arquétipo no DNA da marca.
+            </p>
+          )}
+
+          {/* Paleta */}
+          {palette.some(Boolean) && (
+            <div>
+              <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Paleta
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {palette.map((hex, i) => (
+                  <div key={i} className="space-y-1.5">
+                    <div
+                      className="h-16 w-full rounded-lg border shadow-sm"
+                      style={{ backgroundColor: hex ?? "transparent" }}
+                    />
+                    <div className="text-[11px] font-mono uppercase text-muted-foreground">
+                      {hex ?? "—"}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Preview tipográfico + arquétipo */}
+          {(palette[0] || brandFont || archetype) && (
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div
+                className="rounded-xl p-5 shadow-sm"
+                style={{
+                  backgroundColor: palette[0] ?? "hsl(var(--muted))",
+                  color: palette[2] ?? "#fff",
+                }}
+              >
+                <div className="text-[11px] font-medium uppercase tracking-wider opacity-80">
+                  Preview tipográfico
+                </div>
+                <div
+                  className="mt-2 text-3xl font-semibold leading-tight"
+                  style={brandFont ? { fontFamily: `"${brandFont}", sans-serif` } : undefined}
+                >
+                  {client?.name ?? "Sua marca"}
+                </div>
+                <div
+                  className="mt-1 text-sm opacity-90"
+                  style={brandFont ? { fontFamily: `"${brandFont}", sans-serif` } : undefined}
+                >
+                  Aa Bb Cc · 0123456789
+                </div>
+                <div className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-black/20 px-2.5 py-0.5 text-[11px] font-medium">
+                  Fonte: {brandFont ?? "—"}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2 rounded-xl border bg-background/40 p-5">
+                <div className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                  Arquétipo
+                </div>
+                {archetype ? (
+                  <Badge variant="soft" className="w-fit text-sm">
+                    {archetype}
+                  </Badge>
+                ) : (
+                  <p className="text-sm text-muted-foreground/70">— Defina no DNA da marca</p>
+                )}
+                <p className="mt-2 text-xs text-muted-foreground">
+                  O arquétipo guia o tom usado em todas as gerações automáticas.
+                </p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -221,7 +340,7 @@ function VisaoGeralCliente() {
         <Button asChild variant="gradient">
           <Link to="/dashboard/clientes/$id/briefing" params={{ id }}>
             <Pencil className="h-4 w-4" />
-            Editar briefing
+            Editar DNA da marca
           </Link>
         </Button>
       </div>
@@ -238,7 +357,7 @@ function BrandField({ label, value }: { label: string; value: string | null }) {
       {value ? (
         <div className="mt-1 text-sm text-foreground">{value}</div>
       ) : (
-        <div className="mt-1 text-sm text-muted-foreground/70">— Adicione no briefing</div>
+        <div className="mt-1 text-sm text-muted-foreground/70">— Adicione no DNA da marca</div>
       )}
     </div>
   );
