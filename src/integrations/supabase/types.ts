@@ -76,6 +76,48 @@ export type Database = {
           },
         ]
       }
+      carousel_templates: {
+        Row: {
+          client_id: string
+          created_at: string
+          font_pair: Json | null
+          id: string
+          image_style: string | null
+          layout: Json | null
+          name: string
+          overlay: Json | null
+          palette: string[]
+          signature: Json | null
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          font_pair?: Json | null
+          id?: string
+          image_style?: string | null
+          layout?: Json | null
+          name: string
+          overlay?: Json | null
+          palette?: string[]
+          signature?: Json | null
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          font_pair?: Json | null
+          id?: string
+          image_style?: string | null
+          layout?: Json | null
+          name?: string
+          overlay?: Json | null
+          palette?: string[]
+          signature?: Json | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       client_briefings: {
         Row: {
           archetype: string | null
