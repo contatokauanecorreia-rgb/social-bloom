@@ -174,6 +174,7 @@ function CarrosselEditorPage() {
     imageJobs?: { slideIndex: number; imagePrompt: string; imageStyle?: string | null }[];
     archetype?: string | null;
     imageStyle?: string | null;
+    fontWeightOverride?: { title: number; subtitle: number; body: number } | null;
   } | null>(null);
 
   const [slides, setSlides] = useState<Slide[]>([makeSlide()]);
@@ -237,8 +238,11 @@ function CarrosselEditorPage() {
         return slide;
       });
       if (built.length > 0) {
-        setSlides(built);
-        setActiveId(built[0].id);
+        const withWeight = data.fontWeightOverride
+          ? built.map((s) => ({ ...s, fontWeight: { ...data.fontWeightOverride! } }))
+          : built;
+        setSlides(withWeight);
+        setActiveId(withWeight[0].id);
       }
 
       if (data.fontPair?.heading) {
