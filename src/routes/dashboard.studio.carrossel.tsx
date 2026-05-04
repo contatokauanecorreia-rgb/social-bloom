@@ -266,7 +266,6 @@ function CarrosselEditorPage() {
       templateAppliedRef.current = true;
 
       setFormat(FORMATS[0]);
-      setFormatPickerOpen(false);
 
       const palette = (tpl.palette ?? []) as string[];
       if (palette.length >= 3) {
