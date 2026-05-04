@@ -801,11 +801,6 @@ function CarrosselEditorPage() {
         </>
       )}
 
-      <FormatPickerDialog
-        open={formatPickerOpen}
-        onPick={handlePickFormat}
-        onCancel={() => navigate({ to: "/dashboard/studio" })}
-      />
     </div>
   );
 }
