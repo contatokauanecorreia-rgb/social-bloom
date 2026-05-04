@@ -222,35 +222,51 @@ Deno.serve(async (req) => {
       LOVABLE_API_KEY,
     );
 
+    let textFallback = false;
+    let slides: { title: string; subtitle: string; body: string; imagePrompt: string; imageDataUrl: string | null }[] = [];
+
     if (!aiResp.ok) {
       const t = await aiResp.text();
-      console.error("AI text error:", aiResp.status, t);
-      return aiErrorResponse(aiResp.status);
+      console.error("[carrossel-generate] AI text error", aiResp.status, t);
+      slides = fallbackSlides(topic.trim(), clientName, slideCount);
+      textFallback = true;
+    } else {
+      const data = await aiResp.json();
+      const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
+      let parsed: { slides: { title: string; subtitle?: string; body: string; imagePrompt: string }[] } = {
+        slides: [],
+      };
+      try {
+        parsed = JSON.parse(toolCall?.function?.arguments ?? "{}");
+      } catch (e) {
+        console.error("[carrossel-generate] parse tool call failed", e);
+      }
+
+      slides = (parsed.slides ?? []).slice(0, slideCount).map((s) => ({
+        title: s.title ?? "",
+        subtitle: s.subtitle ?? "",
+        body: s.body ?? "",
+        imagePrompt: s.imagePrompt ?? "",
+        imageDataUrl: null as string | null,
+      }));
+
+      if (slides.length === 0) {
+        console.warn("[carrossel-generate] empty slides from model — using fallback");
+        slides = fallbackSlides(topic.trim(), clientName, slideCount);
+        textFallback = true;
+      } else {
+        // Pad if model returned fewer slides
+        while (slides.length < slideCount) {
+          slides.push({ title: "", subtitle: "", body: "", imagePrompt: topic, imageDataUrl: null });
+        }
+      }
     }
 
-    const data = await aiResp.json();
-    const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
-    let parsed: { slides: { title: string; subtitle?: string; body: string; imagePrompt: string }[] } = {
-      slides: [],
-    };
-    try {
-      parsed = JSON.parse(toolCall?.function?.arguments ?? "{}");
-    } catch (e) {
-      console.error("Parse tool call failed", e);
-    }
-
-    let slides = (parsed.slides ?? []).slice(0, slideCount).map((s) => ({
-      title: s.title ?? "",
-      subtitle: s.subtitle ?? "",
-      body: s.body ?? "",
-      imagePrompt: s.imagePrompt ?? "",
-      imageDataUrl: null as string | null,
-    }));
-
-    // Pad if model returned fewer slides
-    while (slides.length < slideCount) {
-      slides.push({ title: "", subtitle: "", body: "", imagePrompt: topic, imageDataUrl: null });
-    }
+    console.log("[carrossel-generate] text_done", {
+      ms: Date.now() - t0,
+      slides: slides.length,
+      fallback: textFallback,
+    });
 
     // Image generation
     if (aiImages && imageMode !== "none") {
