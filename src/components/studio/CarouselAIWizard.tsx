@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ChevronUp,
   Image as ImageIcon,
+  Link2,
   Loader2,
   Search,
   Sparkles,
@@ -81,9 +82,17 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
   const [step, setStep] = useState<1 | 2 | "loading">(1);
 
   // Step 1
+  const [contentSource, setContentSource] = useState<"planner" | "ai">("ai");
   const [topic, setTopic] = useState("");
-  const [moodboardFile, setMoodboardFile] = useState<File | null>(null);
-  const [moodboardPreview, setMoodboardPreview] = useState<string | null>(null);
+  const [plannerPosts, setPlannerPosts] = useState<
+    { id: string; title: string; tags: string[]; notes: string | null }[]
+  >([]);
+  const [selectedPostIds, setSelectedPostIds] = useState<string[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  const [referenceUrl, setReferenceUrl] = useState("");
+  const [referenceImageDataUrl, setReferenceImageDataUrl] = useState<string | null>(null);
+  const [referenceLoading, setReferenceLoading] = useState(false);
   const [slideCount, setSlideCount] = useState(5);
   const [imageMode, setImageMode] = useState<ImageMode>("bg");
   const [aiImages, setAiImages] = useState(true);
@@ -132,9 +141,13 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
           return;
         }
         setStep(1);
+        setContentSource("ai");
         setTopic("");
-        setMoodboardFile(null);
-        setMoodboardPreview(null);
+        setSelectedPostIds([]);
+        setReferenceFile(null);
+        setReferenceUrl("");
+        setReferenceImageDataUrl(null);
+        setReferenceLoading(false);
         setSlideCount(5);
         setImageMode("bg");
         setAiImages(true);
@@ -277,14 +290,89 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
     exploreResults.slice(0, exploreLimit).forEach((f) => loadGoogleFont(f.family));
   }, [exploreOpen, exploreResults, exploreLimit]);
 
-  const onPickMoodboard = (f: File) => {
-    setMoodboardFile(f);
+  // Carregar posts do Planner do cliente
+  useEffect(() => {
+    if (!open || step !== 1 || !clientId) return;
+    let cancelled = false;
+    setLoadingPosts(true);
+    supabase.auth.getSession().then(({ data: sess }) => {
+      const uid = sess.session?.user?.id;
+      if (!uid) {
+        if (!cancelled) {
+          setPlannerPosts([]);
+          setLoadingPosts(false);
+        }
+        return;
+      }
+      supabase
+        .from("content_posts")
+        .select("id, title, tags, notes")
+        .eq("user_id", uid)
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false })
+        .limit(100)
+        .then(({ data }) => {
+          if (cancelled) return;
+          const rows = (data ?? []) as { id: string; title: string; tags: string[] | null; notes: string | null }[];
+          setPlannerPosts(rows.map((r) => ({ ...r, tags: r.tags ?? [] })));
+          setLoadingPosts(false);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, step, clientId]);
+
+  const onPickReferenceFile = (f: File) => {
+    setReferenceFile(f);
+    setReferenceUrl("");
     const reader = new FileReader();
-    reader.onload = () => setMoodboardPreview(reader.result as string);
+    reader.onload = () => setReferenceImageDataUrl(reader.result as string);
     reader.readAsDataURL(f);
   };
 
-  const canContinueStep1 = topic.trim().length > 0;
+  const onUseReferenceUrl = async () => {
+    const url = referenceUrl.trim();
+    if (!url) return;
+    setReferenceLoading(true);
+    setReferenceFile(null);
+    try {
+      const isDirectImage = /\.(jpe?g|png|webp)(\?.*)?$/i.test(url);
+      if (isDirectImage) {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error("Não foi possível baixar a imagem.");
+        const blob = await resp.blob();
+        const reader = new FileReader();
+        reader.onload = () => setReferenceImageDataUrl(reader.result as string);
+        reader.readAsDataURL(blob);
+      } else {
+        const { data, error } = await supabase.functions.invoke("screenshot-url", {
+          body: { url },
+        });
+        if (error) throw error;
+        if (!data?.imageDataUrl) {
+          toast.error("Não foi possível processar este link — anexe uma imagem.");
+          setReferenceImageDataUrl(null);
+        } else {
+          setReferenceImageDataUrl(data.imageDataUrl);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Erro ao processar link.");
+    } finally {
+      setReferenceLoading(false);
+    }
+  };
+
+  const clearReference = () => {
+    setReferenceFile(null);
+    setReferenceUrl("");
+    setReferenceImageDataUrl(null);
+  };
+
+  const canContinueStep1 =
+    contentSource === "ai" ? topic.trim().length > 0 : selectedPostIds.length > 0;
 
   const palette = useMemo<[string, string, string]>(() => {
     if (useDnaPalette && dna.palette) return dna.palette;
@@ -337,16 +425,30 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
     setStep("loading");
     startProgress();
     try {
+      // Monta o "topic" enviado ao backend conforme a fonte de conteúdo
+      let effectiveTopic = topic.trim();
+      if (contentSource === "planner") {
+        const picked = plannerPosts.filter((p) => selectedPostIds.includes(p.id));
+        effectiveTopic = [
+          "Posts selecionados do Planner:",
+          ...picked.map(
+            (p, i) => `${i + 1}. ${p.title}${p.notes ? ` — ${p.notes}` : ""}`,
+          ),
+        ].join("\n");
+      }
+
       const { data, error } = await supabase.functions.invoke("carrossel-generate", {
         body: {
           clientId,
-          topic: topic.trim(),
+          topic: effectiveTopic,
           slideCount,
           imageMode,
           aiImages,
           fontPair: fontPairForOutput,
           palette,
           instagram: instagram.trim() || null,
+          textOnly: true,
+          referenceImageDataUrl: referenceImageDataUrl ?? null,
         },
       });
 
@@ -356,14 +458,22 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
       stopProgress();
       setProgress(100);
 
+      const slidesData = data.slides as Array<{
+        title: string;
+        subtitle?: string;
+        body: string;
+        imagePrompt: string;
+        imageDataUrl: string | null;
+      }>;
+
+      // Jobs de imagem (geradas em background no editor)
+      const imageJobs =
+        aiImages && imageMode !== "none"
+          ? slidesData.map((s, i) => ({ slideIndex: i, imagePrompt: s.imagePrompt || effectiveTopic }))
+          : [];
+
       const bootstrap = {
-        slides: data.slides as Array<{
-          title: string;
-          subtitle?: string;
-          body: string;
-          imagePrompt: string;
-          imageDataUrl: string | null;
-        }>,
+        slides: slidesData,
         fontPair: fontPairForOutput,
         palette,
         imageMode,
@@ -375,6 +485,8 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
               color: palette[0],
             }
           : null,
+        imageJobs,
+        archetype: data?.meta?.archetype ?? null,
       };
       try {
         sessionStorage.setItem("studio:carrossel:bootstrap", JSON.stringify(bootstrap));
@@ -410,63 +522,178 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         {step === 1 && (
           <>
             <DialogHeader>
-              <DialogTitle>Configurar IA</DialogTitle>
+              <DialogTitle>Configurar carrossel</DialogTitle>
               <DialogDescription>
-                Diga sobre o que é o conteúdo e como quer o carrossel.
+                Escolha a fonte do conteúdo e como quer o carrossel.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-5 py-2">
-              <div>
-                <Label className="text-sm font-medium">Sobre o que é o conteúdo?</Label>
-                <Textarea
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  rows={3}
-                  className="mt-1"
-                  placeholder="Ex: 5 benefícios do pilates para mulheres acima de 40 anos..."
-                />
+              {/* SEÇÃO 1 — Fonte do conteúdo */}
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold">Fonte do conteúdo</Label>
+
+                <label
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-3 transition",
+                    contentSource === "planner"
+                      ? "border-primary bg-primary/5"
+                      : "hover:border-primary/40",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    className="mt-1"
+                    checked={contentSource === "planner"}
+                    onChange={() => setContentSource("planner")}
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Usar conteúdo do Planner</div>
+                    <div className="text-xs text-muted-foreground">
+                      Selecione um ou mais posts já planejados para este cliente.
+                    </div>
+                    {contentSource === "planner" && (
+                      <div className="mt-3 max-h-48 overflow-y-auto rounded-md border bg-card">
+                        {loadingPosts ? (
+                          <div className="flex items-center gap-2 p-3 text-xs text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Carregando posts...
+                          </div>
+                        ) : plannerPosts.length === 0 ? (
+                          <p className="p-3 text-xs text-muted-foreground">
+                            Nenhum post no Planner para este cliente.
+                          </p>
+                        ) : (
+                          plannerPosts.map((p) => {
+                            const checked = selectedPostIds.includes(p.id);
+                            const type =
+                              p.tags.find((t) => /carrossel|reels|post/i.test(t))?.toLowerCase() ?? "post";
+                            return (
+                              <label
+                                key={p.id}
+                                className={cn(
+                                  "flex cursor-pointer items-center gap-2 border-b px-3 py-2 text-xs last:border-b-0 hover:bg-accent",
+                                  checked && "bg-primary/5",
+                                )}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) => {
+                                    setSelectedPostIds((arr) =>
+                                      e.target.checked
+                                        ? [...arr, p.id]
+                                        : arr.filter((x) => x !== p.id),
+                                    );
+                                  }}
+                                />
+                                <span className="flex-1 truncate font-medium">{p.title}</span>
+                                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                                  {type}
+                                </span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </label>
+
+                <label
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-3 transition",
+                    contentSource === "ai"
+                      ? "border-primary bg-primary/5"
+                      : "hover:border-primary/40",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    className="mt-1"
+                    checked={contentSource === "ai"}
+                    onChange={() => setContentSource("ai")}
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Gerar com IA</div>
+                    <div className="text-xs text-muted-foreground">
+                      Descreva o tema e a IA escreve os slides.
+                    </div>
+                    {contentSource === "ai" && (
+                      <Textarea
+                        value={topic}
+                        onChange={(e) => setTopic(e.target.value)}
+                        rows={3}
+                        className="mt-2"
+                        placeholder="Ex: 5 benefícios do pilates para mulheres acima de 40 anos..."
+                      />
+                    )}
+                  </div>
+                </label>
               </div>
 
+              {/* SEÇÃO 2 — Referência de conteúdo */}
               <div>
-                <Label className="text-sm font-medium">
-                  Moodboard ou referência <span className="text-xs text-muted-foreground">(opcional)</span>
+                <Label className="text-sm font-semibold">
+                  Referência de conteúdo <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
                 </Label>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Anexe aqui uma referência do Pinterest ou inspiração visual.
+                  Anexe uma imagem ou cole um link (Pinterest, Instagram, site...) — a IA vai analisar paleta, tipografia e estilo visual.
                 </p>
-                {moodboardPreview ? (
+
+                {referenceImageDataUrl ? (
                   <div className="mt-2 flex items-center gap-2">
-                    <img src={moodboardPreview} alt="moodboard" className="h-16 w-16 rounded object-cover" />
+                    <img src={referenceImageDataUrl} alt="referência" className="h-16 w-16 rounded object-cover" />
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        setMoodboardFile(null);
-                        setMoodboardPreview(null);
-                      }}
+                      onClick={clearReference}
                       className="gap-1 text-xs"
                     >
                       <X className="h-3 w-3" /> Remover
                     </Button>
                   </div>
                 ) : (
-                  <label className="mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed bg-background py-3 text-xs font-medium hover:bg-accent">
-                    <ImageIcon className="h-4 w-4" />
-                    Anexar imagem
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) onPickMoodboard(f);
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed bg-background py-3 text-xs font-medium hover:bg-accent">
+                      <ImageIcon className="h-4 w-4" />
+                      Anexar imagem
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) onPickReferenceFile(f);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    <div className="flex gap-1.5">
+                      <div className="relative flex-1">
+                        <Link2 className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={referenceUrl}
+                          onChange={(e) => setReferenceUrl(e.target.value)}
+                          placeholder="Colar link"
+                          className="h-9 pl-7 text-xs"
+                          disabled={referenceLoading}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={onUseReferenceUrl}
+                        disabled={!referenceUrl.trim() || referenceLoading}
+                      >
+                        {referenceLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Usar"}
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
+
+              {/* SEÇÃO 3 — Configurações (mantida) */}
 
               <div>
                 <Label className="text-sm font-medium">Número de slides</Label>

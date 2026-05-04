@@ -168,6 +168,8 @@ function CarrosselEditorPage() {
     palette?: [string, string, string];
     imageMode?: "none" | "bg" | "grid" | "mixed";
     signature?: { enabled: boolean; handle: string; position: SignaturePos; color: string } | null;
+    imageJobs?: { slideIndex: number; imagePrompt: string }[];
+    archetype?: string | null;
   } | null>(null);
 
   const [slides, setSlides] = useState<Slide[]>([makeSlide()]);
@@ -177,7 +179,14 @@ function CarrosselEditorPage() {
 
   const [exporting, setExporting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
-  const [plannerTitles, setPlannerTitles] = useState<string[]>([]);
+  const [plannerPosts, setPlannerPosts] = useState<
+    { id: string; title: string; tags: string[]; notes: string | null }[]
+  >([]);
+  const [imageProgress, setImageProgress] = useState<{
+    current: number;
+    total: number;
+    percent: number;
+  } | null>(null);
 
   // initial setup
   useEffect(() => {
@@ -271,7 +280,7 @@ function CarrosselEditorPage() {
         .maybeSingle(),
       supabase
         .from("content_posts")
-        .select("title")
+        .select("id, title, tags, notes")
         .eq("user_id", userId)
         .eq("client_id", saved)
         .order("created_at", { ascending: false })
@@ -291,10 +300,15 @@ function CarrosselEditorPage() {
       };
       setDna(next);
       ensureBrandFont(next.brandFont, next.brandFontUrl);
-      const titles = ((p.data ?? []) as { title: string | null }[])
-        .map((r) => r.title)
-        .filter((t): t is string => !!t && t.trim().length > 0);
-      setPlannerTitles(Array.from(new Set(titles)));
+      const rows = ((p.data ?? []) as {
+        id: string;
+        title: string | null;
+        tags: string[] | null;
+        notes: string | null;
+      }[])
+        .filter((r) => !!r.title && r.title.trim().length > 0)
+        .map((r) => ({ id: r.id, title: r.title!, tags: r.tags ?? [], notes: r.notes }));
+      setPlannerPosts(rows);
     });
   }, [userId, navigate]);
 
@@ -499,7 +513,15 @@ function CarrosselEditorPage() {
                   onUpdateActive={updateActive}
                   onApplyToAll={applyToAll}
                   onPickImage={setBgImage}
-                  plannerTitles={plannerTitles}
+                  plannerTitles={plannerPosts.map((p) => p.title)}
+                  plannerPosts={plannerPosts}
+                  onApplyPlannerPost={(post) => {
+                    updateActive((s) => ({
+                      ...s,
+                      text: { title: post.title, subtitle: "", body: post.notes ?? "" },
+                    }));
+                    toast.success("Slide atualizado com conteúdo do Planner.");
+                  }}
                 />
               </div>
               <div className="space-y-2 border-t p-3">
@@ -656,6 +678,8 @@ function FormatPickerDialog({
   );
 }
 
+type PlannerPost = { id: string; title: string; tags: string[]; notes: string | null };
+
 function EditorPanel({
   slide,
   dna,
@@ -665,6 +689,8 @@ function EditorPanel({
   onApplyToAll,
   onPickImage,
   plannerTitles,
+  plannerPosts,
+  onApplyPlannerPost,
 }: {
   slide: Slide;
   dna: BriefingDNA;
@@ -674,9 +700,12 @@ function EditorPanel({
   onApplyToAll: (m: (s: Slide, source: Slide) => Slide) => void;
   onPickImage: (f: File, applyAll: boolean) => void;
   plannerTitles: string[];
+  plannerPosts: PlannerPost[];
+  onApplyPlannerPost: (post: PlannerPost) => void;
 }) {
   const [applyImageAll, setApplyImageAll] = useState(false);
   const [applySigAll, setApplySigAll] = useState(false);
+  const [plannerOpen, setPlannerOpen] = useState(false);
 
   const setAlign = (field: TextField, value: TextAlign) =>
     onUpdateActive((s) => ({ ...s, textAlign: { ...s.textAlign, [field]: value } }));

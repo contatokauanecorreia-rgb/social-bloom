@@ -16,6 +16,8 @@ type Body = {
   fontPair?: { heading: string; body: string } | null;
   palette?: string[];
   instagram?: string | null;
+  textOnly?: boolean;
+  referenceImageDataUrl?: string | null;
 };
 
 const ARCHETYPE_TONE: Record<string, string> = {
@@ -115,7 +117,7 @@ Deno.serve(async (req) => {
   let slideCountForFallback = 5;
   try {
     const body = (await req.json()) as Body;
-    const { clientId, topic, imageMode, aiImages, instagram } = body;
+    const { clientId, topic, imageMode, aiImages, instagram, textOnly, referenceImageDataUrl } = body;
     const slideCount = Math.max(1, Math.min(10, Number(body.slideCount) || 5));
     topicForFallback = topic ?? "";
     slideCountForFallback = slideCount;
@@ -123,6 +125,8 @@ Deno.serve(async (req) => {
       slideCount,
       imageMode,
       aiImages,
+      textOnly: !!textOnly,
+      hasReference: !!referenceImageDataUrl,
       hasClient: !!clientId,
       topicLen: (topic ?? "").length,
     });
@@ -176,6 +180,7 @@ Deno.serve(async (req) => {
       "O slide 1 é a CAPA com gancho forte. O último é CTA.",
       "Cada slide tem: title (curto, máx 6 palavras), subtitle (opcional, máx 8 palavras), body (1-3 frases curtas), e imagePrompt (descrição visual em inglês para gerar imagem).",
       "Não use markdown, listas ou emojis em excesso.",
+      "Quando uma imagem de referência for enviada, observe paleta de cores, tipografia, layout, densidade de texto e estilo visual; descreva esse estilo nos `imagePrompt` dos slides e module o tom textual de acordo.",
       briefingCtx,
     ].join(" ");
 
@@ -210,12 +215,19 @@ Deno.serve(async (req) => {
       },
     ];
 
+    const userContent: any = referenceImageDataUrl
+      ? [
+          { type: "text", text: `Tema/contexto: ${topic.trim()}` },
+          { type: "image_url", image_url: { url: referenceImageDataUrl } },
+        ]
+      : `Tema/contexto: ${topic.trim()}`;
+
     const aiResp = await callAI(
       {
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Tema/contexto: ${topic.trim()}` },
+          { role: "user", content: userContent },
         ],
         tools,
         tool_choice: { type: "function", function: { name: "build_carousel" } },
@@ -274,7 +286,7 @@ Deno.serve(async (req) => {
     const remaining = () => DEADLINE_MS - (Date.now() - t0);
     let imagesGenerated = 0;
 
-    if (aiImages && imageMode !== "none" && !textFallback && remaining() > 10_000) {
+    if (!textOnly && aiImages && imageMode !== "none" && !textFallback && remaining() > 10_000) {
       const archetypeStr = briefing?.archetype ? `Brand archetype: ${briefing.archetype}.` : "";
       const segStr = segment ? `Segment: ${segment}.` : "";
 
@@ -322,7 +334,7 @@ Deno.serve(async (req) => {
           imagesGenerated += 1;
         }
       });
-    } else if (aiImages && imageMode !== "none") {
+    } else if (!textOnly && aiImages && imageMode !== "none") {
       console.warn("[carrossel-generate] skipping images", {
         textFallback,
         remainingMs: remaining(),
