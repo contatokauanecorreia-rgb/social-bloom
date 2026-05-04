@@ -280,7 +280,7 @@ function CarrosselEditorPage() {
         .maybeSingle(),
       supabase
         .from("content_posts")
-        .select("title")
+        .select("id, title, tags, notes")
         .eq("user_id", userId)
         .eq("client_id", saved)
         .order("created_at", { ascending: false })
@@ -300,10 +300,15 @@ function CarrosselEditorPage() {
       };
       setDna(next);
       ensureBrandFont(next.brandFont, next.brandFontUrl);
-      const titles = ((p.data ?? []) as { title: string | null }[])
-        .map((r) => r.title)
-        .filter((t): t is string => !!t && t.trim().length > 0);
-      setPlannerTitles(Array.from(new Set(titles)));
+      const rows = ((p.data ?? []) as {
+        id: string;
+        title: string | null;
+        tags: string[] | null;
+        notes: string | null;
+      }[])
+        .filter((r) => !!r.title && r.title.trim().length > 0)
+        .map((r) => ({ id: r.id, title: r.title!, tags: r.tags ?? [], notes: r.notes }));
+      setPlannerPosts(rows);
     });
   }, [userId, navigate]);
 
