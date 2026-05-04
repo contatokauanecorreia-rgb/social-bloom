@@ -251,6 +251,52 @@ function CarrosselEditorPage() {
     }
   }, []);
 
+  // Consume saved template from sessionStorage (when user came from "Templates salvos" card)
+  const templateAppliedRef = useRef(false);
+  useEffect(() => {
+    if (templateAppliedRef.current) return;
+    if (typeof window === "undefined") return;
+    const raw = window.sessionStorage.getItem("studio:carrossel:template");
+    if (!raw) return;
+    try {
+      const tpl = JSON.parse(raw);
+      window.sessionStorage.removeItem("studio:carrossel:template");
+      templateAppliedRef.current = true;
+
+      setFormat(FORMATS[0]);
+      setFormatPickerOpen(false);
+
+      const palette = (tpl.palette ?? []) as string[];
+      if (palette.length >= 3) {
+        setDna((prev) => ({ ...prev, palette: [palette[0], palette[1], palette[2]] }));
+      }
+      if (tpl.font_pair?.heading) {
+        loadGoogleFont(tpl.font_pair.heading);
+        if (tpl.font_pair.body) loadGoogleFont(tpl.font_pair.body);
+        setPageFontPair({ heading: tpl.font_pair.heading, body: tpl.font_pair.body ?? tpl.font_pair.heading });
+      }
+
+      const baseSlide = makeSlide(undefined, palette[0]);
+      const merged: Slide = {
+        ...baseSlide,
+        fontSize: tpl.layout?.fontSize ?? baseSlide.fontSize,
+        textAlign: tpl.layout?.textAlign ?? baseSlide.textAlign,
+        fontWeight: tpl.layout?.fontWeight ?? baseSlide.fontWeight,
+        textPos: tpl.layout?.textPos ?? baseSlide.textPos,
+        overlay: tpl.overlay ?? baseSlide.overlay,
+        signature: tpl.signature
+          ? { ...baseSlide.signature, ...tpl.signature }
+          : baseSlide.signature,
+      };
+      setSlides([merged]);
+      setActiveId(merged.id);
+
+      toast.success(`Template "${tpl.name}" aplicado.`);
+    } catch (e) {
+      console.warn("template parse error", e);
+    }
+  }, []);
+
   // Background image generation loop — consumes imageJobs from bootstrap
   const imageGenStartedRef = useRef(false);
   useEffect(() => {
