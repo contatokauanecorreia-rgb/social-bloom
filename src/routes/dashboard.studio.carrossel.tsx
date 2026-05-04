@@ -513,7 +513,15 @@ function CarrosselEditorPage() {
                   onUpdateActive={updateActive}
                   onApplyToAll={applyToAll}
                   onPickImage={setBgImage}
-                  plannerTitles={plannerTitles}
+                  plannerTitles={plannerPosts.map((p) => p.title)}
+                  plannerPosts={plannerPosts}
+                  onApplyPlannerPost={(post) => {
+                    updateActive((s) => ({
+                      ...s,
+                      text: { title: post.title, subtitle: "", body: post.notes ?? "" },
+                    }));
+                    toast.success("Slide atualizado com conteúdo do Planner.");
+                  }}
                 />
               </div>
               <div className="space-y-2 border-t p-3">
