@@ -165,6 +165,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         setFilterCats([]);
         setExploreLimit(30);
         setPendingFont(null);
+        setFontWeightChoice("medium");
       }, 200);
       return () => window.clearTimeout(t);
     }
