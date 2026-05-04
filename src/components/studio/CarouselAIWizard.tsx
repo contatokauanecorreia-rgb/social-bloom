@@ -497,6 +497,13 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         imageJobs,
         archetype: data?.meta?.archetype ?? null,
         imageStyle: trimmedStyle,
+        fontWeightOverride:
+          selected && selected.source !== "dna"
+            ? (() => {
+                const w = WEIGHT_MAP[fontWeightChoice];
+                return { title: w, subtitle: w, body: w };
+              })()
+            : null,
       };
       try {
         sessionStorage.setItem("studio:carrossel:bootstrap", JSON.stringify(bootstrap));
