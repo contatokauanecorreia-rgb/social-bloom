@@ -171,8 +171,9 @@ function CarrosselEditorPage() {
     palette?: [string, string, string];
     imageMode?: "none" | "bg" | "grid" | "mixed";
     signature?: { enabled: boolean; handle: string; position: SignaturePos; color: string } | null;
-    imageJobs?: { slideIndex: number; imagePrompt: string }[];
+    imageJobs?: { slideIndex: number; imagePrompt: string; imageStyle?: string | null }[];
     archetype?: string | null;
+    imageStyle?: string | null;
   } | null>(null);
 
   const [slides, setSlides] = useState<Slide[]>([makeSlide()]);
