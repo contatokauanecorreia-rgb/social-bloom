@@ -174,6 +174,7 @@ function CarrosselEditorPage() {
     imageJobs?: { slideIndex: number; imagePrompt: string; imageStyle?: string | null }[];
     archetype?: string | null;
     imageStyle?: string | null;
+    fontWeightOverride?: { title: number; subtitle: number; body: number } | null;
   } | null>(null);
 
   const [slides, setSlides] = useState<Slide[]>([makeSlide()]);
