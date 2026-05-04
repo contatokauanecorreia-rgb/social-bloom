@@ -618,11 +618,6 @@ function CarrosselEditorPage() {
     }
   };
 
-  const handlePickFormat = (f: Format) => {
-    setFormat(f);
-    setFormatPickerOpen(false);
-  };
-
   // -------- Render --------
 
   if (!userId) {
