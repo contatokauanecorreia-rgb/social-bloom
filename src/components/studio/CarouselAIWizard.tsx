@@ -96,6 +96,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
   const [slideCount, setSlideCount] = useState(5);
   const [imageMode, setImageMode] = useState<ImageMode>("bg");
   const [aiImages, setAiImages] = useState(true);
+  const [imageStyle, setImageStyle] = useState("");
 
   // Step 2 - geral
   const [instagram, setInstagram] = useState("");
