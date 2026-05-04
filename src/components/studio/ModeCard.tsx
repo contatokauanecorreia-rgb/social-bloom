@@ -9,6 +9,7 @@ export type ModeCardProps = {
   locked?: boolean;
   lockedLabel?: string;
   disabled?: boolean;
+  freeLabel?: string;
   onClick?: () => void;
 };
 
@@ -20,6 +21,7 @@ export function ModeCard({
   locked = false,
   lockedLabel,
   disabled = false,
+  freeLabel,
   onClick,
 }: ModeCardProps) {
   const isInactive = locked || disabled;
@@ -50,6 +52,10 @@ export function ModeCard({
         {locked ? (
           <span className="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-[10px] font-semibold text-amber-700">
             {lockedLabel ?? "Disponível no Pro"}
+          </span>
+        ) : freeLabel ? (
+          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">
+            {freeLabel}
           </span>
         ) : (
           <span className="text-[11px] font-medium text-muted-foreground">

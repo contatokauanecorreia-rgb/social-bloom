@@ -171,8 +171,9 @@ function CarrosselEditorPage() {
     palette?: [string, string, string];
     imageMode?: "none" | "bg" | "grid" | "mixed";
     signature?: { enabled: boolean; handle: string; position: SignaturePos; color: string } | null;
-    imageJobs?: { slideIndex: number; imagePrompt: string }[];
+    imageJobs?: { slideIndex: number; imagePrompt: string; imageStyle?: string | null }[];
     archetype?: string | null;
+    imageStyle?: string | null;
   } | null>(null);
 
   const [slides, setSlides] = useState<Slide[]>([makeSlide()]);
@@ -190,6 +191,11 @@ function CarrosselEditorPage() {
     total: number;
     percent: number;
   } | null>(null);
+
+  // Salvar como template
+  const [saveTemplateChecked, setSaveTemplateChecked] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   // initial setup
   useEffect(() => {
@@ -245,6 +251,52 @@ function CarrosselEditorPage() {
     }
   }, []);
 
+  // Consume saved template from sessionStorage (when user came from "Templates salvos" card)
+  const templateAppliedRef = useRef(false);
+  useEffect(() => {
+    if (templateAppliedRef.current) return;
+    if (typeof window === "undefined") return;
+    const raw = window.sessionStorage.getItem("studio:carrossel:template");
+    if (!raw) return;
+    try {
+      const tpl = JSON.parse(raw);
+      window.sessionStorage.removeItem("studio:carrossel:template");
+      templateAppliedRef.current = true;
+
+      setFormat(FORMATS[0]);
+      setFormatPickerOpen(false);
+
+      const palette = (tpl.palette ?? []) as string[];
+      if (palette.length >= 3) {
+        setDna((prev) => ({ ...prev, palette: [palette[0], palette[1], palette[2]] }));
+      }
+      if (tpl.font_pair?.heading) {
+        loadGoogleFont(tpl.font_pair.heading);
+        if (tpl.font_pair.body) loadGoogleFont(tpl.font_pair.body);
+        setPageFontPair({ heading: tpl.font_pair.heading, body: tpl.font_pair.body ?? tpl.font_pair.heading });
+      }
+
+      const baseSlide = makeSlide(undefined, palette[0]);
+      const merged: Slide = {
+        ...baseSlide,
+        fontSize: tpl.layout?.fontSize ?? baseSlide.fontSize,
+        textAlign: tpl.layout?.textAlign ?? baseSlide.textAlign,
+        fontWeight: tpl.layout?.fontWeight ?? baseSlide.fontWeight,
+        textPos: tpl.layout?.textPos ?? baseSlide.textPos,
+        overlay: tpl.overlay ?? baseSlide.overlay,
+        signature: tpl.signature
+          ? { ...baseSlide.signature, ...tpl.signature }
+          : baseSlide.signature,
+      };
+      setSlides([merged]);
+      setActiveId(merged.id);
+
+      toast.success(`Template "${tpl.name}" aplicado.`);
+    } catch (e) {
+      console.warn("template parse error", e);
+    }
+  }, []);
+
   // Background image generation loop — consumes imageJobs from bootstrap
   const imageGenStartedRef = useRef(false);
   useEffect(() => {
@@ -268,7 +320,7 @@ function CarrosselEditorPage() {
         });
         try {
           const { data, error } = await supabase.functions.invoke("carrossel-image", {
-            body: { prompt: job.imagePrompt, palette, archetype },
+            body: { prompt: job.imagePrompt, palette, archetype, imageStyle: job.imageStyle ?? null },
           });
           if (error) throw error;
           const url: string | undefined = data?.imageDataUrl;
@@ -520,7 +572,50 @@ function CarrosselEditorPage() {
     }
   };
 
-  // -------- Handler escolha de formato --------
+  const handleSaveTemplate = async () => {
+    if (!userId || !clientId) {
+      toast.error("Selecione um cliente para salvar templates.");
+      return;
+    }
+    const name = templateName.trim();
+    if (!name) {
+      toast.error("Dê um nome ao template.");
+      return;
+    }
+    if (!activeSlide) return;
+    setSavingTemplate(true);
+    try {
+      const payload = {
+        user_id: userId,
+        client_id: clientId,
+        name,
+        font_pair: pageFontPair ?? null,
+        palette: dna.palette as unknown as string[],
+        layout: {
+          fontSize: activeSlide.fontSize,
+          textAlign: activeSlide.textAlign,
+          fontWeight: activeSlide.fontWeight,
+          textPos: activeSlide.textPos,
+        },
+        overlay: activeSlide.overlay,
+        signature: {
+          position: activeSlide.signature.position,
+          color: activeSlide.signature.color,
+        },
+        image_style: bootstrapRef.current?.imageStyle ?? null,
+      };
+      const { error } = await supabase.from("carousel_templates" as any).insert(payload);
+      if (error) throw error;
+      toast.success("Template salvo!");
+      setSaveTemplateChecked(false);
+      setTemplateName("");
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao salvar template.");
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
 
   const handlePickFormat = (f: Format) => {
     setFormat(f);
@@ -555,6 +650,41 @@ function CarrosselEditorPage() {
             {clientName ? `${clientName} · ` : ""}
             {format ? `${format.w}×${format.h}` : ""}
           </p>
+        </div>
+
+        {/* Salvar como template */}
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 text-xs font-medium">
+            <Checkbox
+              checked={saveTemplateChecked}
+              onCheckedChange={(v) => {
+                const on = v === true;
+                setSaveTemplateChecked(on);
+                if (!on) setTemplateName("");
+              }}
+              disabled={!clientId}
+            />
+            Salvar como template
+          </label>
+          {saveTemplateChecked && (
+            <>
+              <Input
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="Ex: Carrossel institucional pilates"
+                className="h-8 w-56 text-xs"
+              />
+              <Button
+                size="sm"
+                onClick={handleSaveTemplate}
+                disabled={savingTemplate || !templateName.trim()}
+                className="gap-1.5"
+              >
+                {savingTemplate ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                Salvar template
+              </Button>
+            </>
+          )}
         </div>
       </header>
 

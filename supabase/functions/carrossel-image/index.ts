@@ -9,13 +9,14 @@ type Body = {
   prompt: string;
   archetype?: string | null;
   segment?: string | null;
+  imageStyle?: string | null;
 };
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { prompt, archetype, segment } = (await req.json()) as Body;
+    const { prompt, archetype, segment, imageStyle } = (await req.json()) as Body;
     if (!prompt || !prompt.trim()) {
       return new Response(JSON.stringify({ error: "Prompt vazio." }), {
         status: 400,
@@ -31,9 +32,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const archetypeStr = archetype ? `Brand archetype: ${archetype}.` : "";
+    const styleStr = imageStyle && imageStyle.trim()
+      ? `Visual style: ${imageStyle.trim()}.`
+      : (archetype ? `Brand archetype: ${archetype}.` : "");
     const segStr = segment ? `Segment: ${segment}.` : "";
-    const fullPrompt = `${prompt}. ${archetypeStr} ${segStr} Editorial, high quality, soft natural lighting, instagram feed aesthetic, vertical 4:5 composition.`;
+    const fullPrompt = `${prompt}. ${styleStr} ${segStr} Editorial, high quality, soft natural lighting, instagram feed aesthetic, vertical 4:5 composition.`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",

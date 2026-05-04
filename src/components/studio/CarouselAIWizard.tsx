@@ -96,6 +96,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
   const [slideCount, setSlideCount] = useState(5);
   const [imageMode, setImageMode] = useState<ImageMode>("bg");
   const [aiImages, setAiImages] = useState(true);
+  const [imageStyle, setImageStyle] = useState("");
 
   // Step 2 - geral
   const [instagram, setInstagram] = useState("");
@@ -151,6 +152,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         setSlideCount(5);
         setImageMode("bg");
         setAiImages(true);
+        setImageStyle("");
         setInstagram("");
         setSelectedPaletteIdx(0);
         setProgress(0);
@@ -467,9 +469,14 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
       }>;
 
       // Jobs de imagem (geradas em background no editor)
+      const trimmedStyle = imageStyle.trim() || null;
       const imageJobs =
         aiImages && imageMode !== "none"
-          ? slidesData.map((s, i) => ({ slideIndex: i, imagePrompt: s.imagePrompt || effectiveTopic }))
+          ? slidesData.map((s, i) => ({
+              slideIndex: i,
+              imagePrompt: s.imagePrompt || effectiveTopic,
+              imageStyle: trimmedStyle,
+            }))
           : [];
 
       const bootstrap = {
@@ -487,6 +494,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
           : null,
         imageJobs,
         archetype: data?.meta?.archetype ?? null,
+        imageStyle: trimmedStyle,
       };
       try {
         sessionStorage.setItem("studio:carrossel:bootstrap", JSON.stringify(bootstrap));
@@ -760,6 +768,26 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
                   <Switch checked={aiImages} onCheckedChange={setAiImages} disabled={imageMode === "none"} />
                 </div>
               </div>
+
+              {/* SEÇÃO 4 — Estilo das imagens */}
+              {aiImages && imageMode !== "none" && (
+                <div>
+                  <Label className="text-sm font-medium">
+                    Estilo das imagens{" "}
+                    <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+                  </Label>
+                  <Textarea
+                    value={imageStyle}
+                    onChange={(e) => setImageStyle(e.target.value)}
+                    rows={2}
+                    className="mt-2"
+                    placeholder="Ex: editorial minimalista, fotorrealista ao ar livre, cores vibrantes..."
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Se vazio, será usado um estilo padrão baseado no arquétipo da marca.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-2 pt-2">

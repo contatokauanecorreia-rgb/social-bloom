@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Loader2, FileText, Layers, CalendarDays, Film } from "lucide-react";
+import { Loader2, FileText, Layers, CalendarDays, Film, Bookmark } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PageContainer, PageHeader } from "@/components/dashboard/PageContainer";
@@ -11,6 +11,7 @@ import { CreditsExhaustedBanner } from "@/components/studio/CreditsExhaustedBann
 import { ModeCard } from "@/components/studio/ModeCard";
 import { CopyGeneratorDialog } from "@/components/studio/CopyGeneratorDialog";
 import { CarouselAIWizard } from "@/components/studio/CarouselAIWizard";
+import { TemplatesDialog } from "@/components/studio/TemplatesDialog";
 import { fetchCredits, MODE_COST, type CreditsState } from "@/lib/credits";
 import { ACTIVE_CLIENT_STORAGE_KEY } from "@/lib/client-context";
 
@@ -29,6 +30,7 @@ function StudioPage() {
   const [credits, setCredits] = useState<CreditsState | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
   const [carouselOpen, setCarouselOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -137,7 +139,7 @@ function StudioPage() {
         <ClientPicker value={clientId} onChange={handleClientChange} clients={clients} />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <ModeCard
           icon={FileText}
           title="Criar copy"
@@ -192,6 +194,20 @@ function StudioPage() {
             toast.info("Em breve!");
           }}
         />
+        <ModeCard
+          icon={Bookmark}
+          title="Templates salvos"
+          description="Use um estilo que você já criou antes."
+          cost={0}
+          freeLabel="Sem custo"
+          onClick={() => {
+            if (!clientId) {
+              toast.error("Selecione um cliente para ver os templates.");
+              return;
+            }
+            setTemplatesOpen(true);
+          }}
+        />
       </div>
 
       <CopyGeneratorDialog
@@ -204,6 +220,12 @@ function StudioPage() {
       <CarouselAIWizard
         open={carouselOpen}
         onOpenChange={setCarouselOpen}
+        clientId={clientId}
+      />
+
+      <TemplatesDialog
+        open={templatesOpen}
+        onOpenChange={setTemplatesOpen}
         clientId={clientId}
       />
     </PageContainer>
