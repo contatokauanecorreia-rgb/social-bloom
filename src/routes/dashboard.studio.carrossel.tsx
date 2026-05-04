@@ -1443,12 +1443,8 @@ function SlideContent({
         />
       )}
 
-      {/* bloco de texto arrastável */}
+      {/* bloco de texto */}
       <div
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
         style={{
           position: "absolute",
           left: `${slide.textPos.x * 100}%`,
@@ -1458,13 +1454,12 @@ function SlideContent({
           display: "flex",
           flexDirection: "column",
           alignItems: blockAlignItems,
-          cursor: draggable ? "move" : "default",
-          touchAction: draggable ? "none" : "auto",
-          userSelect: "none",
+          userSelect: editable ? "text" : "none",
         }}
       >
-        {slide.text.title && (
+        {(editable || slide.text.title) && (
           <h1
+            {...editableHandlers("title")}
             style={{
               fontSize: slide.fontSize.title,
               color: slide.textColor.title,
@@ -1473,29 +1468,33 @@ function SlideContent({
               margin: 0,
               textAlign: slide.textAlign.title,
               width: "100%",
+              ...editableStyle,
             }}
           >
             {slide.text.title}
           </h1>
         )}
-        {slide.text.subtitle && (
+        {(editable || slide.text.subtitle) && (
           <h2
+            {...editableHandlers("subtitle")}
             style={{
               fontSize: slide.fontSize.subtitle,
               color: slide.textColor.subtitle,
               fontWeight: slide.fontWeight.subtitle,
               lineHeight: 1.2,
               margin: 0,
-              marginTop: slide.text.title ? TITLE_TO_SUBTITLE : 0,
+              marginTop: slide.text.title || editable ? TITLE_TO_SUBTITLE : 0,
               textAlign: slide.textAlign.subtitle,
               width: "100%",
+              ...editableStyle,
             }}
           >
             {slide.text.subtitle}
           </h2>
         )}
-        {slide.text.body && (
+        {(editable || slide.text.body) && (
           <p
+            {...editableHandlers("body")}
             style={{
               fontSize: slide.fontSize.body,
               color: slide.textColor.body,
@@ -1503,7 +1502,7 @@ function SlideContent({
               lineHeight: 1.4,
               margin: 0,
               marginTop:
-                slide.text.subtitle
+                slide.text.subtitle || editable
                   ? SUBTITLE_TO_BODY
                   : slide.text.title
                   ? TITLE_TO_SUBTITLE
@@ -1511,6 +1510,7 @@ function SlideContent({
               whiteSpace: "pre-wrap",
               textAlign: slide.textAlign.body,
               width: "100%",
+              ...editableStyle,
             }}
           >
             {slide.text.body}
