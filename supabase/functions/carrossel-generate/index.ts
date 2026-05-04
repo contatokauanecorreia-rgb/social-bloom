@@ -286,7 +286,7 @@ Deno.serve(async (req) => {
     const remaining = () => DEADLINE_MS - (Date.now() - t0);
     let imagesGenerated = 0;
 
-    if (aiImages && imageMode !== "none" && !textFallback && remaining() > 10_000) {
+    if (!textOnly && aiImages && imageMode !== "none" && !textFallback && remaining() > 10_000) {
       const archetypeStr = briefing?.archetype ? `Brand archetype: ${briefing.archetype}.` : "";
       const segStr = segment ? `Segment: ${segment}.` : "";
 
@@ -334,7 +334,7 @@ Deno.serve(async (req) => {
           imagesGenerated += 1;
         }
       });
-    } else if (aiImages && imageMode !== "none") {
+    } else if (!textOnly && aiImages && imageMode !== "none") {
       console.warn("[carrossel-generate] skipping images", {
         textFallback,
         remainingMs: remaining(),
