@@ -5,7 +5,10 @@ import {
   AlignLeft,
   AlignRight,
   ArrowLeft,
+  ChevronDown,
+  ChevronRight,
   Download,
+  FileText,
   Image as ImageIcon,
   LayoutGrid,
   Loader2,
@@ -241,6 +244,62 @@ function CarrosselEditorPage() {
       console.warn("bootstrap parse error", e);
     }
   }, []);
+
+  // Background image generation loop — consumes imageJobs from bootstrap
+  const imageGenStartedRef = useRef(false);
+  useEffect(() => {
+    if (imageGenStartedRef.current) return;
+    const jobs = bootstrapRef.current?.imageJobs;
+    if (!jobs || jobs.length === 0) return;
+    if (slides.length === 0) return;
+    imageGenStartedRef.current = true;
+
+    const palette = bootstrapRef.current?.palette ?? dna.palette;
+    const archetype = bootstrapRef.current?.archetype ?? null;
+    const total = jobs.length;
+
+    (async () => {
+      for (let i = 0; i < jobs.length; i++) {
+        const job = jobs[i];
+        setImageProgress({
+          current: i + 1,
+          total,
+          percent: Math.round(((i) / total) * 100),
+        });
+        try {
+          const { data, error } = await supabase.functions.invoke("carrossel-image", {
+            body: { prompt: job.imagePrompt, palette, archetype },
+          });
+          if (error) throw error;
+          const url: string | undefined = data?.imageDataUrl;
+          if (url) {
+            setSlides((prev) => {
+              if (job.slideIndex < 0 || job.slideIndex >= prev.length) return prev;
+              return prev.map((s, idx) => {
+                if (idx !== job.slideIndex) return s;
+                return {
+                  ...s,
+                  bgImage: url,
+                  textColor: { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" },
+                  overlay: { ...s.overlay, enabled: true, intensity: 40, type: "dark" },
+                };
+              });
+            });
+          }
+          setImageProgress({
+            current: i + 1,
+            total,
+            percent: Math.round(((i + 1) / total) * 100),
+          });
+        } catch (err) {
+          console.error("carrossel-image job failed", job, err);
+        }
+      }
+      setImageProgress(null);
+      toast.success("Imagens geradas 🎨");
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slides.length]);
 
   useEffect(() => {
     let alive = true;
@@ -562,6 +621,22 @@ function CarrosselEditorPage() {
 
           {/* Barra de slides */}
           <div className="border-t bg-card p-3">
+            {imageProgress && (
+              <div className="mb-2">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+                  <span>Gerando imagens em segundo plano…</span>
+                  <span>
+                    {imageProgress.current}/{imageProgress.total}
+                  </span>
+                </div>
+                <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${imageProgress.percent}%` }}
+                  />
+                </div>
+              </div>
+            )}
             <SlidesBar
               slides={slides}
               format={format}
@@ -715,6 +790,79 @@ function EditorPanel({
 
   return (
     <div className="space-y-6">
+      {/* PLANNER DE CONTEÚDO */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setPlannerOpen((v) => !v)}
+          className="flex w-full items-center justify-between rounded-md border bg-background px-2.5 py-2 text-left transition hover:border-primary/40"
+        >
+          <span className="flex items-center gap-1.5 text-xs font-semibold">
+            {plannerOpen ? (
+              <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+            )}
+            <FileText className="h-3.5 w-3.5 text-primary" />
+            Planner de conteúdo
+          </span>
+          <span className="text-[10px] text-muted-foreground">
+            {plannerPosts.length} {plannerPosts.length === 1 ? "post" : "posts"}
+          </span>
+        </button>
+        {plannerOpen && (
+          <div className="mt-2 max-h-[240px] overflow-y-auto rounded-md border bg-muted/20 p-1.5">
+            {plannerPosts.length === 0 ? (
+              <p className="px-2 py-3 text-center text-[11px] text-muted-foreground">
+                Nenhum post no Planner para este cliente.
+              </p>
+            ) : (
+              <ul className="space-y-1">
+                {plannerPosts.map((post) => {
+                  const tagsLower = post.tags.map((t) => t.toLowerCase());
+                  const type = tagsLower.includes("carrossel")
+                    ? "carrossel"
+                    : tagsLower.includes("reels")
+                      ? "reels"
+                      : "post";
+                  const firstNoteLine = post.notes?.split("\n").find((l) => l.trim()) ?? "";
+                  return (
+                    <li key={post.id}>
+                      <button
+                        type="button"
+                        onClick={() => onApplyPlannerPost(post)}
+                        className="group w-full rounded-md border border-transparent bg-background p-2 text-left transition hover:border-primary/40 hover:bg-accent"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="line-clamp-2 text-[11px] font-medium leading-snug">
+                            {post.title}
+                          </span>
+                          <span
+                            className={cn(
+                              "shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider",
+                              type === "carrossel" && "bg-primary/15 text-primary",
+                              type === "reels" && "bg-purple-500/15 text-purple-600",
+                              type === "post" && "bg-muted text-muted-foreground",
+                            )}
+                          >
+                            {type}
+                          </span>
+                        </div>
+                        {firstNoteLine && (
+                          <p className="mt-1 line-clamp-1 text-[10px] text-muted-foreground">
+                            {firstNoteLine}
+                          </p>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
+
       {/* LAYOUT & POSIÇÃO */}
       <Section title="Layout & posição do texto">
         <p className="text-[11px] text-muted-foreground">
