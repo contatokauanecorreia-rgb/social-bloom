@@ -268,13 +268,19 @@ Deno.serve(async (req) => {
       fallback: textFallback,
     });
 
-    // Image generation
-    if (aiImages && imageMode !== "none") {
+    // Image generation — parallel with global deadline (gateway timeout is ~150s)
+    const DEADLINE_MS = 120_000;
+    const remaining = () => DEADLINE_MS - (Date.now() - t0);
+    let imagesGenerated = 0;
+
+    if (aiImages && imageMode !== "none" && !textFallback && remaining() > 10_000) {
       const archetypeStr = briefing?.archetype ? `Brand archetype: ${briefing.archetype}.` : "";
       const segStr = segment ? `Segment: ${segment}.` : "";
-      for (let i = 0; i < slides.length; i++) {
+
+      const genOne = async (i: number): Promise<string | null> => {
         const s = slides[i];
         const prompt = `${s.imagePrompt}. ${archetypeStr} ${segStr} Editorial, high quality, soft natural lighting, instagram feed aesthetic, vertical 4:5 composition.`;
+        console.log("[carrossel-generate] image_start", { i, ms: Date.now() - t0 });
         try {
           const imgResp = await callAI(
             {
@@ -286,20 +292,44 @@ Deno.serve(async (req) => {
           );
           if (!imgResp.ok) {
             const t = await imgResp.text();
-            console.error("AI image error:", imgResp.status, t);
-            // continue without image
-            continue;
+            console.error("[carrossel-generate] image error", { i, status: imgResp.status, body: t.slice(0, 200) });
+            return null;
           }
           const imgData = await imgResp.json();
           const url = imgData?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-          if (typeof url === "string" && url.startsWith("data:")) {
-            slides[i] = { ...s, imageDataUrl: url };
-          }
+          const ok = typeof url === "string" && url.startsWith("data:");
+          console.log("[carrossel-generate] image_done", { i, ok, ms: Date.now() - t0 });
+          return ok ? url : null;
         } catch (e) {
-          console.error("image gen exception", e);
+          console.error("[carrossel-generate] image exception", { i, err: String(e) });
+          return null;
         }
-      }
+      };
+
+      const perSlideTimeout = Math.max(5_000, remaining() - 2_000);
+      const results = await Promise.allSettled(
+        slides.map((_, i) =>
+          Promise.race<string | null>([
+            genOne(i),
+            new Promise<null>((res) => setTimeout(() => res(null), perSlideTimeout)),
+          ]),
+        ),
+      );
+      results.forEach((r, i) => {
+        if (r.status === "fulfilled" && r.value) {
+          slides[i].imageDataUrl = r.value;
+          imagesGenerated += 1;
+        }
+      });
+    } else if (aiImages && imageMode !== "none") {
+      console.warn("[carrossel-generate] skipping images", {
+        textFallback,
+        remainingMs: remaining(),
+      });
     }
+
+    const totalMs = Date.now() - t0;
+    console.log("[carrossel-generate] done", { totalMs, slides: slides.length, imagesGenerated, textFallback });
 
     return new Response(
       JSON.stringify({
@@ -308,15 +338,31 @@ Deno.serve(async (req) => {
           archetype: briefing?.archetype ?? null,
           paletteFromBriefing: Array.isArray(briefing?.palette) ? briefing!.palette : null,
           instagram: instagram ?? null,
+          fallback: textFallback,
+          imagesGenerated,
+          totalMs,
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
-    console.error("carrossel-generate error:", e);
+    console.error("[carrossel-generate] fatal", e);
+    // Last-resort fallback so the editor still opens.
+    const slides = fallbackSlides(topicForFallback || "conteúdo", clientNameForFallback, slideCountForFallback);
     return new Response(
-      JSON.stringify({ error: e instanceof Error ? e.message : "Erro desconhecido" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      JSON.stringify({
+        slides,
+        meta: {
+          archetype: null,
+          paletteFromBriefing: null,
+          instagram: null,
+          fallback: true,
+          imagesGenerated: 0,
+          totalMs: Date.now() - t0,
+          error: e instanceof Error ? e.message : "Erro desconhecido",
+        },
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   }
 });
