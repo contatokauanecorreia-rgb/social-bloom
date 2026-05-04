@@ -245,6 +245,62 @@ function CarrosselEditorPage() {
     }
   }, []);
 
+  // Background image generation loop — consumes imageJobs from bootstrap
+  const imageGenStartedRef = useRef(false);
+  useEffect(() => {
+    if (imageGenStartedRef.current) return;
+    const jobs = bootstrapRef.current?.imageJobs;
+    if (!jobs || jobs.length === 0) return;
+    if (slides.length === 0) return;
+    imageGenStartedRef.current = true;
+
+    const palette = bootstrapRef.current?.palette ?? dna.palette;
+    const archetype = bootstrapRef.current?.archetype ?? null;
+    const total = jobs.length;
+
+    (async () => {
+      for (let i = 0; i < jobs.length; i++) {
+        const job = jobs[i];
+        setImageProgress({
+          current: i + 1,
+          total,
+          percent: Math.round(((i) / total) * 100),
+        });
+        try {
+          const { data, error } = await supabase.functions.invoke("carrossel-image", {
+            body: { prompt: job.imagePrompt, palette, archetype },
+          });
+          if (error) throw error;
+          const url: string | undefined = data?.imageDataUrl;
+          if (url) {
+            setSlides((prev) => {
+              if (job.slideIndex < 0 || job.slideIndex >= prev.length) return prev;
+              return prev.map((s, idx) => {
+                if (idx !== job.slideIndex) return s;
+                return {
+                  ...s,
+                  bgImage: url,
+                  textColor: { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" },
+                  overlay: { ...s.overlay, enabled: true, intensity: 40, type: "dark" },
+                };
+              });
+            });
+          }
+          setImageProgress({
+            current: i + 1,
+            total,
+            percent: Math.round(((i + 1) / total) * 100),
+          });
+        } catch (err) {
+          console.error("carrossel-image job failed", job, err);
+        }
+      }
+      setImageProgress(null);
+      toast.success("Imagens geradas 🎨");
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slides.length]);
+
   useEffect(() => {
     let alive = true;
     supabase.auth.getSession().then(({ data }) => {
