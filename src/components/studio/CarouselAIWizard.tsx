@@ -7,6 +7,7 @@ import {
   ChevronRight,
   ChevronUp,
   Image as ImageIcon,
+  Link2,
   Loader2,
   Search,
   Sparkles,
