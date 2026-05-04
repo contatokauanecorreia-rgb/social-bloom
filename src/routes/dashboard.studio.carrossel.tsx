@@ -1312,14 +1312,17 @@ function SlideContent({
   slide,
   format,
   dna,
-  scale,
-  onMoveText,
+  editable,
+  onEditField,
+  onSelectField,
 }: {
   slide: Slide;
   format: Format;
   dna: BriefingDNA;
   scale?: number;
-  onMoveText?: (dxFraction: number, dyFraction: number) => void;
+  editable?: boolean;
+  onEditField?: (field: TextField, value: string) => void;
+  onSelectField?: (f: TextField) => void;
 }) {
   const overlayBg = (() => {
     if (!slide.overlay.enabled) return "transparent";
@@ -1330,7 +1333,6 @@ function SlideContent({
   })();
 
   const family = brandFontFamily(dna.brandFont);
-  const draggable = !!onMoveText && !!scale && scale > 0;
 
   // alinhamento do bloco como um todo derivado do alinhamento do título
   const blockAlignItems =
@@ -1340,31 +1342,30 @@ function SlideContent({
       ? "flex-end"
       : "center";
 
-  // drag state
-  const dragRef = useRef<{ startX: number; startY: number } | null>(null);
+  const editableHandlers = (field: TextField) =>
+    editable
+      ? {
+          contentEditable: true,
+          suppressContentEditableWarning: true,
+          onClick: (e: React.MouseEvent) => {
+            e.stopPropagation();
+            onSelectField?.(field);
+          },
+          onBlur: (e: React.FocusEvent<HTMLElement>) => {
+            onEditField?.(field, e.currentTarget.innerText);
+          },
+          onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              (e.currentTarget as HTMLElement).blur();
+            }
+          },
+        }
+      : {};
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!draggable) return;
-    e.preventDefault();
-    e.stopPropagation();
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    dragRef.current = { startX: e.clientX, startY: e.clientY };
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!draggable || !dragRef.current || !onMoveText || !scale) return;
-    const dxScreen = e.clientX - dragRef.current.startX;
-    const dyScreen = e.clientY - dragRef.current.startY;
-    const dxFraction = dxScreen / scale / format.w;
-    const dyFraction = dyScreen / scale / format.h;
-    if (Math.abs(dxScreen) < 1 && Math.abs(dyScreen) < 1) return;
-    dragRef.current = { startX: e.clientX, startY: e.clientY };
-    onMoveText(dxFraction, dyFraction);
-  };
-
-  const handlePointerUp = () => {
-    dragRef.current = null;
-  };
+  const editableStyle: React.CSSProperties = editable
+    ? { outline: "none", cursor: "text" }
+    : {};
 
   const sigPadding = format.w * 0.05;
   const sigStyle: React.CSSProperties = {
