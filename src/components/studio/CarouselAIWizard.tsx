@@ -498,63 +498,178 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         {step === 1 && (
           <>
             <DialogHeader>
-              <DialogTitle>Configurar IA</DialogTitle>
+              <DialogTitle>Configurar carrossel</DialogTitle>
               <DialogDescription>
-                Diga sobre o que é o conteúdo e como quer o carrossel.
+                Escolha a fonte do conteúdo e como quer o carrossel.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-5 py-2">
-              <div>
-                <Label className="text-sm font-medium">Sobre o que é o conteúdo?</Label>
-                <Textarea
-                  value={topic}
-                  onChange={(e) => setTopic(e.target.value)}
-                  rows={3}
-                  className="mt-1"
-                  placeholder="Ex: 5 benefícios do pilates para mulheres acima de 40 anos..."
-                />
+              {/* SEÇÃO 1 — Fonte do conteúdo */}
+              <div className="space-y-3">
+                <Label className="text-sm font-semibold">Fonte do conteúdo</Label>
+
+                <label
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-3 transition",
+                    contentSource === "planner"
+                      ? "border-primary bg-primary/5"
+                      : "hover:border-primary/40",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    className="mt-1"
+                    checked={contentSource === "planner"}
+                    onChange={() => setContentSource("planner")}
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Usar conteúdo do Planner</div>
+                    <div className="text-xs text-muted-foreground">
+                      Selecione um ou mais posts já planejados para este cliente.
+                    </div>
+                    {contentSource === "planner" && (
+                      <div className="mt-3 max-h-48 overflow-y-auto rounded-md border bg-card">
+                        {loadingPosts ? (
+                          <div className="flex items-center gap-2 p-3 text-xs text-muted-foreground">
+                            <Loader2 className="h-3 w-3 animate-spin" /> Carregando posts...
+                          </div>
+                        ) : plannerPosts.length === 0 ? (
+                          <p className="p-3 text-xs text-muted-foreground">
+                            Nenhum post no Planner para este cliente.
+                          </p>
+                        ) : (
+                          plannerPosts.map((p) => {
+                            const checked = selectedPostIds.includes(p.id);
+                            const type =
+                              p.tags.find((t) => /carrossel|reels|post/i.test(t))?.toLowerCase() ?? "post";
+                            return (
+                              <label
+                                key={p.id}
+                                className={cn(
+                                  "flex cursor-pointer items-center gap-2 border-b px-3 py-2 text-xs last:border-b-0 hover:bg-accent",
+                                  checked && "bg-primary/5",
+                                )}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) => {
+                                    setSelectedPostIds((arr) =>
+                                      e.target.checked
+                                        ? [...arr, p.id]
+                                        : arr.filter((x) => x !== p.id),
+                                    );
+                                  }}
+                                />
+                                <span className="flex-1 truncate font-medium">{p.title}</span>
+                                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                                  {type}
+                                </span>
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </label>
+
+                <label
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-lg border bg-background p-3 transition",
+                    contentSource === "ai"
+                      ? "border-primary bg-primary/5"
+                      : "hover:border-primary/40",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    className="mt-1"
+                    checked={contentSource === "ai"}
+                    onChange={() => setContentSource("ai")}
+                  />
+                  <div className="flex-1">
+                    <div className="text-sm font-medium">Gerar com IA</div>
+                    <div className="text-xs text-muted-foreground">
+                      Descreva o tema e a IA escreve os slides.
+                    </div>
+                    {contentSource === "ai" && (
+                      <Textarea
+                        value={topic}
+                        onChange={(e) => setTopic(e.target.value)}
+                        rows={3}
+                        className="mt-2"
+                        placeholder="Ex: 5 benefícios do pilates para mulheres acima de 40 anos..."
+                      />
+                    )}
+                  </div>
+                </label>
               </div>
 
+              {/* SEÇÃO 2 — Referência de conteúdo */}
               <div>
-                <Label className="text-sm font-medium">
-                  Moodboard ou referência <span className="text-xs text-muted-foreground">(opcional)</span>
+                <Label className="text-sm font-semibold">
+                  Referência de conteúdo <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
                 </Label>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Anexe aqui uma referência do Pinterest ou inspiração visual.
+                  Anexe uma imagem ou cole um link (Pinterest, Instagram, site...) — a IA vai analisar paleta, tipografia e estilo visual.
                 </p>
-                {moodboardPreview ? (
+
+                {referenceImageDataUrl ? (
                   <div className="mt-2 flex items-center gap-2">
-                    <img src={moodboardPreview} alt="moodboard" className="h-16 w-16 rounded object-cover" />
+                    <img src={referenceImageDataUrl} alt="referência" className="h-16 w-16 rounded object-cover" />
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => {
-                        setMoodboardFile(null);
-                        setMoodboardPreview(null);
-                      }}
+                      onClick={clearReference}
                       className="gap-1 text-xs"
                     >
                       <X className="h-3 w-3" /> Remover
                     </Button>
                   </div>
                 ) : (
-                  <label className="mt-2 flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed bg-background py-3 text-xs font-medium hover:bg-accent">
-                    <ImageIcon className="h-4 w-4" />
-                    Anexar imagem
-                    <input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        if (f) onPickMoodboard(f);
-                        e.target.value = "";
-                      }}
-                    />
-                  </label>
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    <label className="flex cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed bg-background py-3 text-xs font-medium hover:bg-accent">
+                      <ImageIcon className="h-4 w-4" />
+                      Anexar imagem
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) onPickReferenceFile(f);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                    <div className="flex gap-1.5">
+                      <div className="relative flex-1">
+                        <Link2 className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                        <Input
+                          value={referenceUrl}
+                          onChange={(e) => setReferenceUrl(e.target.value)}
+                          placeholder="Colar link"
+                          className="h-9 pl-7 text-xs"
+                          disabled={referenceLoading}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={onUseReferenceUrl}
+                        disabled={!referenceUrl.trim() || referenceLoading}
+                      >
+                        {referenceLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Usar"}
+                      </Button>
+                    </div>
+                  </div>
                 )}
               </div>
+
+              {/* SEÇÃO 3 — Configurações (mantida) */}
 
               <div>
                 <Label className="text-sm font-medium">Número de slides</Label>
