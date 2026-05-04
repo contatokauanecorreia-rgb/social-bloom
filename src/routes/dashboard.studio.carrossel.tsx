@@ -740,7 +740,11 @@ function CarrosselEditorPage() {
                 slide={activeSlide}
                 format={format}
                 dna={dna}
-                onMoveText={moveActiveText}
+                editable
+                onSelectField={setSelectedField}
+                onEditField={(field, value) =>
+                  updateActive((s) => ({ ...s, text: { ...s.text, [field]: value } }))
+                }
               />
             </main>
           </div>
