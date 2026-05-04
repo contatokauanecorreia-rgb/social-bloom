@@ -1018,6 +1018,30 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
                     </div>
                   )}
                 </div>
+
+                {/* PESO DA FONTE — apenas para sugeridas/personalizadas */}
+                {selected && selected.source !== "dna" && (
+                  <div className="mt-4">
+                    <Label className="text-sm font-medium">Peso da fonte</Label>
+                    <div className="mt-2 grid grid-cols-3 gap-2">
+                      {(["light", "medium", "bold"] as const).map((w) => (
+                        <Button
+                          key={w}
+                          type="button"
+                          variant={fontWeightChoice === w ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFontWeightChoice(w)}
+                          style={{ fontWeight: WEIGHT_MAP[w] }}
+                        >
+                          {w === "light" ? "Light" : w === "medium" ? "Medium" : "Bold"}
+                        </Button>
+                      ))}
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Aplicado a títulos, subtítulos e corpo dos slides.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* PALETA */}
