@@ -192,6 +192,11 @@ function CarrosselEditorPage() {
     percent: number;
   } | null>(null);
 
+  // Salvar como template
+  const [saveTemplateChecked, setSaveTemplateChecked] = useState(false);
+  const [templateName, setTemplateName] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
   // initial setup
   useEffect(() => {
     if (slides.length > 0 && !activeId) setActiveId(slides[0].id);
