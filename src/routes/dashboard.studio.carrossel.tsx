@@ -448,16 +448,6 @@ function CarrosselEditorPage() {
     setActiveId(ns.id);
   };
 
-  const moveActiveText = (dxFraction: number, dyFraction: number) => {
-    setSlides((prev) =>
-      prev.map((s) => {
-        if (s.id !== activeId) return s;
-        const x = Math.max(0.05, Math.min(0.95, s.textPos.x + dxFraction));
-        const y = Math.max(0.05, Math.min(0.95, s.textPos.y + dyFraction));
-        return { ...s, textPos: { x, y } };
-      }),
-    );
-  };
 
   const removeSlide = (id: string) => {
     if (slides.length === 1) {
