@@ -469,9 +469,14 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
       }>;
 
       // Jobs de imagem (geradas em background no editor)
+      const trimmedStyle = imageStyle.trim() || null;
       const imageJobs =
         aiImages && imageMode !== "none"
-          ? slidesData.map((s, i) => ({ slideIndex: i, imagePrompt: s.imagePrompt || effectiveTopic }))
+          ? slidesData.map((s, i) => ({
+              slideIndex: i,
+              imagePrompt: s.imagePrompt || effectiveTopic,
+              imageStyle: trimmedStyle,
+            }))
           : [];
 
       const bootstrap = {
@@ -489,6 +494,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
           : null,
         imageJobs,
         archetype: data?.meta?.archetype ?? null,
+        imageStyle: trimmedStyle,
       };
       try {
         sessionStorage.setItem("studio:carrossel:bootstrap", JSON.stringify(bootstrap));
