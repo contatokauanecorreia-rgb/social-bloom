@@ -168,6 +168,8 @@ function CarrosselEditorPage() {
     palette?: [string, string, string];
     imageMode?: "none" | "bg" | "grid" | "mixed";
     signature?: { enabled: boolean; handle: string; position: SignaturePos; color: string } | null;
+    imageJobs?: { slideIndex: number; imagePrompt: string }[];
+    archetype?: string | null;
   } | null>(null);
 
   const [slides, setSlides] = useState<Slide[]>([makeSlide()]);
@@ -177,7 +179,14 @@ function CarrosselEditorPage() {
 
   const [exporting, setExporting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
-  const [plannerTitles, setPlannerTitles] = useState<string[]>([]);
+  const [plannerPosts, setPlannerPosts] = useState<
+    { id: string; title: string; tags: string[]; notes: string | null }[]
+  >([]);
+  const [imageProgress, setImageProgress] = useState<{
+    current: number;
+    total: number;
+    percent: number;
+  } | null>(null);
 
   // initial setup
   useEffect(() => {
