@@ -179,6 +179,7 @@ Deno.serve(async (req) => {
       `Gere exatamente ${slideCount} slides numerados, em português do Brasil.`,
       "O slide 1 é a CAPA com gancho forte. O último é CTA.",
       "Cada slide tem: title (curto, máx 6 palavras), subtitle (opcional, máx 8 palavras), body (1-3 frases curtas), e imagePrompt (descrição visual em inglês para gerar imagem).",
+      "O imagePrompt deve descrever apenas conteúdo visual/fotográfico — nunca peça texto, letras, tipografia, legendas, marca d'água ou logos com texto na imagem.",
       "Não use markdown, listas ou emojis em excesso.",
       "Quando uma imagem de referência for enviada, observe paleta de cores, tipografia, layout, densidade de texto e estilo visual; descreva esse estilo nos `imagePrompt` dos slides e module o tom textual de acordo.",
       briefingCtx,

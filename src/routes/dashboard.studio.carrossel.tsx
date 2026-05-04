@@ -155,8 +155,7 @@ function CarrosselEditorPage() {
     brandFontUrl: null,
   });
 
-  const [format, setFormat] = useState<Format | null>(null);
-  const [formatPickerOpen, setFormatPickerOpen] = useState(true);
+  const [format, setFormat] = useState<Format>(FORMATS[0]);
 
   // Bootstrap state populated from sessionStorage (when user came from AI wizard)
   const bootstrapRef = useRef<{
@@ -215,7 +214,6 @@ function CarrosselEditorPage() {
 
       // Auto-pick default format (carrossel 4:5) when arriving from AI flow
       setFormat(FORMATS[0]);
-      setFormatPickerOpen(false);
 
       const aiSlides = Array.isArray(data.slides) ? data.slides : [];
       const sigBase = data.signature ?? null;
@@ -268,7 +266,6 @@ function CarrosselEditorPage() {
       templateAppliedRef.current = true;
 
       setFormat(FORMATS[0]);
-      setFormatPickerOpen(false);
 
       const palette = (tpl.palette ?? []) as string[];
       if (palette.length >= 3) {
@@ -451,16 +448,6 @@ function CarrosselEditorPage() {
     setActiveId(ns.id);
   };
 
-  const moveActiveText = (dxFraction: number, dyFraction: number) => {
-    setSlides((prev) =>
-      prev.map((s) => {
-        if (s.id !== activeId) return s;
-        const x = Math.max(0.05, Math.min(0.95, s.textPos.x + dxFraction));
-        const y = Math.max(0.05, Math.min(0.95, s.textPos.y + dyFraction));
-        return { ...s, textPos: { x, y } };
-      }),
-    );
-  };
 
   const removeSlide = (id: string) => {
     if (slides.length === 1) {
@@ -621,11 +608,6 @@ function CarrosselEditorPage() {
     }
   };
 
-  const handlePickFormat = (f: Format) => {
-    setFormat(f);
-    setFormatPickerOpen(false);
-  };
-
   // -------- Render --------
 
   if (!userId) {
@@ -748,7 +730,11 @@ function CarrosselEditorPage() {
                 slide={activeSlide}
                 format={format}
                 dna={dna}
-                onMoveText={moveActiveText}
+                editable
+                onSelectField={setSelectedField}
+                onEditField={(field, value) =>
+                  updateActive((s) => ({ ...s, text: { ...s.text, [field]: value } }))
+                }
               />
             </main>
           </div>
@@ -809,83 +795,11 @@ function CarrosselEditorPage() {
         </>
       )}
 
-      <FormatPickerDialog
-        open={formatPickerOpen}
-        onPick={handlePickFormat}
-        onCancel={() => navigate({ to: "/dashboard/studio" })}
-      />
     </div>
   );
 }
 
 // ---------- Subcomponentes ----------
-
-function FormatPickerDialog({
-  open,
-  onPick,
-  onCancel,
-}: {
-  open: boolean;
-  onPick: (f: Format) => void;
-  onCancel: () => void;
-}) {
-  const [selected, setSelected] = useState<FormatKey>("carrossel");
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) onCancel();
-      }}
-    >
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Escolha o formato</DialogTitle>
-          <DialogDescription>
-            Em qual formato você vai criar seu conteúdo?
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid grid-cols-3 gap-3">
-          {FORMATS.map((f) => {
-            const ar = f.w / f.h;
-            const isSel = selected === f.key;
-            return (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setSelected(f.key)}
-                className={cn(
-                  "flex flex-col items-center gap-2 rounded-xl border bg-background p-3 text-center transition",
-                  isSel ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/50",
-                )}
-              >
-                <div
-                  className="rounded bg-gradient-to-br from-primary/30 to-primary/10"
-                  style={{
-                    width: 80,
-                    height: 80 / ar,
-                    maxHeight: 110,
-                  }}
-                />
-                <div className="text-xs font-semibold">{f.label}</div>
-                <div className="text-[10px] text-muted-foreground">
-                  {f.w}×{f.h}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" onClick={onCancel}>
-            Cancelar
-          </Button>
-          <Button onClick={() => onPick(FORMATS.find((f) => f.key === selected)!)}>
-            Começar
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 type PlannerPost = { id: string; title: string; tags: string[]; notes: string | null };
 
@@ -916,11 +830,6 @@ function EditorPanel({
   const [applySigAll, setApplySigAll] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
 
-  const setAlign = (field: TextField, value: TextAlign) =>
-    onUpdateActive((s) => ({ ...s, textAlign: { ...s.textAlign, [field]: value } }));
-
-  const setWeight = (field: TextField, value: number) =>
-    onUpdateActive((s) => ({ ...s, fontWeight: { ...s.fontWeight, [field]: value } }));
 
   return (
     <div className="space-y-6">
@@ -996,44 +905,6 @@ function EditorPanel({
           </div>
         )}
       </div>
-
-      {/* LAYOUT & POSIÇÃO */}
-      <Section title="Layout & posição do texto">
-        <p className="text-[11px] text-muted-foreground">
-          Encaixe o bloco de texto em uma das 9 posições, ou arraste no preview.
-        </p>
-        <div className="mt-2 grid grid-cols-3 gap-1.5">
-          {[0.15, 0.5, 0.85].flatMap((y) =>
-            [0.15, 0.5, 0.85].map((x) => {
-              const isActive =
-                Math.abs(slide.textPos.x - x) < 0.02 && Math.abs(slide.textPos.y - y) < 0.02;
-              return (
-                <button
-                  key={`${x}-${y}`}
-                  type="button"
-                  onClick={() =>
-                    onUpdateActive((s) => ({ ...s, textPos: { x, y } }))
-                  }
-                  className={cn(
-                    "aspect-square rounded-md border transition flex items-center justify-center",
-                    isActive
-                      ? "border-primary bg-primary/10"
-                      : "border-border bg-background hover:border-primary/40",
-                  )}
-                  title={`Posição ${x},${y}`}
-                >
-                  <div
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full",
-                      isActive ? "bg-primary" : "bg-muted-foreground/40",
-                    )}
-                  />
-                </button>
-              );
-            }),
-          )}
-        </div>
-      </Section>
 
       {/* IMAGEM */}
       <Section title="Imagem de fundo">
@@ -1202,119 +1073,6 @@ function EditorPanel({
         )}
       </Section>
 
-      {/* TEXTO */}
-      <Section title="Texto">
-        <TextFieldRow
-          label="Título"
-          value={slide.text.title}
-          field="title"
-          align={slide.textAlign.title}
-          onAlign={(a) => setAlign("title", a)}
-          selected={selectedField === "title"}
-          onSelect={() => setSelectedField("title")}
-          onChange={(v) =>
-            onUpdateActive((s) => ({ ...s, text: { ...s.text, title: v } }))
-          }
-          onApplyAll={() =>
-            onApplyToAll((s, src) => ({
-              ...s,
-              text: { ...s.text, title: src.text.title },
-            }))
-          }
-          isTextarea={false}
-          suggestions={plannerTitles}
-        />
-        <TextFieldRow
-          label="Subtítulo"
-          value={slide.text.subtitle}
-          field="subtitle"
-          align={slide.textAlign.subtitle}
-          onAlign={(a) => setAlign("subtitle", a)}
-          selected={selectedField === "subtitle"}
-          onSelect={() => setSelectedField("subtitle")}
-          onChange={(v) =>
-            onUpdateActive((s) => ({ ...s, text: { ...s.text, subtitle: v } }))
-          }
-          onApplyAll={() =>
-            onApplyToAll((s, src) => ({
-              ...s,
-              text: { ...s.text, subtitle: src.text.subtitle },
-            }))
-          }
-          isTextarea={false}
-        />
-        <TextFieldRow
-          label="Texto do corpo"
-          value={slide.text.body}
-          field="body"
-          align={slide.textAlign.body}
-          onAlign={(a) => setAlign("body", a)}
-          selected={selectedField === "body"}
-          onSelect={() => setSelectedField("body")}
-          onChange={(v) =>
-            onUpdateActive((s) => ({ ...s, text: { ...s.text, body: v } }))
-          }
-          onApplyAll={() =>
-            onApplyToAll((s, src) => ({
-              ...s,
-              text: { ...s.text, body: src.text.body },
-            }))
-          }
-          isTextarea
-        />
-      </Section>
-
-      {/* FONTE */}
-      <Section title="Fonte">
-        <div className="rounded-md border bg-background px-2.5 py-2 text-xs">
-          <div className="flex items-center gap-1.5 text-muted-foreground">
-            <Type className="h-3 w-3" />
-            DNA da marca
-          </div>
-          <div className="mt-1 font-medium">
-            {dna.brandFont || "Fonte padrão"}
-            {dna.brandFontUrl ? " (custom)" : ""}
-          </div>
-        </div>
-
-        {(["title", "subtitle", "body"] as TextField[]).map((f) => (
-          <div key={f} className="mt-3 space-y-2">
-            <div>
-              <Label className="text-[11px] capitalize text-muted-foreground">
-                Tamanho — {f === "title" ? "Título" : f === "subtitle" ? "Subtítulo" : "Corpo"} (
-                {slide.fontSize[f]}px)
-              </Label>
-              <Slider
-                className="mt-1"
-                value={[slide.fontSize[f]]}
-                min={f === "title" ? 32 : f === "subtitle" ? 20 : 14}
-                max={f === "title" ? 140 : f === "subtitle" ? 100 : 80}
-                step={1}
-                onValueChange={(v) =>
-                  onUpdateActive((s) => ({
-                    ...s,
-                    fontSize: { ...s.fontSize, [f]: v[0] },
-                  }))
-                }
-              />
-            </div>
-            <div>
-              <Label className="text-[11px] text-muted-foreground">
-                Peso ({slide.fontWeight[f]})
-              </Label>
-              <Slider
-                className="mt-1"
-                value={[slide.fontWeight[f]]}
-                min={300}
-                max={700}
-                step={100}
-                onValueChange={(v) => setWeight(f, v[0])}
-              />
-            </div>
-          </div>
-        ))}
-      </Section>
-
       {/* CORES */}
       <Section title="Cores">
         <p className="text-[11px] text-muted-foreground">
@@ -1465,138 +1223,20 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function TextFieldRow({
-  label,
-  value,
-  selected,
-  align,
-  onAlign,
-  onSelect,
-  onChange,
-  onApplyAll,
-  isTextarea,
-  suggestions,
-}: {
-  label: string;
-  value: string;
-  field: TextField;
-  selected: boolean;
-  align: TextAlign;
-  onAlign: (a: TextAlign) => void;
-  onSelect: () => void;
-  onChange: (v: string) => void;
-  onApplyAll: () => void;
-  isTextarea: boolean;
-  suggestions?: string[];
-}) {
-  const [showSugg, setShowSugg] = useState(false);
-  const filteredSugg =
-    suggestions && value.trim().length >= 2
-      ? suggestions
-          .filter((t) => t.toLowerCase().includes(value.toLowerCase()) && t !== value)
-          .slice(0, 6)
-      : [];
-
-  return (
-    <div
-      className={cn(
-        "rounded-md border p-2 transition",
-        selected ? "border-primary bg-primary/5" : "border-border",
-      )}
-    >
-      <div className="flex items-center justify-between">
-        <Label className="text-[11px] text-muted-foreground">{label}</Label>
-        <div className="flex gap-0.5">
-          {(
-            [
-              ["left", AlignLeft],
-              ["center", AlignCenter],
-              ["right", AlignRight],
-            ] as [TextAlign, typeof AlignLeft][]
-          ).map(([a, Icon]) => (
-            <button
-              key={a}
-              type="button"
-              onClick={() => onAlign(a)}
-              className={cn(
-                "rounded p-1 transition",
-                align === a ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent",
-              )}
-              title={`Alinhar ${a}`}
-            >
-              <Icon className="h-3 w-3" />
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="relative">
-        {isTextarea ? (
-          <Textarea
-            value={value}
-            onFocus={onSelect}
-            onChange={(e) => onChange(e.target.value)}
-            rows={3}
-            className="mt-1 text-sm"
-            placeholder="Digite aqui..."
-          />
-        ) : (
-          <Input
-            value={value}
-            onFocus={() => {
-              onSelect();
-              setShowSugg(true);
-            }}
-            onBlur={() => setTimeout(() => setShowSugg(false), 150)}
-            onChange={(e) => {
-              onChange(e.target.value);
-              setShowSugg(true);
-            }}
-            className="mt-1 text-sm"
-            placeholder="Digite aqui..."
-          />
-        )}
-        {!isTextarea && showSugg && filteredSugg.length > 0 && (
-          <ul className="absolute left-0 right-0 top-full z-20 mt-1 max-h-48 overflow-y-auto rounded-md border bg-popover shadow-md">
-            {filteredSugg.map((s) => (
-              <li key={s}>
-                <button
-                  type="button"
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    onChange(s);
-                    setShowSugg(false);
-                  }}
-                  className="block w-full truncate px-2 py-1.5 text-left text-xs hover:bg-accent"
-                  title={s}
-                >
-                  {s}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-      <button
-        type="button"
-        onClick={onApplyAll}
-        className="mt-1 text-[10px] font-medium text-primary hover:underline"
-      >
-        Aplicar em todos os slides
-      </button>
-    </div>
-  );
-}
-
 function ScaledPreview({
   slide,
   format,
   dna,
-  onMoveText,
+  editable,
+  onEditField,
+  onSelectField,
 }: {
   slide: Slide;
   format: Format;
   dna: BriefingDNA;
-  onMoveText?: (dxFraction: number, dyFraction: number) => void;
+  editable?: boolean;
+  onEditField?: (field: TextField, value: string) => void;
+  onSelectField?: (f: TextField) => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(0.4);
@@ -1649,7 +1289,9 @@ function ScaledPreview({
           format={format}
           dna={dna}
           scale={scale}
-          onMoveText={onMoveText}
+          editable={editable}
+          onEditField={onEditField}
+          onSelectField={onSelectField}
         />
       </div>
     </div>
@@ -1660,14 +1302,17 @@ function SlideContent({
   slide,
   format,
   dna,
-  scale,
-  onMoveText,
+  editable,
+  onEditField,
+  onSelectField,
 }: {
   slide: Slide;
   format: Format;
   dna: BriefingDNA;
   scale?: number;
-  onMoveText?: (dxFraction: number, dyFraction: number) => void;
+  editable?: boolean;
+  onEditField?: (field: TextField, value: string) => void;
+  onSelectField?: (f: TextField) => void;
 }) {
   const overlayBg = (() => {
     if (!slide.overlay.enabled) return "transparent";
@@ -1678,7 +1323,6 @@ function SlideContent({
   })();
 
   const family = brandFontFamily(dna.brandFont);
-  const draggable = !!onMoveText && !!scale && scale > 0;
 
   // alinhamento do bloco como um todo derivado do alinhamento do título
   const blockAlignItems =
@@ -1688,31 +1332,30 @@ function SlideContent({
       ? "flex-end"
       : "center";
 
-  // drag state
-  const dragRef = useRef<{ startX: number; startY: number } | null>(null);
+  const editableHandlers = (field: TextField) =>
+    editable
+      ? {
+          contentEditable: true,
+          suppressContentEditableWarning: true,
+          onClick: (e: React.MouseEvent) => {
+            e.stopPropagation();
+            onSelectField?.(field);
+          },
+          onBlur: (e: React.FocusEvent<HTMLElement>) => {
+            onEditField?.(field, e.currentTarget.innerText);
+          },
+          onKeyDown: (e: React.KeyboardEvent<HTMLElement>) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              (e.currentTarget as HTMLElement).blur();
+            }
+          },
+        }
+      : {};
 
-  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!draggable) return;
-    e.preventDefault();
-    e.stopPropagation();
-    (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-    dragRef.current = { startX: e.clientX, startY: e.clientY };
-  };
-
-  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!draggable || !dragRef.current || !onMoveText || !scale) return;
-    const dxScreen = e.clientX - dragRef.current.startX;
-    const dyScreen = e.clientY - dragRef.current.startY;
-    const dxFraction = dxScreen / scale / format.w;
-    const dyFraction = dyScreen / scale / format.h;
-    if (Math.abs(dxScreen) < 1 && Math.abs(dyScreen) < 1) return;
-    dragRef.current = { startX: e.clientX, startY: e.clientY };
-    onMoveText(dxFraction, dyFraction);
-  };
-
-  const handlePointerUp = () => {
-    dragRef.current = null;
-  };
+  const editableStyle: React.CSSProperties = editable
+    ? { outline: "none", cursor: "text" }
+    : {};
 
   const sigPadding = format.w * 0.05;
   const sigStyle: React.CSSProperties = {
@@ -1790,12 +1433,8 @@ function SlideContent({
         />
       )}
 
-      {/* bloco de texto arrastável */}
+      {/* bloco de texto */}
       <div
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
         style={{
           position: "absolute",
           left: `${slide.textPos.x * 100}%`,
@@ -1805,13 +1444,12 @@ function SlideContent({
           display: "flex",
           flexDirection: "column",
           alignItems: blockAlignItems,
-          cursor: draggable ? "move" : "default",
-          touchAction: draggable ? "none" : "auto",
-          userSelect: "none",
+          userSelect: editable ? "text" : "none",
         }}
       >
-        {slide.text.title && (
+        {(editable || slide.text.title) && (
           <h1
+            {...editableHandlers("title")}
             style={{
               fontSize: slide.fontSize.title,
               color: slide.textColor.title,
@@ -1820,29 +1458,33 @@ function SlideContent({
               margin: 0,
               textAlign: slide.textAlign.title,
               width: "100%",
+              ...editableStyle,
             }}
           >
             {slide.text.title}
           </h1>
         )}
-        {slide.text.subtitle && (
+        {(editable || slide.text.subtitle) && (
           <h2
+            {...editableHandlers("subtitle")}
             style={{
               fontSize: slide.fontSize.subtitle,
               color: slide.textColor.subtitle,
               fontWeight: slide.fontWeight.subtitle,
               lineHeight: 1.2,
               margin: 0,
-              marginTop: slide.text.title ? TITLE_TO_SUBTITLE : 0,
+              marginTop: slide.text.title || editable ? TITLE_TO_SUBTITLE : 0,
               textAlign: slide.textAlign.subtitle,
               width: "100%",
+              ...editableStyle,
             }}
           >
             {slide.text.subtitle}
           </h2>
         )}
-        {slide.text.body && (
+        {(editable || slide.text.body) && (
           <p
+            {...editableHandlers("body")}
             style={{
               fontSize: slide.fontSize.body,
               color: slide.textColor.body,
@@ -1850,7 +1492,7 @@ function SlideContent({
               lineHeight: 1.4,
               margin: 0,
               marginTop:
-                slide.text.subtitle
+                slide.text.subtitle || editable
                   ? SUBTITLE_TO_BODY
                   : slide.text.title
                   ? TITLE_TO_SUBTITLE
@@ -1858,6 +1500,7 @@ function SlideContent({
               whiteSpace: "pre-wrap",
               textAlign: slide.textAlign.body,
               width: "100%",
+              ...editableStyle,
             }}
           >
             {slide.text.body}
