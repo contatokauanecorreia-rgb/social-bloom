@@ -139,7 +139,7 @@ function StudioPage() {
         <ClientPicker value={clientId} onChange={handleClientChange} clients={clients} />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <ModeCard
           icon={FileText}
           title="Criar copy"
@@ -192,6 +192,20 @@ function StudioPage() {
               return;
             }
             toast.info("Em breve!");
+          }}
+        />
+        <ModeCard
+          icon={Bookmark}
+          title="Templates salvos"
+          description="Use um estilo que você já criou antes."
+          cost={0}
+          freeLabel="Sem custo"
+          onClick={() => {
+            if (!clientId) {
+              toast.error("Selecione um cliente para ver os templates.");
+              return;
+            }
+            setTemplatesOpen(true);
           }}
         />
       </div>
