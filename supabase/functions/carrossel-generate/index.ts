@@ -180,6 +180,7 @@ Deno.serve(async (req) => {
       "O slide 1 é a CAPA com gancho forte. O último é CTA.",
       "Cada slide tem: title (curto, máx 6 palavras), subtitle (opcional, máx 8 palavras), body (1-3 frases curtas), e imagePrompt (descrição visual em inglês para gerar imagem).",
       "Não use markdown, listas ou emojis em excesso.",
+      "Quando uma imagem de referência for enviada, observe paleta de cores, tipografia, layout, densidade de texto e estilo visual; descreva esse estilo nos `imagePrompt` dos slides e module o tom textual de acordo.",
       briefingCtx,
     ].join(" ");
 
@@ -214,12 +215,19 @@ Deno.serve(async (req) => {
       },
     ];
 
+    const userContent: any = referenceImageDataUrl
+      ? [
+          { type: "text", text: `Tema/contexto: ${topic.trim()}` },
+          { type: "image_url", image_url: { url: referenceImageDataUrl } },
+        ]
+      : `Tema/contexto: ${topic.trim()}`;
+
     const aiResp = await callAI(
       {
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: `Tema/contexto: ${topic.trim()}` },
+          { role: "user", content: userContent },
         ],
         tools,
         tool_choice: { type: "function", function: { name: "build_carousel" } },
