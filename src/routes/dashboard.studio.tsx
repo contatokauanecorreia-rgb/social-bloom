@@ -16,7 +16,7 @@ import { fetchCredits, MODE_COST, type CreditsState } from "@/lib/credits";
 import { ACTIVE_CLIENT_STORAGE_KEY } from "@/lib/client-context";
 
 export const Route = createFileRoute("/dashboard/studio")({
-  head: () => ({ meta: [{ title: "Studio de conteúdo — Postly" }] }),
+  head: () => ({ meta: [{ title: "Studio — Postly" }] }),
   component: StudioPage,
 });
 
@@ -121,7 +121,7 @@ function StudioPage() {
             Studio
           </Badge>
           <PageHeader
-            title="Studio de conteúdo"
+            title="Studio"
             description="Crie copies, carrosséis, pautas e roteiros com a IA da Postly."
           />
         </div>
