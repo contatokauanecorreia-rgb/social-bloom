@@ -651,6 +651,41 @@ function CarrosselEditorPage() {
             {format ? `${format.w}×${format.h}` : ""}
           </p>
         </div>
+
+        {/* Salvar como template */}
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-2 text-xs font-medium">
+            <Checkbox
+              checked={saveTemplateChecked}
+              onCheckedChange={(v) => {
+                const on = v === true;
+                setSaveTemplateChecked(on);
+                if (!on) setTemplateName("");
+              }}
+              disabled={!clientId}
+            />
+            Salvar como template
+          </label>
+          {saveTemplateChecked && (
+            <>
+              <Input
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                placeholder="Ex: Carrossel institucional pilates"
+                className="h-8 w-56 text-xs"
+              />
+              <Button
+                size="sm"
+                onClick={handleSaveTemplate}
+                disabled={savingTemplate || !templateName.trim()}
+                className="gap-1.5"
+              >
+                {savingTemplate ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                Salvar template
+              </Button>
+            </>
+          )}
+        </div>
       </header>
 
       {format && activeSlide && (
