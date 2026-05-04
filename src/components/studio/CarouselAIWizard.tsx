@@ -834,6 +834,12 @@ function FontCard({
       : badgeTone === "suggestion"
       ? "bg-accent text-accent-foreground"
       : "bg-muted text-muted-foreground";
+  // Garante que as fontes do par estão carregadas no preview
+  useEffect(() => {
+    loadGoogleFont(heading);
+    loadGoogleFont(body);
+  }, [heading, body]);
+
   return (
     <button
       type="button"
@@ -858,7 +864,7 @@ function FontCard({
       <div className={cn("mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold", badgeClass)}>
         {badge}
       </div>
-      <div className="mt-1 text-[10px] text-muted-foreground">
+      <div className="mt-1.5 text-[12px] font-medium text-foreground">
         {heading}
         {heading !== body ? ` + ${body}` : ""}
       </div>
