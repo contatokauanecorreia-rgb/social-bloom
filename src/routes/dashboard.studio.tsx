@@ -10,7 +10,6 @@ import { CreditsBadge } from "@/components/studio/CreditsBadge";
 import { CreditsExhaustedBanner } from "@/components/studio/CreditsExhaustedBanner";
 import { ModeCard } from "@/components/studio/ModeCard";
 import { CopyGeneratorDialog } from "@/components/studio/CopyGeneratorDialog";
-import { CarouselModeDialog } from "@/components/studio/CarouselModeDialog";
 import { CarouselAIWizard } from "@/components/studio/CarouselAIWizard";
 import { fetchCredits, MODE_COST, type CreditsState } from "@/lib/credits";
 import { ACTIVE_CLIENT_STORAGE_KEY } from "@/lib/client-context";
@@ -29,7 +28,7 @@ function StudioPage() {
   const [clientId, setClientId] = useState<string | null>(null);
   const [credits, setCredits] = useState<CreditsState | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
-  const [carouselFlow, setCarouselFlow] = useState<"closed" | "choose" | "ai">("closed");
+  const [carouselOpen, setCarouselOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -158,7 +157,7 @@ function StudioPage() {
               toast.error("Selecione um cliente antes de criar um carrossel.");
               return;
             }
-            setCarouselFlow("choose");
+            setCarouselOpen(true);
           }}
         />
         <ModeCard
@@ -202,23 +201,9 @@ function StudioPage() {
         onCreditsChange={refreshCredits}
       />
 
-      <CarouselModeDialog
-        open={carouselFlow === "choose"}
-        onOpenChange={(o) => {
-          if (!o) setCarouselFlow("closed");
-        }}
-        onPickManual={() => {
-          setCarouselFlow("closed");
-          navigate({ to: "/dashboard/studio/carrossel" });
-        }}
-        onPickAI={() => setCarouselFlow("ai")}
-      />
-
       <CarouselAIWizard
-        open={carouselFlow === "ai"}
-        onOpenChange={(o) => {
-          if (!o) setCarouselFlow("closed");
-        }}
+        open={carouselOpen}
+        onOpenChange={setCarouselOpen}
         clientId={clientId}
       />
     </PageContainer>
