@@ -917,44 +917,6 @@ function EditorPanel({
         )}
       </div>
 
-      {/* LAYOUT & POSIÇÃO */}
-      <Section title="Layout & posição do texto">
-        <p className="text-[11px] text-muted-foreground">
-          Encaixe o bloco de texto em uma das 9 posições, ou arraste no preview.
-        </p>
-        <div className="mt-2 grid grid-cols-3 gap-1.5">
-          {[0.15, 0.5, 0.85].flatMap((y) =>
-            [0.15, 0.5, 0.85].map((x) => {
-              const isActive =
-                Math.abs(slide.textPos.x - x) < 0.02 && Math.abs(slide.textPos.y - y) < 0.02;
-              return (
-                <button
-                  key={`${x}-${y}`}
-                  type="button"
-                  onClick={() =>
-                    onUpdateActive((s) => ({ ...s, textPos: { x, y } }))
-                  }
-                  className={cn(
-                    "aspect-square rounded-md border transition flex items-center justify-center",
-                    isActive
-                      ? "border-primary bg-primary/10"
-                      : "border-border bg-background hover:border-primary/40",
-                  )}
-                  title={`Posição ${x},${y}`}
-                >
-                  <div
-                    className={cn(
-                      "h-1.5 w-1.5 rounded-full",
-                      isActive ? "bg-primary" : "bg-muted-foreground/40",
-                    )}
-                  />
-                </button>
-              );
-            }),
-          )}
-        </div>
-      </Section>
-
       {/* IMAGEM */}
       <Section title="Imagem de fundo">
         <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed bg-background py-3 text-xs font-medium hover:bg-accent">
