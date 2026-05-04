@@ -44,7 +44,7 @@ const sections: SidebarSection[] = [
   {
     label: "Criar",
     items: [
-      { to: "/dashboard/studio", label: "Studio de conteúdo", icon: Sparkles },
+      { to: "/dashboard/studio", label: "Studio", icon: Sparkles },
       { to: "/dashboard/planner", label: "Planner de conteúdo", icon: ClipboardList },
     ],
   },
