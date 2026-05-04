@@ -69,6 +69,8 @@ type DnaInfo = {
 
 type SelectedSource = "dna" | "suggestion" | "custom";
 
+const WEIGHT_MAP = { light: 300, medium: 500, bold: 700 } as const;
+
 const CATEGORY_OPTIONS: { key: GoogleFontCategory; label: string }[] = [
   { key: "serif", label: "Serif" },
   { key: "sans-serif", label: "Sans-serif" },
