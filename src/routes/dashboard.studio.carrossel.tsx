@@ -155,8 +155,7 @@ function CarrosselEditorPage() {
     brandFontUrl: null,
   });
 
-  const [format, setFormat] = useState<Format | null>(null);
-  const [formatPickerOpen, setFormatPickerOpen] = useState(true);
+  const [format, setFormat] = useState<Format>(FORMATS[0]);
 
   // Bootstrap state populated from sessionStorage (when user came from AI wizard)
   const bootstrapRef = useRef<{
