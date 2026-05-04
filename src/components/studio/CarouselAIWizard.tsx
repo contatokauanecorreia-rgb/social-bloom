@@ -834,10 +834,32 @@ function FontCard({
       : badgeTone === "suggestion"
       ? "bg-accent text-accent-foreground"
       : "bg-muted text-muted-foreground";
-  // Garante que as fontes do par estão carregadas no preview
+  // Garante que as fontes do par estão carregadas no preview e aguarda antes de renderizar
+  const [fontsReady, setFontsReady] = useState(false);
   useEffect(() => {
+    let cancelled = false;
+    setFontsReady(false);
     loadGoogleFont(heading);
     loadGoogleFont(body);
+    const waitFor = async () => {
+      if (typeof document === "undefined" || !("fonts" in document)) {
+        if (!cancelled) setFontsReady(true);
+        return;
+      }
+      try {
+        await Promise.all([
+          (document as any).fonts.load(`700 20px "${heading}"`),
+          (document as any).fonts.load(`400 14px "${body}"`),
+        ]);
+      } catch {
+        /* ignore */
+      }
+      if (!cancelled) setFontsReady(true);
+    };
+    waitFor();
+    return () => {
+      cancelled = true;
+    };
   }, [heading, body]);
 
   return (
@@ -850,13 +872,21 @@ function FontCard({
       )}
     >
       <div
-        style={{ fontFamily: `"${heading}", system-ui, sans-serif`, fontWeight: 700 }}
+        style={{
+          fontFamily: `"${heading}", system-ui, sans-serif`,
+          fontWeight: 700,
+          visibility: fontsReady ? "visible" : "hidden",
+        }}
         className="text-xl leading-tight"
       >
         Aa Título
       </div>
       <div
-        style={{ fontFamily: `"${body}", system-ui, sans-serif`, fontWeight: 400 }}
+        style={{
+          fontFamily: `"${body}", system-ui, sans-serif`,
+          fontWeight: 400,
+          visibility: fontsReady ? "visible" : "hidden",
+        }}
         className="text-sm text-muted-foreground"
       >
         Texto do corpo
