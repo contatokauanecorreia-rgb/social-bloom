@@ -222,6 +222,12 @@ function StudioPage() {
         onOpenChange={setCarouselOpen}
         clientId={clientId}
       />
+
+      <TemplatesDialog
+        open={templatesOpen}
+        onOpenChange={setTemplatesOpen}
+        clientId={clientId}
+      />
     </PageContainer>
   );
 }
