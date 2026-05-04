@@ -2,10 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   Image as ImageIcon,
   Loader2,
+  Search,
   Sparkles,
   X,
 } from "lucide-react";
@@ -25,7 +28,15 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
-import { loadGoogleFont } from "@/lib/brand-font";
+import { loadCustomFont, loadGoogleFont } from "@/lib/brand-font";
+import {
+  fetchGoogleFontsCatalog,
+  pickSuggestedPairs,
+  searchFonts,
+  type FontPair,
+  type GoogleFontCategory,
+  type GoogleFontItem,
+} from "@/lib/google-fonts";
 import { cn } from "@/lib/utils";
 
 export type CarouselAIWizardProps = {
@@ -35,17 +46,6 @@ export type CarouselAIWizardProps = {
 };
 
 type ImageMode = "none" | "bg" | "grid" | "mixed";
-
-type FontPair = { heading: string; body: string; label: string; archetypes: string[] };
-
-const FONT_PAIRS: FontPair[] = [
-  { heading: "Playfair Display", body: "DM Sans", label: "Sofisticado", archetypes: ["governante", "sabio"] },
-  { heading: "Syne", body: "Outfit", label: "Popular", archetypes: ["cara-comum", "bobo"] },
-  { heading: "Oswald", body: "Inter", label: "Autoridade", archetypes: ["sabio", "heroi"] },
-  { heading: "Raleway", body: "Lato", label: "Cuidador", archetypes: ["cuidador", "inocente"] },
-  { heading: "Space Grotesk", body: "Fraunces", label: "Criador", archetypes: ["criador", "mago"] },
-  { heading: "Bebas Neue", body: "Inter", label: "Herói", archetypes: ["heroi", "fora-da-lei"] },
-];
 
 const SUGGESTED_PALETTES: { label: string; colors: [string, string, string]; archetypes: string[] }[] = [
   { label: "Sofisticado", colors: ["#1A1714", "#C9A875", "#F5F0E8"], archetypes: ["governante", "sabio", "amante"] },
@@ -58,8 +58,23 @@ const SUGGESTED_PALETTES: { label: string; colors: [string, string, string]; arc
 type DnaInfo = {
   palette: [string, string, string] | null;
   brandFont: string | null;
+  brandFontUrl: string | null;
   archetype: string | null;
+  toneOfVoice: string | null;
+  targetAudience: string | null;
+  contentPillars: string[];
+  businessDescription: string | null;
 };
+
+type SelectedSource = "dna" | "suggestion" | "custom";
+
+const CATEGORY_OPTIONS: { key: GoogleFontCategory; label: string }[] = [
+  { key: "serif", label: "Serif" },
+  { key: "sans-serif", label: "Sans-serif" },
+  { key: "display", label: "Display" },
+  { key: "handwriting", label: "Handwriting" },
+  { key: "monospace", label: "Monospace" },
+];
 
 export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWizardProps) {
   const navigate = useNavigate();
@@ -73,24 +88,44 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
   const [imageMode, setImageMode] = useState<ImageMode>("bg");
   const [aiImages, setAiImages] = useState(true);
 
-  // Step 2
+  // Step 2 - geral
   const [instagram, setInstagram] = useState("");
-  const [dna, setDna] = useState<DnaInfo>({ palette: null, brandFont: null, archetype: null });
-  const [selectedFontIdx, setSelectedFontIdx] = useState<number>(0);
-  const [useDnaFont, setUseDnaFont] = useState(true);
+  const [dna, setDna] = useState<DnaInfo>({
+    palette: null,
+    brandFont: null,
+    brandFontUrl: null,
+    archetype: null,
+    toneOfVoice: null,
+    targetAudience: null,
+    contentPillars: [],
+    businessDescription: null,
+  });
+  const [clientName, setClientName] = useState<string>("seu cliente");
+
+  // Paleta
   const [selectedPaletteIdx, setSelectedPaletteIdx] = useState<number>(0);
   const [useDnaPalette, setUseDnaPalette] = useState(true);
+
+  // Fontes
+  const [catalog, setCatalog] = useState<GoogleFontItem[] | null>(null);
+  const [suggestions, setSuggestions] = useState<FontPair[]>([]);
+  const [selected, setSelected] = useState<{ source: SelectedSource; heading: string; body: string } | null>(null);
+  const [customPairs, setCustomPairs] = useState<FontPair[]>([]);
+  const [exploreOpen, setExploreOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [filterCats, setFilterCats] = useState<GoogleFontCategory[]>([]);
+  const [exploreLimit, setExploreLimit] = useState(30);
+  const [pendingFont, setPendingFont] = useState<string | null>(null); // ao clicar uma fonte no explorar
 
   // Loading
   const [progress, setProgress] = useState(0);
   const progressTimer = useRef<number | null>(null);
-
   const loadingPersistRef = useRef(false);
 
   // Reset on close
   useEffect(() => {
     if (!open) {
-      // delay to avoid flicker during close animation
       const t = window.setTimeout(() => {
         if (loadingPersistRef.current) {
           loadingPersistRef.current = false;
@@ -104,59 +139,143 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         setImageMode("bg");
         setAiImages(true);
         setInstagram("");
-        setSelectedFontIdx(0);
         setSelectedPaletteIdx(0);
         setProgress(0);
+        setSelected(null);
+        setCustomPairs([]);
+        setExploreOpen(false);
+        setSearchQuery("");
+        setDebouncedQuery("");
+        setFilterCats([]);
+        setExploreLimit(30);
+        setPendingFont(null);
       }, 200);
       return () => window.clearTimeout(t);
     }
   }, [open]);
 
-  // Load DNA when step 2 opens
+  // Carregar DNA + nome do cliente quando entra no passo 2
   useEffect(() => {
     if (step !== 2 || !clientId) return;
     let cancelled = false;
-    supabase
-      .from("client_briefings")
-      .select("palette, brand_font, archetype")
-      .eq("client_id", clientId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled) return;
-        const pal = (data?.palette ?? []) as string[];
-        const palette: [string, string, string] | null =
-          pal.length >= 3 ? [pal[0], pal[1], pal[2]] : null;
-        const brandFont = (data?.brand_font as string | null) ?? null;
-        const archetype = (data?.archetype as string | null) ?? null;
-        setDna({ palette, brandFont, archetype });
-        setUseDnaFont(!!brandFont);
-        setUseDnaPalette(!!palette);
-        if (brandFont) loadGoogleFont(brandFont);
 
-        // Pick best font pair / palette by archetype
-        const fontIdx = archetype
-          ? FONT_PAIRS.findIndex((p) => p.archetypes.includes(archetype))
-          : -1;
-        if (!brandFont && fontIdx >= 0) setSelectedFontIdx(fontIdx);
+    Promise.all([
+      supabase
+        .from("client_briefings")
+        .select(
+          "palette, brand_font, brand_font_url, archetype, tone_of_voice, target_audience, content_pillars, business_description",
+        )
+        .eq("client_id", clientId)
+        .maybeSingle(),
+      supabase.from("clients").select("name").eq("id", clientId).maybeSingle(),
+    ]).then(([{ data }, { data: client }]) => {
+      if (cancelled) return;
 
-        const palIdx = archetype
-          ? SUGGESTED_PALETTES.findIndex((p) => p.archetypes.includes(archetype))
-          : -1;
-        if (!palette && palIdx >= 0) setSelectedPaletteIdx(palIdx);
-      });
+      const pal = (data?.palette ?? []) as string[];
+      const palette: [string, string, string] | null =
+        pal.length >= 3 ? [pal[0], pal[1], pal[2]] : null;
+
+      const next: DnaInfo = {
+        palette,
+        brandFont: (data?.brand_font as string | null) ?? null,
+        brandFontUrl: (data?.brand_font_url as string | null) ?? null,
+        archetype: (data?.archetype as string | null) ?? null,
+        toneOfVoice: (data?.tone_of_voice as string | null) ?? null,
+        targetAudience: (data?.target_audience as string | null) ?? null,
+        contentPillars: ((data?.content_pillars ?? []) as string[]) || [],
+        businessDescription: (data?.business_description as string | null) ?? null,
+      };
+      setDna(next);
+      setUseDnaPalette(!!palette);
+      setClientName((client?.name as string | null) ?? "seu cliente");
+
+      const palIdx = next.archetype
+        ? SUGGESTED_PALETTES.findIndex((p) => p.archetypes.includes(next.archetype!))
+        : -1;
+      if (!palette && palIdx >= 0) setSelectedPaletteIdx(palIdx);
+
+      // Pré-carrega fonte do DNA
+      if (next.brandFont && next.brandFontUrl) {
+        loadCustomFont(next.brandFont, next.brandFontUrl);
+      } else if (next.brandFont) {
+        loadGoogleFont(next.brandFont);
+      }
+    });
+
     return () => {
       cancelled = true;
     };
   }, [step, clientId]);
 
-  // Preload all font pairs for previews
+  // Carregar catálogo do Google Fonts
   useEffect(() => {
-    if (step !== 2) return;
-    FONT_PAIRS.forEach((p) => {
+    if (step !== 2 || catalog) return;
+    let cancelled = false;
+    fetchGoogleFontsCatalog()
+      .then((items) => {
+        if (!cancelled) setCatalog(items);
+      })
+      .catch((err) => {
+        console.error("Google Fonts catalog error", err);
+        toast.error("Não foi possível carregar o catálogo de fontes.");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, catalog]);
+
+  // Gerar sugestões quando catálogo + DNA prontos
+  useEffect(() => {
+    if (!catalog) return;
+    const pairs = pickSuggestedPairs(
+      catalog,
+      {
+        archetype: dna.archetype,
+        toneOfVoice: dna.toneOfVoice,
+        targetAudience: dna.targetAudience,
+        contentPillars: dna.contentPillars,
+        businessDescription: dna.businessDescription,
+      },
+      5,
+    );
+    setSuggestions(pairs);
+    // Preload das sugestões
+    pairs.forEach((p) => {
       loadGoogleFont(p.heading);
       loadGoogleFont(p.body);
     });
-  }, [step]);
+    // Default: DNA se houver, senão primeira sugestão
+    setSelected((cur) => {
+      if (cur) return cur;
+      if (dna.brandFont) {
+        return { source: "dna", heading: dna.brandFont, body: dna.brandFont };
+      }
+      if (pairs[0]) return { source: "suggestion", heading: pairs[0].heading, body: pairs[0].body };
+      return null;
+    });
+  }, [catalog, dna]);
+
+  // Debounce busca
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQuery(searchQuery), 200);
+    return () => window.clearTimeout(t);
+  }, [searchQuery]);
+
+  // Reset limite ao mudar query/filtros
+  useEffect(() => {
+    setExploreLimit(30);
+  }, [debouncedQuery, filterCats]);
+
+  const exploreResults = useMemo(() => {
+    if (!catalog) return [];
+    return searchFonts(catalog, debouncedQuery, filterCats, 500);
+  }, [catalog, debouncedQuery, filterCats]);
+
+  // Preload nomes visíveis no explorar
+  useEffect(() => {
+    if (!exploreOpen) return;
+    exploreResults.slice(0, exploreLimit).forEach((f) => loadGoogleFont(f.family));
+  }, [exploreOpen, exploreResults, exploreLimit]);
 
   const onPickMoodboard = (f: File) => {
     setMoodboardFile(f);
@@ -167,17 +286,15 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
 
   const canContinueStep1 = topic.trim().length > 0;
 
-  const fontPair = useMemo<FontPair | null>(() => {
-    if (useDnaFont && dna.brandFont) {
-      return { heading: dna.brandFont, body: dna.brandFont, label: "DNA da marca", archetypes: [] };
-    }
-    return FONT_PAIRS[selectedFontIdx] ?? FONT_PAIRS[0];
-  }, [useDnaFont, dna.brandFont, selectedFontIdx]);
-
   const palette = useMemo<[string, string, string]>(() => {
     if (useDnaPalette && dna.palette) return dna.palette;
     return SUGGESTED_PALETTES[selectedPaletteIdx]?.colors ?? SUGGESTED_PALETTES[0].colors;
   }, [useDnaPalette, dna.palette, selectedPaletteIdx]);
+
+  const fontPairForOutput = useMemo(() => {
+    if (!selected) return null;
+    return { heading: selected.heading, body: selected.body };
+  }, [selected]);
 
   const startProgress = () => {
     setProgress(8);
@@ -195,6 +312,23 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
     }
   };
 
+  const handleSelectFromExplore = (family: string, role: "heading" | "body") => {
+    setSelected((cur) => {
+      const base = cur ?? { source: "custom" as SelectedSource, heading: family, body: family };
+      const next = { ...base, source: "custom" as SelectedSource, [role]: family };
+      // Quando os dois campos foram intencionalmente escolhidos, registra como custom pair único
+      const pair: FontPair = { heading: next.heading, body: next.body, label: `${next.heading} + ${next.body}` };
+      setCustomPairs((arr) => {
+        if (arr.some((p) => p.heading === pair.heading && p.body === pair.body)) return arr;
+        return [pair, ...arr].slice(0, 5);
+      });
+      loadGoogleFont(next.heading);
+      loadGoogleFont(next.body);
+      return next;
+    });
+    setPendingFont(null);
+  };
+
   const handleGenerate = async () => {
     if (!clientId) {
       toast.error("Selecione um cliente antes de gerar.");
@@ -210,7 +344,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
           slideCount,
           imageMode,
           aiImages,
-          fontPair: fontPair ? { heading: fontPair.heading, body: fontPair.body } : null,
+          fontPair: fontPairForOutput,
           palette,
           instagram: instagram.trim() || null,
         },
@@ -230,11 +364,16 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
           imagePrompt: string;
           imageDataUrl: string | null;
         }>,
-        fontPair: fontPair ? { heading: fontPair.heading, body: fontPair.body } : null,
+        fontPair: fontPairForOutput,
         palette,
         imageMode,
         signature: instagram.trim()
-          ? { enabled: true, handle: instagram.trim().startsWith("@") ? instagram.trim() : `@${instagram.trim()}`, position: "br", color: palette[0] }
+          ? {
+              enabled: true,
+              handle: instagram.trim().startsWith("@") ? instagram.trim() : `@${instagram.trim()}`,
+              position: "br",
+              color: palette[0],
+            }
           : null,
       };
       try {
@@ -256,11 +395,14 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
     }
   };
 
+  const isSelected = (heading: string, body: string, source: SelectedSource) =>
+    !!selected && selected.heading === heading && selected.body === body && selected.source === source;
+
   return (
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (step === "loading") return; // bloquear fechar durante loading
+        if (step === "loading") return;
         onOpenChange(o);
       }}
     >
@@ -419,34 +561,200 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
                 />
               </div>
 
+              {/* COMBINAÇÃO DE FONTES */}
               <div>
                 <Label className="text-sm font-medium">Combinação de fontes</Label>
-                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {dna.brandFont && (
+
+                {/* DNA */}
+                {dna.brandFont && (
+                  <div className="mt-2">
                     <FontCard
                       heading={dna.brandFont}
                       body={dna.brandFont}
-                      label="Sua fonte (DNA)"
-                      selected={useDnaFont}
-                      onClick={() => setUseDnaFont(true)}
+                      badge="Sua fonte"
+                      badgeTone="dna"
+                      selected={isSelected(dna.brandFont, dna.brandFont, "dna")}
+                      onClick={() =>
+                        setSelected({ source: "dna", heading: dna.brandFont!, body: dna.brandFont! })
+                      }
                     />
+                  </div>
+                )}
+
+                {/* Sugestões */}
+                <div className="mt-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Sugeridas para você
+                  </p>
+                  {!catalog ? (
+                    <div className="mt-2 flex items-center gap-2 rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Carregando fontes do Google...
+                    </div>
+                  ) : suggestions.length === 0 ? (
+                    <p className="mt-2 text-xs text-muted-foreground">Nenhuma sugestão disponível.</p>
+                  ) : (
+                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {suggestions.map((p) => (
+                        <FontCard
+                          key={`${p.heading}__${p.body}`}
+                          heading={p.heading}
+                          body={p.body}
+                          badge={`Sugerido para ${clientName}`}
+                          badgeTone="suggestion"
+                          selected={isSelected(p.heading, p.body, "suggestion")}
+                          onClick={() =>
+                            setSelected({ source: "suggestion", heading: p.heading, body: p.body })
+                          }
+                        />
+                      ))}
+                    </div>
                   )}
-                  {FONT_PAIRS.map((p, i) => (
-                    <FontCard
-                      key={p.label}
-                      heading={p.heading}
-                      body={p.body}
-                      label={p.label}
-                      selected={!useDnaFont && selectedFontIdx === i}
-                      onClick={() => {
-                        setUseDnaFont(false);
-                        setSelectedFontIdx(i);
-                      }}
-                    />
-                  ))}
+                </div>
+
+                {/* Personalizadas */}
+                {customPairs.length > 0 && (
+                  <div className="mt-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Personalizadas
+                    </p>
+                    <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {customPairs.map((p) => (
+                        <FontCard
+                          key={`c-${p.heading}__${p.body}`}
+                          heading={p.heading}
+                          body={p.body}
+                          badge="Personalizada"
+                          badgeTone="custom"
+                          selected={isSelected(p.heading, p.body, "custom")}
+                          onClick={() =>
+                            setSelected({ source: "custom", heading: p.heading, body: p.body })
+                          }
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Explorar mais */}
+                <div className="mt-3 rounded-lg border bg-background">
+                  <button
+                    type="button"
+                    onClick={() => setExploreOpen((v) => !v)}
+                    className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium hover:bg-accent"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Search className="h-4 w-4" /> Explorar mais fontes
+                    </span>
+                    {exploreOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                  </button>
+
+                  {exploreOpen && (
+                    <div className="border-t p-3">
+                      <Input
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Buscar fonte (ex: Inter, Lora...)"
+                        className="text-sm"
+                      />
+
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {CATEGORY_OPTIONS.map((c) => {
+                          const active = filterCats.includes(c.key);
+                          return (
+                            <button
+                              key={c.key}
+                              type="button"
+                              onClick={() =>
+                                setFilterCats((arr) =>
+                                  active ? arr.filter((x) => x !== c.key) : [...arr, c.key],
+                                )
+                              }
+                              className={cn(
+                                "rounded-full border px-2.5 py-1 text-[11px] transition",
+                                active
+                                  ? "border-primary bg-primary/10 text-primary"
+                                  : "border-border bg-background hover:border-primary/40",
+                              )}
+                            >
+                              {c.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {!catalog ? (
+                        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                          <Loader2 className="h-3 w-3 animate-spin" /> Carregando catálogo...
+                        </div>
+                      ) : (
+                        <>
+                          <div className="mt-3 max-h-64 space-y-1 overflow-y-auto pr-1">
+                            {exploreResults.slice(0, exploreLimit).map((f) => (
+                              <div key={f.family} className="rounded-md border bg-background">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setPendingFont((cur) => (cur === f.family ? null : f.family))
+                                  }
+                                  className="flex w-full items-center justify-between px-2.5 py-1.5 text-left hover:bg-accent"
+                                >
+                                  <span
+                                    className="truncate text-sm"
+                                    style={{ fontFamily: `"${f.family}", system-ui, sans-serif` }}
+                                  >
+                                    {f.family}
+                                  </span>
+                                  <span className="ml-2 text-[10px] uppercase tracking-wider text-muted-foreground">
+                                    {f.category}
+                                  </span>
+                                </button>
+                                {pendingFont === f.family && (
+                                  <div className="flex gap-1.5 border-t bg-muted/30 px-2.5 py-1.5">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-[11px]"
+                                      onClick={() => handleSelectFromExplore(f.family, "heading")}
+                                    >
+                                      Usar como Título
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-[11px]"
+                                      onClick={() => handleSelectFromExplore(f.family, "body")}
+                                    >
+                                      Usar como Corpo
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            {exploreResults.length === 0 && (
+                              <p className="py-3 text-center text-xs text-muted-foreground">
+                                Nenhuma fonte encontrada.
+                              </p>
+                            )}
+                          </div>
+                          {exploreResults.length > exploreLimit && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="mt-2 w-full text-xs"
+                              onClick={() => setExploreLimit((n) => n + 30)}
+                            >
+                              Carregar mais
+                            </Button>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
+              {/* PALETA */}
               <div>
                 <Label className="text-sm font-medium">Paleta de cores</Label>
                 <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -478,7 +786,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
               <Button variant="ghost" onClick={() => setStep(1)} className="gap-2">
                 <ArrowLeft className="h-4 w-4" /> Voltar
               </Button>
-              <Button onClick={handleGenerate} className="gap-2">
+              <Button onClick={handleGenerate} disabled={!selected} className="gap-2">
                 Gerar carrossel <Sparkles className="h-4 w-4" />
               </Button>
             </div>
@@ -508,16 +816,24 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
 function FontCard({
   heading,
   body,
-  label,
+  badge,
+  badgeTone,
   selected,
   onClick,
 }: {
   heading: string;
   body: string;
-  label: string;
+  badge: string;
+  badgeTone: "dna" | "suggestion" | "custom";
   selected: boolean;
   onClick: () => void;
 }) {
+  const badgeClass =
+    badgeTone === "dna"
+      ? "bg-primary/10 text-primary"
+      : badgeTone === "suggestion"
+      ? "bg-accent text-accent-foreground"
+      : "bg-muted text-muted-foreground";
   return (
     <button
       type="button"
@@ -539,8 +855,12 @@ function FontCard({
       >
         Texto do corpo
       </div>
-      <div className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        {label}
+      <div className={cn("mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold", badgeClass)}>
+        {badge}
+      </div>
+      <div className="mt-1 text-[10px] text-muted-foreground">
+        {heading}
+        {heading !== body ? ` + ${body}` : ""}
       </div>
     </button>
   );
@@ -568,11 +888,7 @@ function PaletteCard({
     >
       <div className="flex gap-2">
         {colors.map((c, i) => (
-          <div
-            key={i}
-            className="h-10 flex-1 rounded-md border"
-            style={{ backgroundColor: c }}
-          />
+          <div key={i} className="h-10 flex-1 rounded-md border" style={{ backgroundColor: c }} />
         ))}
       </div>
       <div className="mt-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
