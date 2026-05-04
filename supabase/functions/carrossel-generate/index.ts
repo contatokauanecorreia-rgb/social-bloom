@@ -109,10 +109,23 @@ function aiErrorResponse(status: number) {
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
+  const t0 = Date.now();
+  let topicForFallback = "";
+  let clientNameForFallback: string | null = null;
+  let slideCountForFallback = 5;
   try {
     const body = (await req.json()) as Body;
     const { clientId, topic, imageMode, aiImages, instagram } = body;
     const slideCount = Math.max(1, Math.min(10, Number(body.slideCount) || 5));
+    topicForFallback = topic ?? "";
+    slideCountForFallback = slideCount;
+    console.log("[carrossel-generate] start", {
+      slideCount,
+      imageMode,
+      aiImages,
+      hasClient: !!clientId,
+      topicLen: (topic ?? "").length,
+    });
 
     if (!topic || !topic.trim()) {
       return new Response(JSON.stringify({ error: "Informe sobre o que é o conteúdo." }), {
