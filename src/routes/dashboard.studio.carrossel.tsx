@@ -269,7 +269,7 @@ function CarrosselEditorPage() {
         });
         try {
           const { data, error } = await supabase.functions.invoke("carrossel-image", {
-            body: { prompt: job.imagePrompt, palette, archetype },
+            body: { prompt: job.imagePrompt, palette, archetype, imageStyle: job.imageStyle ?? null },
           });
           if (error) throw error;
           const url: string | undefined = data?.imageDataUrl;
