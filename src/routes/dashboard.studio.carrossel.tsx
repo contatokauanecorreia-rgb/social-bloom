@@ -621,6 +621,22 @@ function CarrosselEditorPage() {
 
           {/* Barra de slides */}
           <div className="border-t bg-card p-3">
+            {imageProgress && (
+              <div className="mb-2">
+                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
+                  <span>Gerando imagens em segundo plano…</span>
+                  <span>
+                    {imageProgress.current}/{imageProgress.total}
+                  </span>
+                </div>
+                <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-primary transition-all duration-300"
+                    style={{ width: `${imageProgress.percent}%` }}
+                  />
+                </div>
+              </div>
+            )}
             <SlidesBar
               slides={slides}
               format={format}
