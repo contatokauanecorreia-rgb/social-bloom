@@ -141,9 +141,13 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
           return;
         }
         setStep(1);
+        setContentSource("ai");
         setTopic("");
-        setMoodboardFile(null);
-        setMoodboardPreview(null);
+        setSelectedPostIds([]);
+        setReferenceFile(null);
+        setReferenceUrl("");
+        setReferenceImageDataUrl(null);
+        setReferenceLoading(false);
         setSlideCount(5);
         setImageMode("bg");
         setAiImages(true);
