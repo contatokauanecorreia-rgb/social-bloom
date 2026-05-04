@@ -678,6 +678,8 @@ function FormatPickerDialog({
   );
 }
 
+type PlannerPost = { id: string; title: string; tags: string[]; notes: string | null };
+
 function EditorPanel({
   slide,
   dna,
@@ -687,6 +689,8 @@ function EditorPanel({
   onApplyToAll,
   onPickImage,
   plannerTitles,
+  plannerPosts,
+  onApplyPlannerPost,
 }: {
   slide: Slide;
   dna: BriefingDNA;
@@ -696,9 +700,12 @@ function EditorPanel({
   onApplyToAll: (m: (s: Slide, source: Slide) => Slide) => void;
   onPickImage: (f: File, applyAll: boolean) => void;
   plannerTitles: string[];
+  plannerPosts: PlannerPost[];
+  onApplyPlannerPost: (post: PlannerPost) => void;
 }) {
   const [applyImageAll, setApplyImageAll] = useState(false);
   const [applySigAll, setApplySigAll] = useState(false);
+  const [plannerOpen, setPlannerOpen] = useState(false);
 
   const setAlign = (field: TextField, value: TextAlign) =>
     onUpdateActive((s) => ({ ...s, textAlign: { ...s.textAlign, [field]: value } }));
