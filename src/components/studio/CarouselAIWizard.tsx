@@ -875,21 +875,47 @@ function FontCard({
         style={{
           fontFamily: `"${heading}", system-ui, sans-serif`,
           fontWeight: 700,
+          fontSize: 22,
+          lineHeight: 1.1,
           visibility: fontsReady ? "visible" : "hidden",
         }}
-        className="text-xl leading-tight"
       >
-        Aa Título
+        {heading}
+      </div>
+      {body !== heading && (
+        <div
+          style={{
+            fontFamily: `"${body}", system-ui, sans-serif`,
+            fontWeight: 400,
+            fontSize: 14,
+            visibility: fontsReady ? "visible" : "hidden",
+          }}
+          className="text-muted-foreground"
+        >
+          {body}
+        </div>
+      )}
+      <div
+        style={{
+          fontFamily: `"${heading}", system-ui, sans-serif`,
+          fontWeight: 700,
+          fontSize: 16,
+          visibility: fontsReady ? "visible" : "hidden",
+        }}
+        className="mt-2"
+      >
+        Pilates transforma vidas
       </div>
       <div
         style={{
           fontFamily: `"${body}", system-ui, sans-serif`,
           fontWeight: 400,
+          fontSize: 12,
           visibility: fontsReady ? "visible" : "hidden",
         }}
-        className="text-sm text-muted-foreground"
+        className="text-muted-foreground"
       >
-        Texto do corpo
+        Seu corpo muda. Sua mente agradece.
       </div>
       <div className={cn("mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold", badgeClass)}>
         {badge}

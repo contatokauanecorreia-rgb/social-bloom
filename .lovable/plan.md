@@ -1,44 +1,24 @@
-## Correção da seção "Combinação de fontes"
+## Atualizar preview dos cards de combinação de fontes
 
-Dois ajustes mínimos no componente `FontCard` em `src/components/studio/CarouselAIWizard.tsx`. Nada mais é tocado.
+Em `src/components/studio/CarouselAIWizard.tsx`, dentro do componente `FontCard` (linhas ~865–900), substituir o conteúdo do preview.
 
-### 1. Carregar a fonte real de cada card
+### Mudanças
 
-Hoje o CSS do preview já aponta `fontFamily: "${heading}"` e `"${body}"`, mas só funciona quando essas famílias estão de fato carregadas via `<link>` do Google Fonts. O preload acontece apenas no `useEffect` que gera as sugestões — se o catálogo do Google Fonts ainda não chegou, falhar (CORS, chave inválida, rate limit) ou o card vier de outro caminho (DNA, Personalizadas), nenhum `<link>` é injetado e o navegador cai na fonte de fallback `system-ui`. Resultado: todos os cards aparentam ter a mesma fonte.
+1. Remover os blocos atuais com "Aa Título" e "Texto do corpo".
+2. Renderizar, na seguinte ordem dentro do botão (mantendo a lógica de `fontsReady` e `loadGoogleFont` já existente):
 
-Correção: o próprio `FontCard` chama `loadGoogleFont(heading)` e `loadGoogleFont(body)` em um `useEffect` no mount/quando heading ou body mudam. Como `loadGoogleFont` já tem deduplicação interna (Set `loadedGoogle`), não há custo de chamadas duplicadas. Isso garante que cada card baixa exatamente as fontes que renderiza.
+   - Nome da fonte display: o texto é o próprio `heading`, com `fontFamily: "${heading}"`, `fontWeight: 700`, `fontSize: 22px`, line-height apertada.
+   - Nome da fonte secundária: o texto é o próprio `body`, com `fontFamily: "${body}"`, `fontWeight: 400`, `fontSize: 14px`, cor `text-muted-foreground`. Renderizar apenas se `body !== heading`.
+   - Pequeno espaçador (`mt-2`).
+   - Frase exemplo linha 1: "Pilates transforma vidas" — `fontFamily: "${heading}"`, `fontWeight: 700`, `fontSize: 16px`.
+   - Frase exemplo linha 2: "Seu corpo muda. Sua mente agradece." — `fontFamily: "${body}"`, `fontWeight: 400`, `fontSize: 12px`, cor `text-muted-foreground`.
+   - Todos os elementos de texto recebem `visibility: fontsReady ? "visible" : "hidden"` para evitar flash.
 
-### 2. Nome das fontes mais visível
+3. Manter intacto:
+   - Badge ("Sua fonte" / "Sugerido para …" / "Personalizada") com a mesma classe `badgeClass`.
+   - Linha com nome das fontes abaixo do card (`{heading} + {body}`), tamanho 12px, cor foreground.
+   - Estado de seleção, hover, borda, `useEffect` de carregamento das fontes.
 
-A linha com o nome (`{heading} + {body}`) abaixo do badge passa de:
+### Nada mais é alterado
 
-- `text-[10px] text-muted-foreground` → `text-[12px] font-medium text-foreground`
-- margem `mt-1` → `mt-1.5` para respirar com o tamanho maior
-
-### Detalhes técnicos
-
-Arquivo único alterado: `src/components/studio/CarouselAIWizard.tsx`, dentro da função `FontCard` (linhas ~837–866).
-
-```tsx
-function FontCard({ heading, body, badge, badgeTone, selected, onClick }) {
-  // ... badgeClass igual ...
-
-  useEffect(() => {
-    loadGoogleFont(heading);
-    loadGoogleFont(body);
-  }, [heading, body]);
-
-  return (
-    <button ...>
-      <div style={{ fontFamily: `"${heading}", system-ui, sans-serif`, fontWeight: 700 }}>Aa Título</div>
-      <div style={{ fontFamily: `"${body}", system-ui, sans-serif`, fontWeight: 400 }}>Texto do corpo</div>
-      <div className="... badge ...">{badge}</div>
-      <div className="mt-1.5 text-[12px] font-medium text-foreground">
-        {heading}{heading !== body ? ` + ${body}` : ""}
-      </div>
-    </button>
-  );
-}
-```
-
-`useEffect` e `loadGoogleFont` já estão importados no arquivo. Nenhuma outra parte da plataforma é tocada.
+Nenhuma outra parte do `CarouselAIWizard.tsx`, do helper `google-fonts.ts`, ou de outros arquivos é tocada.
