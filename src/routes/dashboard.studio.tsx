@@ -30,6 +30,7 @@ function StudioPage() {
   const [credits, setCredits] = useState<CreditsState | null>(null);
   const [copyOpen, setCopyOpen] = useState(false);
   const [carouselOpen, setCarouselOpen] = useState(false);
+  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
