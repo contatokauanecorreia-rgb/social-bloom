@@ -164,6 +164,7 @@ Deno.serve(async (req) => {
       ]);
       briefing = bData;
       clientName = cData?.name ?? null;
+      clientNameForFallback = clientName;
       segment = cData?.company ?? null;
     }
 
