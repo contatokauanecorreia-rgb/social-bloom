@@ -1233,12 +1233,16 @@ function ScaledPreview({
   slide,
   format,
   dna,
-  onMoveText,
+  editable,
+  onEditField,
+  onSelectField,
 }: {
   slide: Slide;
   format: Format;
   dna: BriefingDNA;
-  onMoveText?: (dxFraction: number, dyFraction: number) => void;
+  editable?: boolean;
+  onEditField?: (field: TextField, value: string) => void;
+  onSelectField?: (f: TextField) => void;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [scale, setScale] = useState(0.4);
