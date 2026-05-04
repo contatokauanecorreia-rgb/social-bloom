@@ -895,34 +895,8 @@ function FontCard({
           {body}
         </div>
       )}
-      <div
-        style={{
-          fontFamily: `"${heading}", system-ui, sans-serif`,
-          fontWeight: 700,
-          fontSize: 16,
-          visibility: fontsReady ? "visible" : "hidden",
-        }}
-        className="mt-2"
-      >
-        Pilates transforma vidas
-      </div>
-      <div
-        style={{
-          fontFamily: `"${body}", system-ui, sans-serif`,
-          fontWeight: 400,
-          fontSize: 12,
-          visibility: fontsReady ? "visible" : "hidden",
-        }}
-        className="text-muted-foreground"
-      >
-        Seu corpo muda. Sua mente agradece.
-      </div>
       <div className={cn("mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-semibold", badgeClass)}>
         {badge}
-      </div>
-      <div className="mt-1.5 text-[12px] font-medium text-foreground">
-        {heading}
-        {heading !== body ? ` + ${body}` : ""}
       </div>
     </button>
   );
