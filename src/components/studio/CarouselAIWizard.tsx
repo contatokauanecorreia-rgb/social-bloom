@@ -290,14 +290,89 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
     exploreResults.slice(0, exploreLimit).forEach((f) => loadGoogleFont(f.family));
   }, [exploreOpen, exploreResults, exploreLimit]);
 
-  const onPickMoodboard = (f: File) => {
-    setMoodboardFile(f);
+  // Carregar posts do Planner do cliente
+  useEffect(() => {
+    if (!open || step !== 1 || !clientId) return;
+    let cancelled = false;
+    setLoadingPosts(true);
+    supabase.auth.getSession().then(({ data: sess }) => {
+      const uid = sess.session?.user?.id;
+      if (!uid) {
+        if (!cancelled) {
+          setPlannerPosts([]);
+          setLoadingPosts(false);
+        }
+        return;
+      }
+      supabase
+        .from("content_posts")
+        .select("id, title, tags, notes")
+        .eq("user_id", uid)
+        .eq("client_id", clientId)
+        .order("created_at", { ascending: false })
+        .limit(100)
+        .then(({ data }) => {
+          if (cancelled) return;
+          const rows = (data ?? []) as { id: string; title: string; tags: string[] | null; notes: string | null }[];
+          setPlannerPosts(rows.map((r) => ({ ...r, tags: r.tags ?? [] })));
+          setLoadingPosts(false);
+        });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, step, clientId]);
+
+  const onPickReferenceFile = (f: File) => {
+    setReferenceFile(f);
+    setReferenceUrl("");
     const reader = new FileReader();
-    reader.onload = () => setMoodboardPreview(reader.result as string);
+    reader.onload = () => setReferenceImageDataUrl(reader.result as string);
     reader.readAsDataURL(f);
   };
 
-  const canContinueStep1 = topic.trim().length > 0;
+  const onUseReferenceUrl = async () => {
+    const url = referenceUrl.trim();
+    if (!url) return;
+    setReferenceLoading(true);
+    setReferenceFile(null);
+    try {
+      const isDirectImage = /\.(jpe?g|png|webp)(\?.*)?$/i.test(url);
+      if (isDirectImage) {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error("Não foi possível baixar a imagem.");
+        const blob = await resp.blob();
+        const reader = new FileReader();
+        reader.onload = () => setReferenceImageDataUrl(reader.result as string);
+        reader.readAsDataURL(blob);
+      } else {
+        const { data, error } = await supabase.functions.invoke("screenshot-url", {
+          body: { url },
+        });
+        if (error) throw error;
+        if (!data?.imageDataUrl) {
+          toast.error("Não foi possível processar este link — anexe uma imagem.");
+          setReferenceImageDataUrl(null);
+        } else {
+          setReferenceImageDataUrl(data.imageDataUrl);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Erro ao processar link.");
+    } finally {
+      setReferenceLoading(false);
+    }
+  };
+
+  const clearReference = () => {
+    setReferenceFile(null);
+    setReferenceUrl("");
+    setReferenceImageDataUrl(null);
+  };
+
+  const canContinueStep1 =
+    contentSource === "ai" ? topic.trim().length > 0 : selectedPostIds.length > 0;
 
   const palette = useMemo<[string, string, string]>(() => {
     if (useDnaPalette && dna.palette) return dna.palette;
