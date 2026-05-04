@@ -16,6 +16,8 @@ type Body = {
   fontPair?: { heading: string; body: string } | null;
   palette?: string[];
   instagram?: string | null;
+  textOnly?: boolean;
+  referenceImageDataUrl?: string | null;
 };
 
 const ARCHETYPE_TONE: Record<string, string> = {
