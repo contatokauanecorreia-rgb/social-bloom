@@ -66,7 +66,3 @@ export function ModeCard({
     </button>
   );
 }
-      </div>
-    </button>
-  );
-}
