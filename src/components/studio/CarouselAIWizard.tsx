@@ -762,6 +762,26 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
                   <Switch checked={aiImages} onCheckedChange={setAiImages} disabled={imageMode === "none"} />
                 </div>
               </div>
+
+              {/* SEÇÃO 4 — Estilo das imagens */}
+              {aiImages && imageMode !== "none" && (
+                <div>
+                  <Label className="text-sm font-medium">
+                    Estilo das imagens{" "}
+                    <span className="text-xs font-normal text-muted-foreground">(opcional)</span>
+                  </Label>
+                  <Textarea
+                    value={imageStyle}
+                    onChange={(e) => setImageStyle(e.target.value)}
+                    rows={2}
+                    className="mt-2"
+                    placeholder="Ex: editorial minimalista, fotorrealista ao ar livre, cores vibrantes..."
+                  />
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Se vazio, será usado um estilo padrão baseado no arquétipo da marca.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
