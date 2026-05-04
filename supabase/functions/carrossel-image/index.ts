@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
       ? `Visual style: ${imageStyle.trim()}.`
       : (archetype ? `Brand archetype: ${archetype}.` : "");
     const segStr = segment ? `Segment: ${segment}.` : "";
-    const fullPrompt = `${prompt}. ${styleStr} ${segStr} Editorial, high quality, soft natural lighting, instagram feed aesthetic, vertical 4:5 composition.`;
+    const fullPrompt = `${prompt}. ${styleStr} ${segStr} Editorial, high quality, soft natural lighting, instagram feed aesthetic, vertical 4:5 composition. Pure photographic/visual content only — absolutely no text, no letters, no typography, no captions, no watermarks, no logos with text, no signs anywhere in the image.`;
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
