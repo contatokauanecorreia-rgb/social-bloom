@@ -69,6 +69,26 @@ async function callAI(payload: unknown, apiKey: string) {
   });
 }
 
+function fallbackSlides(topic: string, clientName: string | null, n: number) {
+  const who = clientName ? ` para ${clientName}` : "";
+  const base = [
+    { title: topic.slice(0, 40) || "Tema", subtitle: "", body: `Conteúdo${who} sobre ${topic}.` },
+    { title: "Por que importa", subtitle: "", body: `O que ${topic} muda no dia a dia.` },
+    { title: "Como aplicar", subtitle: "", body: `3 passos práticos para começar agora.` },
+    { title: "Erros comuns", subtitle: "", body: `O que evitar ao tratar de ${topic}.` },
+    { title: "Próximo passo", subtitle: "CTA", body: `Salve este post e compartilhe${who}.` },
+  ];
+  const out = base.slice(0, Math.max(1, n)).map((s) => ({
+    ...s,
+    imagePrompt: topic,
+    imageDataUrl: null as string | null,
+  }));
+  while (out.length < n) {
+    out.push({ title: "", subtitle: "", body: "", imagePrompt: topic, imageDataUrl: null });
+  }
+  return out;
+}
+
 function aiErrorResponse(status: number) {
   if (status === 429)
     return new Response(JSON.stringify({ error: "Muitas requisições. Aguarde alguns segundos e tente novamente." }), {
