@@ -873,7 +873,7 @@ function FontCard({
     >
       <div
         style={{
-          fontFamily: `"${heading}", ${headingFallback(heading)}`,
+          fontFamily: `"${heading}", system-ui, sans-serif`,
           fontWeight: 700,
           visibility: fontsReady ? "visible" : "hidden",
         }}
@@ -883,7 +883,7 @@ function FontCard({
       </div>
       <div
         style={{
-          fontFamily: `"${body}", ${bodyFallback(body)}`,
+          fontFamily: `"${body}", system-ui, sans-serif`,
           fontWeight: 400,
           visibility: fontsReady ? "visible" : "hidden",
         }}
