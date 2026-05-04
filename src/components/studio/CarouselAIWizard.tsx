@@ -127,6 +127,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
   const [filterCats, setFilterCats] = useState<GoogleFontCategory[]>([]);
   const [exploreLimit, setExploreLimit] = useState(30);
   const [pendingFont, setPendingFont] = useState<string | null>(null); // ao clicar uma fonte no explorar
+  const [fontWeightChoice, setFontWeightChoice] = useState<"light" | "medium" | "bold">("medium");
 
   // Loading
   const [progress, setProgress] = useState(0);
