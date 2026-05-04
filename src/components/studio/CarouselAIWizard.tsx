@@ -82,9 +82,17 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
   const [step, setStep] = useState<1 | 2 | "loading">(1);
 
   // Step 1
+  const [contentSource, setContentSource] = useState<"planner" | "ai">("ai");
   const [topic, setTopic] = useState("");
-  const [moodboardFile, setMoodboardFile] = useState<File | null>(null);
-  const [moodboardPreview, setMoodboardPreview] = useState<string | null>(null);
+  const [plannerPosts, setPlannerPosts] = useState<
+    { id: string; title: string; tags: string[]; notes: string | null }[]
+  >([]);
+  const [selectedPostIds, setSelectedPostIds] = useState<string[]>([]);
+  const [loadingPosts, setLoadingPosts] = useState(false);
+  const [referenceFile, setReferenceFile] = useState<File | null>(null);
+  const [referenceUrl, setReferenceUrl] = useState("");
+  const [referenceImageDataUrl, setReferenceImageDataUrl] = useState<string | null>(null);
+  const [referenceLoading, setReferenceLoading] = useState(false);
   const [slideCount, setSlideCount] = useState(5);
   const [imageMode, setImageMode] = useState<ImageMode>("bg");
   const [aiImages, setAiImages] = useState(true);
