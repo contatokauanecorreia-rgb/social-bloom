@@ -214,7 +214,6 @@ function CarrosselEditorPage() {
 
       // Auto-pick default format (carrossel 4:5) when arriving from AI flow
       setFormat(FORMATS[0]);
-      setFormatPickerOpen(false);
 
       const aiSlides = Array.isArray(data.slides) ? data.slides : [];
       const sigBase = data.signature ?? null;
