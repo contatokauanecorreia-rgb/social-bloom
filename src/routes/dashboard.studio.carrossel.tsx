@@ -1299,7 +1299,9 @@ function ScaledPreview({
           format={format}
           dna={dna}
           scale={scale}
-          onMoveText={onMoveText}
+          editable={editable}
+          onEditField={onEditField}
+          onSelectField={onSelectField}
         />
       </div>
     </div>
