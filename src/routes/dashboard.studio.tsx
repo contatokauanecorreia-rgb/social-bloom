@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Loader2, FileText, Layers, CalendarDays, Film } from "lucide-react";
+import { Loader2, FileText, Layers, CalendarDays, Film, Bookmark } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PageContainer, PageHeader } from "@/components/dashboard/PageContainer";
