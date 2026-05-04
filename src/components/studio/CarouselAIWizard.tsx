@@ -425,16 +425,30 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
     setStep("loading");
     startProgress();
     try {
+      // Monta o "topic" enviado ao backend conforme a fonte de conteúdo
+      let effectiveTopic = topic.trim();
+      if (contentSource === "planner") {
+        const picked = plannerPosts.filter((p) => selectedPostIds.includes(p.id));
+        effectiveTopic = [
+          "Posts selecionados do Planner:",
+          ...picked.map(
+            (p, i) => `${i + 1}. ${p.title}${p.notes ? ` — ${p.notes}` : ""}`,
+          ),
+        ].join("\n");
+      }
+
       const { data, error } = await supabase.functions.invoke("carrossel-generate", {
         body: {
           clientId,
-          topic: topic.trim(),
+          topic: effectiveTopic,
           slideCount,
           imageMode,
           aiImages,
           fontPair: fontPairForOutput,
           palette,
           instagram: instagram.trim() || null,
+          textOnly: true,
+          referenceImageDataUrl: referenceImageDataUrl ?? null,
         },
       });
 
@@ -444,14 +458,22 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
       stopProgress();
       setProgress(100);
 
+      const slidesData = data.slides as Array<{
+        title: string;
+        subtitle?: string;
+        body: string;
+        imagePrompt: string;
+        imageDataUrl: string | null;
+      }>;
+
+      // Jobs de imagem (geradas em background no editor)
+      const imageJobs =
+        aiImages && imageMode !== "none"
+          ? slidesData.map((s, i) => ({ slideIndex: i, imagePrompt: s.imagePrompt || effectiveTopic }))
+          : [];
+
       const bootstrap = {
-        slides: data.slides as Array<{
-          title: string;
-          subtitle?: string;
-          body: string;
-          imagePrompt: string;
-          imageDataUrl: string | null;
-        }>,
+        slides: slidesData,
         fontPair: fontPairForOutput,
         palette,
         imageMode,
@@ -463,6 +485,8 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
               color: palette[0],
             }
           : null,
+        imageJobs,
+        archetype: data?.meta?.archetype ?? null,
       };
       try {
         sessionStorage.setItem("studio:carrossel:bootstrap", JSON.stringify(bootstrap));
