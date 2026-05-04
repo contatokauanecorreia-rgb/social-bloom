@@ -572,7 +572,50 @@ function CarrosselEditorPage() {
     }
   };
 
-  // -------- Handler escolha de formato --------
+  const handleSaveTemplate = async () => {
+    if (!userId || !clientId) {
+      toast.error("Selecione um cliente para salvar templates.");
+      return;
+    }
+    const name = templateName.trim();
+    if (!name) {
+      toast.error("Dê um nome ao template.");
+      return;
+    }
+    if (!activeSlide) return;
+    setSavingTemplate(true);
+    try {
+      const payload = {
+        user_id: userId,
+        client_id: clientId,
+        name,
+        font_pair: pageFontPair ?? null,
+        palette: dna.palette as unknown as string[],
+        layout: {
+          fontSize: activeSlide.fontSize,
+          textAlign: activeSlide.textAlign,
+          fontWeight: activeSlide.fontWeight,
+          textPos: activeSlide.textPos,
+        },
+        overlay: activeSlide.overlay,
+        signature: {
+          position: activeSlide.signature.position,
+          color: activeSlide.signature.color,
+        },
+        image_style: bootstrapRef.current?.imageStyle ?? null,
+      };
+      const { error } = await supabase.from("carousel_templates" as any).insert(payload);
+      if (error) throw error;
+      toast.success("Template salvo!");
+      setSaveTemplateChecked(false);
+      setTemplateName("");
+    } catch (err) {
+      console.error(err);
+      toast.error("Erro ao salvar template.");
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
 
   const handlePickFormat = (f: Format) => {
     setFormat(f);
