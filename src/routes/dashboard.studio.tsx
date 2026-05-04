@@ -11,6 +11,7 @@ import { CreditsExhaustedBanner } from "@/components/studio/CreditsExhaustedBann
 import { ModeCard } from "@/components/studio/ModeCard";
 import { CopyGeneratorDialog } from "@/components/studio/CopyGeneratorDialog";
 import { CarouselAIWizard } from "@/components/studio/CarouselAIWizard";
+import { TemplatesDialog } from "@/components/studio/TemplatesDialog";
 import { fetchCredits, MODE_COST, type CreditsState } from "@/lib/credits";
 import { ACTIVE_CLIENT_STORAGE_KEY } from "@/lib/client-context";
 
