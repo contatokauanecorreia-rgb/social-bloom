@@ -152,6 +152,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         setSlideCount(5);
         setImageMode("bg");
         setAiImages(true);
+        setImageStyle("");
         setInstagram("");
         setSelectedPaletteIdx(0);
         setProgress(0);
