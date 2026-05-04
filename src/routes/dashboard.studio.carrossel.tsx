@@ -836,11 +836,6 @@ function EditorPanel({
   const [applySigAll, setApplySigAll] = useState(false);
   const [plannerOpen, setPlannerOpen] = useState(false);
 
-  const setAlign = (field: TextField, value: TextAlign) =>
-    onUpdateActive((s) => ({ ...s, textAlign: { ...s.textAlign, [field]: value } }));
-
-  const setWeight = (field: TextField, value: number) =>
-    onUpdateActive((s) => ({ ...s, fontWeight: { ...s.fontWeight, [field]: value } }));
 
   return (
     <div className="space-y-6">
