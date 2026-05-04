@@ -9,6 +9,7 @@ export type ModeCardProps = {
   locked?: boolean;
   lockedLabel?: string;
   disabled?: boolean;
+  freeLabel?: string;
   onClick?: () => void;
 };
 
@@ -20,6 +21,7 @@ export function ModeCard({
   locked = false,
   lockedLabel,
   disabled = false,
+  freeLabel,
   onClick,
 }: ModeCardProps) {
   const isInactive = locked || disabled;
