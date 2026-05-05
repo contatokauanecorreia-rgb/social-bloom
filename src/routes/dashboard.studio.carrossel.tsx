@@ -87,13 +87,17 @@ type Slide = {
   fontWeight: { title: number; subtitle: number; body: number };
   textPos: { x: number; y: number };
   signature: { enabled: boolean; handle: string; position: SignaturePos; color: string };
-  // Sistema visual minimalista (opcional, retornado pela edge function)
-  system?: "minimalista";
-  slideType?: "M1" | "M2" | "M3" | "M4" | "M5";
-  bgKind?: "off-white" | "bege-texturizado" | "foto";
+  // Sistema visual minimalista ou criativo (opcional, retornado pela edge function)
+  system?: "minimalista" | "criativo";
+  slideType?: "M1" | "M2" | "M3" | "M4" | "M5" | "C1" | "C2" | "C3" | "C4" | "C5";
+  bgKind?: "off-white" | "bege-texturizado" | "foto" | "branco";
   label?: string;
   tags?: string[];
   decor?: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum";
+  highlightWord?: string;
+  tickerText?: string;
+  graphic?: "circulo" | "seta-curva" | "ticker" | "seta-vertical" | "toggle";
+  accentColor?: string;
 };
 
 type BriefingDNA = {
