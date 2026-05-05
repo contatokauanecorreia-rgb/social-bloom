@@ -87,13 +87,17 @@ type Slide = {
   fontWeight: { title: number; subtitle: number; body: number };
   textPos: { x: number; y: number };
   signature: { enabled: boolean; handle: string; position: SignaturePos; color: string };
-  // Sistema visual minimalista (opcional, retornado pela edge function)
-  system?: "minimalista";
-  slideType?: "M1" | "M2" | "M3" | "M4" | "M5";
-  bgKind?: "off-white" | "bege-texturizado" | "foto";
+  // Sistema visual minimalista ou criativo (opcional, retornado pela edge function)
+  system?: "minimalista" | "criativo";
+  slideType?: "M1" | "M2" | "M3" | "M4" | "M5" | "C1" | "C2" | "C3" | "C4" | "C5";
+  bgKind?: "off-white" | "bege-texturizado" | "foto" | "branco";
   label?: string;
   tags?: string[];
   decor?: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum";
+  highlightWord?: string;
+  tickerText?: string;
+  graphic?: "circulo" | "seta-curva" | "ticker" | "seta-vertical" | "toggle";
+  accentColor?: string;
 };
 
 type BriefingDNA = {
@@ -172,12 +176,15 @@ function CarrosselEditorPage() {
       body: string;
       imagePrompt?: string;
       imageDataUrl: string | null;
-      sistema?: "minimalista";
-      tipo?: "M1" | "M2" | "M3" | "M4" | "M5";
-      fundo?: "off-white" | "bege-texturizado" | "foto";
+      sistema?: "minimalista" | "criativo";
+      tipo?: "M1" | "M2" | "M3" | "M4" | "M5" | "C1" | "C2" | "C3" | "C4" | "C5";
+      fundo?: "off-white" | "bege-texturizado" | "foto" | "branco";
       label?: string;
       tags?: string[];
       elemento_decorativo?: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum";
+      palavra_destaque?: string;
+      ticker_texto?: string;
+      elemento_grafico?: "circulo" | "seta-curva" | "ticker" | "seta-vertical" | "toggle";
       alignment?: "left" | "center" | "right";
     }>;
     fontPair?: { heading: string; body: string } | null;
@@ -269,6 +276,38 @@ function CarrosselEditorPage() {
             slide.textColor = { title: "#1A1714", subtitle: "#3D3B40", body: "#3D3B40" };
             slide.overlay = { enabled: false, intensity: 0, type: "dark" };
           }
+        } else if (s.sistema === "criativo") {
+          slide.system = "criativo";
+          slide.slideType = s.tipo;
+          slide.bgKind = s.fundo;
+          slide.highlightWord = s.palavra_destaque;
+          slide.tickerText = s.ticker_texto;
+          slide.graphic = s.elemento_grafico;
+          slide.accentColor = palette?.[0] ?? DEFAULT_PALETTE[0];
+
+          const accent = slide.accentColor!;
+          const isPhoto = s.tipo === "C1" || s.tipo === "C3";
+          if (isPhoto && s.imageDataUrl) {
+            // C1: sem overlay; C3: overlay leve
+            slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
+            slide.overlay = s.tipo === "C1"
+              ? { enabled: false, intensity: 0, type: "dark" }
+              : { enabled: true, intensity: 25, type: "dark" };
+          } else if (s.tipo === "C2") {
+            // título na cor de destaque, subtítulo preto
+            slide.textColor = { title: accent, subtitle: "#0A0A0A", body: "#1A1A1A" };
+            slide.overlay = { enabled: false, intensity: 0, type: "dark" };
+          } else if (s.tipo === "C5") {
+            // todo texto na cor de destaque
+            slide.textColor = { title: accent, subtitle: accent, body: accent };
+            slide.overlay = { enabled: false, intensity: 0, type: "dark" };
+          } else {
+            // C4 e fallbacks: preto sobre off-white
+            slide.textColor = { title: "#0A0A0A", subtitle: "#1A1A1A", body: "#1A1A1A" };
+            slide.overlay = { enabled: false, intensity: 0, type: "dark" };
+          }
+          // Pesos mais fortes
+          slide.fontWeight = { title: 900, subtitle: 700, body: 400 };
         } else if (s.imageDataUrl) {
           // Comportamento legacy
           slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
@@ -1425,6 +1464,8 @@ function SlideContent({
 
   // dot grid pattern só quando não há imagem
   const isMinimal = slide.system === "minimalista";
+  const isCreative = slide.system === "criativo";
+  const accent = slide.accentColor ?? dna.palette[0];
   const dotBg: React.CSSProperties = isMinimal
     ? (() => {
         if (slide.bgKind === "foto" || slide.bgImage) return { backgroundColor: "#F5F0E8" };
@@ -1437,8 +1478,19 @@ function SlideContent({
             backgroundPosition: "0 0, 3px 3px",
           };
         }
-        // off-white default
         return { backgroundColor: "#F5F0E8" };
+      })()
+    : isCreative
+    ? (() => {
+        if (slide.bgKind === "foto" || slide.bgImage) return { backgroundColor: "#0A0A0A" };
+        if (slide.bgKind === "branco") return { backgroundColor: "#FFFFFF" };
+        // off-white texturizado leve
+        return {
+          backgroundColor: "#F5F0E8",
+          backgroundImage:
+            "radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px)",
+          backgroundSize: "10px 10px",
+        };
       })()
     : !slide.bgImage
     ? {
@@ -1470,6 +1522,55 @@ function SlideContent({
     slide.decor === "triangulo" ? "▲" :
     slide.decor === "seta-circular" ? "⊙" : "";
   const minimalPad = format.w * 0.045; // ~48px @1080w
+
+  // Render do título no sistema CRIATIVO com palavra-destaque (círculo SVG / underline / bold extra)
+  const renderCreativeTitle = (txt: string): React.ReactNode => {
+    if (!txt) return txt;
+    const word = (slide.highlightWord ?? "").trim();
+    const upper = slide.slideType === "C5" ? txt.toUpperCase() : txt;
+    if (!word) return upper;
+    const wordRe = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "i");
+    const parts = upper.split(wordRe);
+    return parts.map((p, i) => {
+      if (!wordRe.test(p)) return <span key={i}>{p}</span>;
+      if (slide.slideType === "C2") {
+        return (
+          <span
+            key={i}
+            style={{
+              color: accent,
+              borderBottom: `${format.w * 0.012}px solid ${accent}`,
+              paddingBottom: format.w * 0.005,
+            }}
+          >
+            {p}
+          </span>
+        );
+      }
+      if (slide.slideType === "C4") {
+        return (
+          <span key={i} style={{ position: "relative", display: "inline-block", padding: `0 ${format.w * 0.015}px` }}>
+            <svg
+              viewBox="0 0 100 60"
+              preserveAspectRatio="none"
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+            >
+              <ellipse
+                cx="50" cy="30" rx="46" ry="24"
+                fill="none" stroke={accent} strokeWidth="2.2"
+                transform="rotate(-3 50 30)"
+              />
+            </svg>
+            <span style={{ fontStyle: "italic", position: "relative" }}>{p}</span>
+          </span>
+        );
+      }
+      if (slide.slideType === "C5") {
+        return <span key={i} style={{ fontWeight: 900, color: accent }}>{p}</span>;
+      }
+      return <span key={i}>{p}</span>;
+    });
+  };
 
   return (
     <div
@@ -1584,7 +1685,127 @@ function SlideContent({
         </div>
       )}
 
-      {/* bloco de texto */}
+      {/* === Sistema visual CRIATIVO: ticker, setas, toggle, marca duplicada === */}
+      {isCreative && slide.slideType === "C3" && slide.tickerText && (
+        <div
+          style={{
+            position: "absolute",
+            top: `${66}%`,
+            left: 0,
+            right: 0,
+            height: format.w * 0.08,
+            background: accent,
+            color: "#FFFFFF",
+            display: "flex",
+            alignItems: "center",
+            overflow: "hidden",
+            whiteSpace: "nowrap",
+            fontSize: format.w * 0.035,
+            fontWeight: 800,
+            letterSpacing: 2,
+            textTransform: "uppercase",
+            pointerEvents: "none",
+          }}
+        >
+          {Array.from({ length: 10 }).map((_, i) => (
+            <span key={i} style={{ paddingInline: format.w * 0.02 }}>
+              {slide.tickerText} •
+            </span>
+          ))}
+        </div>
+      )}
+      {isCreative && slide.slideType === "C4" && slide.graphic === "seta-curva" && (
+        <svg
+          viewBox="0 0 200 120"
+          style={{
+            position: "absolute",
+            right: minimalPad,
+            top: format.h * 0.55,
+            width: format.w * 0.18,
+            height: format.w * 0.12,
+            pointerEvents: "none",
+          }}
+        >
+          <path
+            d="M10,20 C60,10 140,30 170,80"
+            fill="none"
+            stroke={accent}
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+          <polyline
+            points="160,70 175,82 162,92"
+            fill="none"
+            stroke={accent}
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+      {isCreative && slide.slideType === "C4" && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: minimalPad,
+            right: minimalPad,
+            color: accent,
+            fontSize: format.w * 0.035,
+            fontWeight: 700,
+            pointerEvents: "none",
+          }}
+        >
+          ⊙→
+        </div>
+      )}
+      {isCreative && slide.slideType === "C5" && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            color: accent,
+            fontSize: format.w * 0.08,
+            fontWeight: 900,
+            pointerEvents: "none",
+            opacity: 0.9,
+          }}
+        >
+          ↓
+        </div>
+      )}
+      {isCreative && slide.slideType === "C5" && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: minimalPad,
+            right: minimalPad,
+            color: accent,
+            fontSize: format.w * 0.04,
+            fontWeight: 900,
+            pointerEvents: "none",
+          }}
+        >
+          →
+        </div>
+      )}
+      {isCreative && slide.slideType === "C1" && slide.signature.handle && (
+        <div
+          style={{
+            position: "absolute",
+            top: minimalPad,
+            right: minimalPad,
+            color: "#FFFFFF",
+            fontSize: format.w * 0.022,
+            fontWeight: 800,
+            letterSpacing: 1,
+            pointerEvents: "none",
+          }}
+        >
+          {slide.signature.handle}
+        </div>
+      )}
       <div
         style={{
           position: "absolute",
@@ -1612,7 +1833,11 @@ function SlideContent({
               ...editableStyle,
             }}
           >
-            {isMinimal && !editable ? renderItalicized(slide.text.title) : slide.text.title}
+            {isMinimal && !editable
+              ? renderItalicized(slide.text.title)
+              : isCreative && !editable
+              ? renderCreativeTitle(slide.text.title)
+              : slide.text.title}
           </h1>
         )}
         {(editable || slide.text.subtitle) && (
@@ -1654,7 +1879,11 @@ function SlideContent({
               ...editableStyle,
             }}
           >
-            {isMinimal && !editable ? renderItalicized(slide.text.body) : slide.text.body}
+            {isMinimal && !editable
+              ? renderItalicized(slide.text.body)
+              : isCreative && slide.slideType === "C5" && !editable
+              ? slide.text.body.toUpperCase()
+              : slide.text.body}
           </p>
         )}
       </div>

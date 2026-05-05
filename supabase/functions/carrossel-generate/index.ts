@@ -208,6 +208,22 @@ Deno.serve(async (req) => {
       minimalistSegment.test(segLower);
     console.log("[carrossel-generate] minimalist?", { isMinimalist, archLower, alignment: ALINHAMENTO });
 
+    // ---- Detecção automática do Sistema Visual Criativo ----
+    const creativeArchetypes = ["criador", "fora-da-lei", "bobo", "heroi", "mago"];
+    const creativeTone = /jovem|irreverente|ousad|disruptiv|vibrante/i;
+    const creativeSegment = /marketing|tecnolog|moda|entretenimento|ag[êe]ncia|neg[óo]cios?\s*digit|digital/i;
+    const isCreative =
+      !isMinimalist && (
+        creativeArchetypes.includes(archLower) ||
+        creativeTone.test(toneLower) ||
+        creativeSegment.test(segLower)
+      );
+    console.log("[carrossel-generate] creative?", { isCreative, archLower });
+
+    const COR_DESTAQUE = Array.isArray(briefing?.palette) && briefing!.palette.length
+      ? briefing!.palette[0]
+      : "#FF5A1F";
+
     const systemPrompt = `Você é um Consultor Criativo Estratégico e Especialista em Copywriting de Alta Conversão para Instagram.
 
 Você combina dois superpoderes: 1. Pensamento estratégico — analisa ângulos, dores reais e potencial viral antes de criar 2. Copywriting de conversão — executa com precisão, sem genericidade, sem bullet points, sem conteúdo fraco
@@ -332,7 +348,54 @@ CAMPOS EXTRAS NA TOOL (obrigatórios em modo minimalista):
 
 Para M1/M2/M3, \`imagePrompt\` deve ser string vazia (sem foto). Para M4/M5, \`imagePrompt\` recebe a \`nota_visual\` em inglês.` : "";
 
-    const finalSystemPrompt = systemPrompt + minimalistAppendix;
+    const creativeAppendix = isCreative ? `
+
+---
+
+SISTEMA VISUAL CRIATIVO — ATIVADO AUTOMATICAMENTE PELO DNA DA MARCA
+
+Você está operando em modo criativo. Cada slide DEVE também ser classificado em um dos 5 tipos visuais abaixo, e você DEVE retornar os campos extras: \`sistema\`, \`tipo\`, \`fundo\`, \`palavra_destaque\`, \`ticker_texto\` (apenas C3), \`elemento_grafico\` e \`nota_visual\` (apenas C1/C3).
+
+REGRAS GLOBAIS:
+- Contraste visual extremo entre elementos.
+- Títulos gigantes que dominam o slide.
+- Cor de destaque do DNA (${COR_DESTAQUE}) usada com ousadia.
+- Máximo 2 fontes com contraste máximo entre elas.
+- Elementos gráficos criativos como diferencial.
+- Alinhamento dos textos: ${ALINHAMENTO}.
+
+TIPOS DE SLIDE:
+- C1 — Foto + tipografia gigante sobreposta: foto editorial sem overlay, título gigante bold branco diretamente sobre a foto, marca duplicada (canto superior direito + rodapé bold), slogan pequeno no rodapé. Para abertura e impacto visual máximo.
+- C2 — Fundo neutro + tipografia colorida explosiva: fundo off-white, label caps com underline no topo, título gigante em fonte display NA COR DE DESTAQUE (${COR_DESTAQUE}), subtítulo bold preto em contraste, mockup/objeto no centro, corpo pequeno no rodapé. Para declarações de impacto e propostas de valor.
+- C3 — Foto + faixa ticker: foto editorial de pessoa/ambiente, título bold sans-serif no topo, corpo justificado no centro, faixa horizontal no terço inferior com texto repetido NA COR DE DESTAQUE (${COR_DESTAQUE}), marca nos cantos superiores. Para desenvolvimento e engajamento.
+- C4 — Tipografia pura + elemento manuscrito: fundo off-white texturizado, título gigante serif bold + itálico expressivo, palavra-chave destacada com círculo SVG NA COR DE DESTAQUE, seta curva manuscrita SVG NA COR DE DESTAQUE, subtítulo deslocado à direita, rodapé com toggle ⊙→. Para frases provocativas e ganchos emocionais.
+- C5 — Tipografia 100% caps + cor dominante: fundo branco, TODO texto em CAPS LOCK BOLD, COR DE DESTAQUE (${COR_DESTAQUE}) dominante em todo o texto, palavras-chave em bold extra, seta vertical ↓ como separador no centro, rodapé com marca + seta →. Para CTA final e declarações de autoridade.
+
+ALTERNÂNCIA OBRIGATÓRIA (NÃO QUEBRE):
+- Slide 1: SEMPRE C1 ou C4.
+- Slides 2 e 3: C2 ou C3.
+- Slides 4 e 5: C3 ou C4.
+- Último slide: SEMPRE C5 (CTA dominante).
+- NUNCA dois slides do mesmo tipo consecutivos.
+
+ELEMENTOS GRÁFICOS PERMITIDOS POR TIPO (não misturar):
+- C2: underline em palavra do título.
+- C3: faixa/ticker horizontal com \`ticker_texto\` repetido.
+- C4: círculo SVG ao redor da \`palavra_destaque\` + seta curva manuscrita + toggle ⊙→.
+- C5: seta vertical ↓ + seta → no rodapé.
+
+CAMPOS EXTRAS NA TOOL (obrigatórios em modo criativo):
+- sistema: "criativo"
+- tipo: "C1" | "C2" | "C3" | "C4" | "C5"
+- fundo: "branco" | "off-white" | "foto"
+- palavra_destaque: palavra única do título que recebe círculo/underline (string vazia quando não se aplica)
+- ticker_texto: texto curto repetido na faixa (apenas C3; vazio nos demais)
+- elemento_grafico: "circulo" | "seta-curva" | "ticker" | "seta-vertical" | "toggle"
+- nota_visual: descrição em INGLÊS para gerar a foto (apenas C1 e C3; vazio em C2/C4/C5)
+
+Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`imagePrompt\` recebe a \`nota_visual\` em inglês.` : "";
+
+    const finalSystemPrompt = systemPrompt + minimalistAppendix + creativeAppendix;
 
     const slideItemProperties: any = {
       title: { type: "string" },
@@ -349,6 +412,18 @@ Para M1/M2/M3, \`imagePrompt\` deve ser string vazia (sem foto). Para M4/M5, \`i
       slideItemProperties.elemento_decorativo = {
         type: "string",
         enum: ["seta", "asterisco", "triangulo", "seta-circular", "nenhum"],
+      };
+      slideItemProperties.nota_visual = { type: "string" };
+    }
+    if (isCreative) {
+      slideItemProperties.sistema = { type: "string" };
+      slideItemProperties.tipo = { type: "string", enum: ["C1", "C2", "C3", "C4", "C5"] };
+      slideItemProperties.fundo = { type: "string", enum: ["branco", "off-white", "foto"] };
+      slideItemProperties.palavra_destaque = { type: "string" };
+      slideItemProperties.ticker_texto = { type: "string" };
+      slideItemProperties.elemento_grafico = {
+        type: "string",
+        enum: ["circulo", "seta-curva", "ticker", "seta-vertical", "toggle"],
       };
       slideItemProperties.nota_visual = { type: "string" };
     }
@@ -406,12 +481,15 @@ Para M1/M2/M3, \`imagePrompt\` deve ser string vazia (sem foto). Para M4/M5, \`i
       body: string;
       imagePrompt: string;
       imageDataUrl: string | null;
-      sistema?: "minimalista";
-      tipo?: "M1" | "M2" | "M3" | "M4" | "M5";
-      fundo?: "off-white" | "bege-texturizado" | "foto";
+      sistema?: "minimalista" | "criativo";
+      tipo?: "M1" | "M2" | "M3" | "M4" | "M5" | "C1" | "C2" | "C3" | "C4" | "C5";
+      fundo?: "off-white" | "bege-texturizado" | "foto" | "branco";
       label?: string;
       tags?: string[];
       elemento_decorativo?: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum";
+      palavra_destaque?: string;
+      ticker_texto?: string;
+      elemento_grafico?: "circulo" | "seta-curva" | "ticker" | "seta-vertical" | "toggle";
       alignment?: "left" | "center" | "right";
     };
     let slides: SlideOut[] = [];
@@ -453,6 +531,20 @@ Para M1/M2/M3, \`imagePrompt\` deve ser string vazia (sem foto). Para M4/M5, \`i
           }
           // Para M1/M2/M3, NUNCA gerar foto
           if (out.tipo === "M1" || out.tipo === "M2" || out.tipo === "M3") {
+            out.imagePrompt = "";
+          }
+        }
+        if (isCreative) {
+          out.sistema = "criativo";
+          if (s.tipo) out.tipo = s.tipo;
+          if (s.fundo) out.fundo = s.fundo;
+          if (typeof s.palavra_destaque === "string") out.palavra_destaque = s.palavra_destaque;
+          if (typeof s.ticker_texto === "string") out.ticker_texto = s.ticker_texto;
+          if (s.elemento_grafico) out.elemento_grafico = s.elemento_grafico;
+          if ((out.tipo === "C1" || out.tipo === "C3") && typeof s.nota_visual === "string" && s.nota_visual.trim()) {
+            out.imagePrompt = s.nota_visual.trim();
+          }
+          if (out.tipo === "C2" || out.tipo === "C4" || out.tipo === "C5") {
             out.imagePrompt = "";
           }
         }
@@ -522,6 +614,7 @@ Para M1/M2/M3, \`imagePrompt\` deve ser string vazia (sem foto). Para M4/M5, \`i
           `Quality: high optical sharpness, fine detail rendering, natural skin micro texture, visible pores, realistic photography clarity, professional photography, 2K resolution.`,
           `Negative: no text, no letters, no typography, no captions, no watermark, no logo, no signage with words, no blurry skin, no plastic skin, no over-smoothed face, no AI skin smoothing, no texture loss, no suggestive or sensual posing.`,
           isMinimalist ? `Composition style: editorial minimalist, generous negative space, off-white or linen tones, calm and refined.` : "",
+          isCreative ? `Composition style: bold editorial, high contrast, vibrant accent color, dynamic energy, magazine-grade.` : "",
           `Aspect ratio: vertical 4:5.`,
         ].filter(Boolean);
         return parts.join(" ");
@@ -534,9 +627,14 @@ Para M1/M2/M3, \`imagePrompt\` deve ser string vazia (sem foto). Para M4/M5, \`i
           console.log("[carrossel-generate] image_skip_minimalist", { i, tipo: s.tipo });
           return null;
         }
-        // Sem nota visual? não gera.
+        // Sistema criativo: tipos C2/C4/C5 nunca usam foto.
+        if (s.sistema === "criativo" && (s.tipo === "C2" || s.tipo === "C4" || s.tipo === "C5")) {
+          console.log("[carrossel-generate] image_skip_creative", { i, tipo: s.tipo });
+          return null;
+        }
+        // Sem nota visual? não gera para sistemas com tipos.
         if (!s.imagePrompt || !s.imagePrompt.trim()) {
-          if (s.sistema === "minimalista") return null;
+          if (s.sistema === "minimalista" || s.sistema === "criativo") return null;
         }
         const prompt = buildImagePrompt(s.imagePrompt || topic.trim());
         console.log("[carrossel-generate] image_start", { i, ms: Date.now() - t0 });
