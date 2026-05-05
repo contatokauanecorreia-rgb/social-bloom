@@ -1612,7 +1612,7 @@ function SlideContent({
               ...editableStyle,
             }}
           >
-            {slide.text.title}
+            {isMinimal && !editable ? renderItalicized(slide.text.title) : slide.text.title}
           </h1>
         )}
         {(editable || slide.text.subtitle) && (
@@ -1654,7 +1654,7 @@ function SlideContent({
               ...editableStyle,
             }}
           >
-            {slide.text.body}
+            {isMinimal && !editable ? renderItalicized(slide.text.body) : slide.text.body}
           </p>
         )}
       </div>
