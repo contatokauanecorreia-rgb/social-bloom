@@ -1685,7 +1685,127 @@ function SlideContent({
         </div>
       )}
 
-      {/* bloco de texto */}
+      {/* === Sistema visual CRIATIVO: ticker, setas, toggle, marca duplicada === */}
+      {isCreative && slide.slideType === "C3" && slide.tickerText && (
+        <div
+          style={{
+            position: "absolute",
+            top: `${66}%`,
+            left: 0,
+            right: 0,
+            height: format.w * 0.08,
+            background: accent,
+            color: "#FFFFFF",
+            display: "flex",
+            alignItems: "center",
+            overflow: "hidden",
+            whiteSpace: "nowrap",
+            fontSize: format.w * 0.035,
+            fontWeight: 800,
+            letterSpacing: 2,
+            textTransform: "uppercase",
+            pointerEvents: "none",
+          }}
+        >
+          {Array.from({ length: 10 }).map((_, i) => (
+            <span key={i} style={{ paddingInline: format.w * 0.02 }}>
+              {slide.tickerText} •
+            </span>
+          ))}
+        </div>
+      )}
+      {isCreative && slide.slideType === "C4" && slide.graphic === "seta-curva" && (
+        <svg
+          viewBox="0 0 200 120"
+          style={{
+            position: "absolute",
+            right: minimalPad,
+            top: format.h * 0.55,
+            width: format.w * 0.18,
+            height: format.w * 0.12,
+            pointerEvents: "none",
+          }}
+        >
+          <path
+            d="M10,20 C60,10 140,30 170,80"
+            fill="none"
+            stroke={accent}
+            strokeWidth="3"
+            strokeLinecap="round"
+          />
+          <polyline
+            points="160,70 175,82 162,92"
+            fill="none"
+            stroke={accent}
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      )}
+      {isCreative && slide.slideType === "C4" && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: minimalPad,
+            right: minimalPad,
+            color: accent,
+            fontSize: format.w * 0.035,
+            fontWeight: 700,
+            pointerEvents: "none",
+          }}
+        >
+          ⊙→
+        </div>
+      )}
+      {isCreative && slide.slideType === "C5" && (
+        <div
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            color: accent,
+            fontSize: format.w * 0.08,
+            fontWeight: 900,
+            pointerEvents: "none",
+            opacity: 0.9,
+          }}
+        >
+          ↓
+        </div>
+      )}
+      {isCreative && slide.slideType === "C5" && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: minimalPad,
+            right: minimalPad,
+            color: accent,
+            fontSize: format.w * 0.04,
+            fontWeight: 900,
+            pointerEvents: "none",
+          }}
+        >
+          →
+        </div>
+      )}
+      {isCreative && slide.slideType === "C1" && slide.signature.handle && (
+        <div
+          style={{
+            position: "absolute",
+            top: minimalPad,
+            right: minimalPad,
+            color: "#FFFFFF",
+            fontSize: format.w * 0.022,
+            fontWeight: 800,
+            letterSpacing: 1,
+            pointerEvents: "none",
+          }}
+        >
+          {slide.signature.handle}
+        </div>
+      )}
       <div
         style={{
           position: "absolute",
