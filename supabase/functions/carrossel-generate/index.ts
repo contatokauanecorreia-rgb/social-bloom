@@ -481,12 +481,15 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
       body: string;
       imagePrompt: string;
       imageDataUrl: string | null;
-      sistema?: "minimalista";
-      tipo?: "M1" | "M2" | "M3" | "M4" | "M5";
-      fundo?: "off-white" | "bege-texturizado" | "foto";
+      sistema?: "minimalista" | "criativo";
+      tipo?: "M1" | "M2" | "M3" | "M4" | "M5" | "C1" | "C2" | "C3" | "C4" | "C5";
+      fundo?: "off-white" | "bege-texturizado" | "foto" | "branco";
       label?: string;
       tags?: string[];
       elemento_decorativo?: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum";
+      palavra_destaque?: string;
+      ticker_texto?: string;
+      elemento_grafico?: "circulo" | "seta-curva" | "ticker" | "seta-vertical" | "toggle";
       alignment?: "left" | "center" | "right";
     };
     let slides: SlideOut[] = [];
@@ -528,6 +531,20 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
           }
           // Para M1/M2/M3, NUNCA gerar foto
           if (out.tipo === "M1" || out.tipo === "M2" || out.tipo === "M3") {
+            out.imagePrompt = "";
+          }
+        }
+        if (isCreative) {
+          out.sistema = "criativo";
+          if (s.tipo) out.tipo = s.tipo;
+          if (s.fundo) out.fundo = s.fundo;
+          if (typeof s.palavra_destaque === "string") out.palavra_destaque = s.palavra_destaque;
+          if (typeof s.ticker_texto === "string") out.ticker_texto = s.ticker_texto;
+          if (s.elemento_grafico) out.elemento_grafico = s.elemento_grafico;
+          if ((out.tipo === "C1" || out.tipo === "C3") && typeof s.nota_visual === "string" && s.nota_visual.trim()) {
+            out.imagePrompt = s.nota_visual.trim();
+          }
+          if (out.tipo === "C2" || out.tipo === "C4" || out.tipo === "C5") {
             out.imagePrompt = "";
           }
         }
