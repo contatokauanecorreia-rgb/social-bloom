@@ -1513,6 +1513,77 @@ function SlideContent({
         />
       )}
 
+      {/* === Sistema visual minimalista: label, tags e decor === */}
+      {isMinimal && slide.label && (
+        <div
+          style={{
+            position: "absolute",
+            top: minimalPad,
+            left: slide.slideType === "M3" || slide.slideType === "M4" ? 0 : minimalPad,
+            right: slide.slideType === "M3" || slide.slideType === "M4" ? 0 : "auto",
+            textAlign: slide.slideType === "M3" || slide.slideType === "M4" ? "center" : "left",
+            fontSize: format.w * 0.018,
+            letterSpacing: 2,
+            textTransform: "uppercase",
+            color: slide.bgImage ? "#FFFFFF" : "#3D3B40",
+            fontStyle: slide.slideType === "M3" ? "italic" : "normal",
+            opacity: 0.85,
+            pointerEvents: "none",
+          }}
+        >
+          {slide.label}
+        </div>
+      )}
+      {isMinimal && slide.slideType === "M4" && Array.isArray(slide.tags) && slide.tags.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: minimalPad,
+            left: 0,
+            right: 0,
+            display: "flex",
+            justifyContent: "center",
+            gap: 10,
+            flexWrap: "wrap",
+            padding: `0 ${minimalPad}px`,
+            pointerEvents: "none",
+          }}
+        >
+          {slide.tags.map((tag, i) => (
+            <span
+              key={i}
+              style={{
+                border: "1px solid rgba(255,255,255,0.65)",
+                color: "#FFFFFF",
+                borderRadius: 999,
+                padding: `6px ${format.w * 0.018}px`,
+                fontSize: format.w * 0.016,
+                letterSpacing: 1.5,
+                textTransform: "uppercase",
+                background: "rgba(0,0,0,0.15)",
+              }}
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+      {isMinimal && decorChar && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: minimalPad,
+            left: minimalPad,
+            fontSize: format.w * 0.04,
+            color: slide.bgImage ? "#FFFFFF" : "#3D3B40",
+            opacity: 0.8,
+            pointerEvents: "none",
+          }}
+        >
+          {decorChar}
+        </div>
+      )}
+
       {/* bloco de texto */}
       <div
         style={{
