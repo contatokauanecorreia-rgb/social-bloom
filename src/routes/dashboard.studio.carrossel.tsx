@@ -1424,7 +1424,23 @@ function SlideContent({
   }
 
   // dot grid pattern só quando não há imagem
-  const dotBg: React.CSSProperties = !slide.bgImage
+  const isMinimal = slide.system === "minimalista";
+  const dotBg: React.CSSProperties = isMinimal
+    ? (() => {
+        if (slide.bgKind === "foto" || slide.bgImage) return { backgroundColor: "#F5F0E8" };
+        if (slide.bgKind === "bege-texturizado") {
+          return {
+            backgroundColor: "#EDE5D6",
+            backgroundImage:
+              "radial-gradient(rgba(60,40,20,0.05) 1px, transparent 1px), radial-gradient(rgba(60,40,20,0.04) 1px, transparent 1px)",
+            backgroundSize: "6px 6px, 14px 14px",
+            backgroundPosition: "0 0, 3px 3px",
+          };
+        }
+        // off-white default
+        return { backgroundColor: "#F5F0E8" };
+      })()
+    : !slide.bgImage
     ? {
         backgroundColor: "#ffffff",
         backgroundImage:
@@ -1432,6 +1448,28 @@ function SlideContent({
         backgroundSize: "32px 32px",
       }
     : { backgroundColor: "#ffffff" };
+
+  // Renderiza texto com marcação *palavra* como itálico
+  const renderItalicized = (txt: string): React.ReactNode => {
+    if (!txt) return txt;
+    const parts = txt.split(/(\*[^*]+\*)/g);
+    return parts.map((p, i) =>
+      p.startsWith("*") && p.endsWith("*") && p.length > 2 ? (
+        <em key={i} style={{ fontStyle: "italic", fontWeight: 400 }}>
+          {p.slice(1, -1)}
+        </em>
+      ) : (
+        <span key={i}>{p}</span>
+      ),
+    );
+  };
+
+  const decorChar =
+    slide.decor === "seta" ? "→" :
+    slide.decor === "asterisco" ? "*" :
+    slide.decor === "triangulo" ? "▲" :
+    slide.decor === "seta-circular" ? "⊙" : "";
+  const minimalPad = format.w * 0.045; // ~48px @1080w
 
   return (
     <div
