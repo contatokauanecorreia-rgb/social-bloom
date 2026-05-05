@@ -724,51 +724,52 @@ function CarrosselEditorPage() {
               </div>
             </aside>
 
-            {/* Preview central */}
-            <main className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-6">
-              <ScaledPreview
-                slide={activeSlide}
-                format={format}
-                dna={dna}
-                editable
-                onSelectField={setSelectedField}
-                onEditField={(field, value) =>
-                  updateActive((s) => ({ ...s, text: { ...s.text, [field]: value } }))
-                }
-              />
-            </main>
-          </div>
-
-          {/* Barra de slides */}
-          <div className="border-t bg-card p-3">
-            {imageProgress && (
-              <div className="mb-2">
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
-                  <span>Gerando imagens em segundo plano…</span>
-                  <span>
-                    {imageProgress.current}/{imageProgress.total}
-                  </span>
+            {/* Área central — slides lado a lado horizontalmente */}
+            <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              {imageProgress && (
+                <div className="border-b bg-card px-6 py-2">
+                  <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Gerando imagens em segundo plano…</span>
+                    <span>
+                      {imageProgress.current}/{imageProgress.total}
+                    </span>
+                  </div>
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full bg-primary transition-all duration-300"
+                      style={{ width: `${imageProgress.percent}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full bg-primary transition-all duration-300"
-                    style={{ width: `${imageProgress.percent}%` }}
-                  />
+              )}
+              <div className="flex-1 overflow-x-auto overflow-y-hidden">
+                <div className="flex h-full min-w-max items-center gap-6 px-8 py-6">
+                  {slides.map((s, i) => (
+                    <SlideCard
+                      key={s.id}
+                      slide={s}
+                      index={i}
+                      format={format}
+                      dna={dna}
+                      active={s.id === activeId}
+                      onSelect={() => setActiveId(s.id)}
+                      onRemove={() => removeSlide(s.id)}
+                      onSelectField={s.id === activeId ? setSelectedField : undefined}
+                      onEditField={
+                        s.id === activeId
+                          ? (field, value) =>
+                              updateActive((sl) => ({
+                                ...sl,
+                                text: { ...sl.text, [field]: value },
+                              }))
+                          : undefined
+                      }
+                    />
+                  ))}
+                  <AddSlideCard format={format} onAdd={addSlide} />
                 </div>
               </div>
-            )}
-            <SlidesBar
-              slides={slides}
-              format={format}
-              dna={dna}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onAdd={addSlide}
-              onRemove={removeSlide}
-              onReorder={(from, to) => {
-                setSlides((prev) => arrayMove(prev, from, to));
-              }}
-            />
+            </main>
           </div>
 
           {/* Nodes ocultos para export em tamanho real */}
