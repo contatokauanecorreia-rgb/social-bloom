@@ -87,6 +87,13 @@ type Slide = {
   fontWeight: { title: number; subtitle: number; body: number };
   textPos: { x: number; y: number };
   signature: { enabled: boolean; handle: string; position: SignaturePos; color: string };
+  // Sistema visual minimalista (opcional, retornado pela edge function)
+  system?: "minimalista";
+  slideType?: "M1" | "M2" | "M3" | "M4" | "M5";
+  bgKind?: "off-white" | "bege-texturizado" | "foto";
+  label?: string;
+  tags?: string[];
+  decor?: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum";
 };
 
 type BriefingDNA = {
@@ -165,6 +172,13 @@ function CarrosselEditorPage() {
       body: string;
       imagePrompt?: string;
       imageDataUrl: string | null;
+      sistema?: "minimalista";
+      tipo?: "M1" | "M2" | "M3" | "M4" | "M5";
+      fundo?: "off-white" | "bege-texturizado" | "foto";
+      label?: string;
+      tags?: string[];
+      elemento_decorativo?: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum";
+      alignment?: "left" | "center" | "right";
     }>;
     fontPair?: { heading: string; body: string } | null;
     palette?: [string, string, string];
@@ -228,8 +242,35 @@ function CarrosselEditorPage() {
         };
         if (s.imageDataUrl) slide.bgImage = s.imageDataUrl;
         if (sigBase) slide.signature = { ...sigBase };
-        // If image is set, ensure title contrasts against image (white)
-        if (s.imageDataUrl) {
+
+        // Alinhamento global escolhido no wizard
+        const align = (s.alignment === "left" || s.alignment === "right" || s.alignment === "center")
+          ? s.alignment
+          : null;
+        if (align) {
+          slide.textAlign = { title: align, subtitle: align, body: align };
+        }
+
+        // Sistema minimalista
+        if (s.sistema === "minimalista") {
+          slide.system = "minimalista";
+          slide.slideType = s.tipo;
+          slide.bgKind = s.fundo;
+          slide.label = s.label;
+          slide.tags = Array.isArray(s.tags) ? s.tags : undefined;
+          slide.decor = s.elemento_decorativo;
+
+          // Cores neutras + tipografia para minimalista (M1/M2/M3 sem foto)
+          const isPhoto = s.tipo === "M4" || s.tipo === "M5";
+          if (isPhoto && s.imageDataUrl) {
+            slide.textColor = { title: "#FFFFFF", subtitle: "#F5F5F5", body: "#F5F5F5" };
+            slide.overlay = { enabled: true, intensity: 30, type: "dark" };
+          } else {
+            slide.textColor = { title: "#1A1714", subtitle: "#3D3B40", body: "#3D3B40" };
+            slide.overlay = { enabled: false, intensity: 0, type: "dark" };
+          }
+        } else if (s.imageDataUrl) {
+          // Comportamento legacy
           slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
           slide.overlay = { enabled: true, intensity: 40, type: "dark" };
         }
@@ -1383,7 +1424,23 @@ function SlideContent({
   }
 
   // dot grid pattern só quando não há imagem
-  const dotBg: React.CSSProperties = !slide.bgImage
+  const isMinimal = slide.system === "minimalista";
+  const dotBg: React.CSSProperties = isMinimal
+    ? (() => {
+        if (slide.bgKind === "foto" || slide.bgImage) return { backgroundColor: "#F5F0E8" };
+        if (slide.bgKind === "bege-texturizado") {
+          return {
+            backgroundColor: "#EDE5D6",
+            backgroundImage:
+              "radial-gradient(rgba(60,40,20,0.05) 1px, transparent 1px), radial-gradient(rgba(60,40,20,0.04) 1px, transparent 1px)",
+            backgroundSize: "6px 6px, 14px 14px",
+            backgroundPosition: "0 0, 3px 3px",
+          };
+        }
+        // off-white default
+        return { backgroundColor: "#F5F0E8" };
+      })()
+    : !slide.bgImage
     ? {
         backgroundColor: "#ffffff",
         backgroundImage:
@@ -1391,6 +1448,28 @@ function SlideContent({
         backgroundSize: "32px 32px",
       }
     : { backgroundColor: "#ffffff" };
+
+  // Renderiza texto com marcação *palavra* como itálico
+  const renderItalicized = (txt: string): React.ReactNode => {
+    if (!txt) return txt;
+    const parts = txt.split(/(\*[^*]+\*)/g);
+    return parts.map((p, i) =>
+      p.startsWith("*") && p.endsWith("*") && p.length > 2 ? (
+        <em key={i} style={{ fontStyle: "italic", fontWeight: 400 }}>
+          {p.slice(1, -1)}
+        </em>
+      ) : (
+        <span key={i}>{p}</span>
+      ),
+    );
+  };
+
+  const decorChar =
+    slide.decor === "seta" ? "→" :
+    slide.decor === "asterisco" ? "*" :
+    slide.decor === "triangulo" ? "▲" :
+    slide.decor === "seta-circular" ? "⊙" : "";
+  const minimalPad = format.w * 0.045; // ~48px @1080w
 
   return (
     <div
@@ -1434,6 +1513,77 @@ function SlideContent({
         />
       )}
 
+      {/* === Sistema visual minimalista: label, tags e decor === */}
+      {isMinimal && slide.label && (
+        <div
+          style={{
+            position: "absolute",
+            top: minimalPad,
+            left: slide.slideType === "M3" || slide.slideType === "M4" ? 0 : minimalPad,
+            right: slide.slideType === "M3" || slide.slideType === "M4" ? 0 : "auto",
+            textAlign: slide.slideType === "M3" || slide.slideType === "M4" ? "center" : "left",
+            fontSize: format.w * 0.018,
+            letterSpacing: 2,
+            textTransform: "uppercase",
+            color: slide.bgImage ? "#FFFFFF" : "#3D3B40",
+            fontStyle: slide.slideType === "M3" ? "italic" : "normal",
+            opacity: 0.85,
+            pointerEvents: "none",
+          }}
+        >
+          {slide.label}
+        </div>
+      )}
+      {isMinimal && slide.slideType === "M4" && Array.isArray(slide.tags) && slide.tags.length > 0 && (
+        <div
+          style={{
+            position: "absolute",
+            top: minimalPad,
+            left: 0,
+            right: 0,
+            display: "flex",
+            justifyContent: "center",
+            gap: 10,
+            flexWrap: "wrap",
+            padding: `0 ${minimalPad}px`,
+            pointerEvents: "none",
+          }}
+        >
+          {slide.tags.map((tag, i) => (
+            <span
+              key={i}
+              style={{
+                border: "1px solid rgba(255,255,255,0.65)",
+                color: "#FFFFFF",
+                borderRadius: 999,
+                padding: `6px ${format.w * 0.018}px`,
+                fontSize: format.w * 0.016,
+                letterSpacing: 1.5,
+                textTransform: "uppercase",
+                background: "rgba(0,0,0,0.15)",
+              }}
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+      {isMinimal && decorChar && (
+        <div
+          style={{
+            position: "absolute",
+            bottom: minimalPad,
+            left: minimalPad,
+            fontSize: format.w * 0.04,
+            color: slide.bgImage ? "#FFFFFF" : "#3D3B40",
+            opacity: 0.8,
+            pointerEvents: "none",
+          }}
+        >
+          {decorChar}
+        </div>
+      )}
+
       {/* bloco de texto */}
       <div
         style={{
@@ -1462,7 +1612,7 @@ function SlideContent({
               ...editableStyle,
             }}
           >
-            {slide.text.title}
+            {isMinimal && !editable ? renderItalicized(slide.text.title) : slide.text.title}
           </h1>
         )}
         {(editable || slide.text.subtitle) && (
@@ -1504,7 +1654,7 @@ function SlideContent({
               ...editableStyle,
             }}
           >
-            {slide.text.body}
+            {isMinimal && !editable ? renderItalicized(slide.text.body) : slide.text.body}
           </p>
         )}
       </div>
