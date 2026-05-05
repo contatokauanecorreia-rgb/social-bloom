@@ -87,6 +87,13 @@ type Slide = {
   fontWeight: { title: number; subtitle: number; body: number };
   textPos: { x: number; y: number };
   signature: { enabled: boolean; handle: string; position: SignaturePos; color: string };
+  // Sistema visual minimalista (opcional, retornado pela edge function)
+  system?: "minimalista";
+  slideType?: "M1" | "M2" | "M3" | "M4" | "M5";
+  bgKind?: "off-white" | "bege-texturizado" | "foto";
+  label?: string;
+  tags?: string[];
+  decor?: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum";
 };
 
 type BriefingDNA = {
