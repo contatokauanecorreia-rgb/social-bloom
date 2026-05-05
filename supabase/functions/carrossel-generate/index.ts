@@ -614,6 +614,7 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
           `Quality: high optical sharpness, fine detail rendering, natural skin micro texture, visible pores, realistic photography clarity, professional photography, 2K resolution.`,
           `Negative: no text, no letters, no typography, no captions, no watermark, no logo, no signage with words, no blurry skin, no plastic skin, no over-smoothed face, no AI skin smoothing, no texture loss, no suggestive or sensual posing.`,
           isMinimalist ? `Composition style: editorial minimalist, generous negative space, off-white or linen tones, calm and refined.` : "",
+          isCreative ? `Composition style: bold editorial, high contrast, vibrant accent color, dynamic energy, magazine-grade.` : "",
           `Aspect ratio: vertical 4:5.`,
         ].filter(Boolean);
         return parts.join(" ");
@@ -626,9 +627,14 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
           console.log("[carrossel-generate] image_skip_minimalist", { i, tipo: s.tipo });
           return null;
         }
-        // Sem nota visual? não gera.
+        // Sistema criativo: tipos C2/C4/C5 nunca usam foto.
+        if (s.sistema === "criativo" && (s.tipo === "C2" || s.tipo === "C4" || s.tipo === "C5")) {
+          console.log("[carrossel-generate] image_skip_creative", { i, tipo: s.tipo });
+          return null;
+        }
+        // Sem nota visual? não gera para sistemas com tipos.
         if (!s.imagePrompt || !s.imagePrompt.trim()) {
-          if (s.sistema === "minimalista") return null;
+          if (s.sistema === "minimalista" || s.sistema === "criativo") return null;
         }
         const prompt = buildImagePrompt(s.imagePrompt || topic.trim());
         console.log("[carrossel-generate] image_start", { i, ms: Date.now() - t0 });
