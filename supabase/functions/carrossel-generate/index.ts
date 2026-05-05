@@ -18,6 +18,7 @@ type Body = {
   instagram?: string | null;
   textOnly?: boolean;
   referenceImageDataUrl?: string | null;
+  alignment?: "left" | "center" | "right";
 };
 
 const ARCHETYPE_TONE: Record<string, string> = {
