@@ -1464,6 +1464,8 @@ function SlideContent({
 
   // dot grid pattern só quando não há imagem
   const isMinimal = slide.system === "minimalista";
+  const isCreative = slide.system === "criativo";
+  const accent = slide.accentColor ?? dna.palette[0];
   const dotBg: React.CSSProperties = isMinimal
     ? (() => {
         if (slide.bgKind === "foto" || slide.bgImage) return { backgroundColor: "#F5F0E8" };
@@ -1476,8 +1478,19 @@ function SlideContent({
             backgroundPosition: "0 0, 3px 3px",
           };
         }
-        // off-white default
         return { backgroundColor: "#F5F0E8" };
+      })()
+    : isCreative
+    ? (() => {
+        if (slide.bgKind === "foto" || slide.bgImage) return { backgroundColor: "#0A0A0A" };
+        if (slide.bgKind === "branco") return { backgroundColor: "#FFFFFF" };
+        // off-white texturizado leve
+        return {
+          backgroundColor: "#F5F0E8",
+          backgroundImage:
+            "radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px)",
+          backgroundSize: "10px 10px",
+        };
       })()
     : !slide.bgImage
     ? {
