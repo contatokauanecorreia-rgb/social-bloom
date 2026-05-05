@@ -390,7 +390,7 @@ Para M1/M2/M3, \`imagePrompt\` deve ser string vazia (sem foto). Para M4/M5, \`i
       {
         model: "google/gemini-3-flash-preview",
         messages: [
-          { role: "system", content: systemPrompt },
+          { role: "system", content: finalSystemPrompt },
           { role: "user", content: userContent },
         ],
         tools,
@@ -400,7 +400,21 @@ Para M1/M2/M3, \`imagePrompt\` deve ser string vazia (sem foto). Para M4/M5, \`i
     );
 
     let textFallback = false;
-    let slides: { title: string; subtitle: string; body: string; imagePrompt: string; imageDataUrl: string | null }[] = [];
+    type SlideOut = {
+      title: string;
+      subtitle: string;
+      body: string;
+      imagePrompt: string;
+      imageDataUrl: string | null;
+      sistema?: "minimalista";
+      tipo?: "M1" | "M2" | "M3" | "M4" | "M5";
+      fundo?: "off-white" | "bege-texturizado" | "foto";
+      label?: string;
+      tags?: string[];
+      elemento_decorativo?: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum";
+      alignment?: "left" | "center" | "right";
+    };
+    let slides: SlideOut[] = [];
 
     if (!aiResp.ok) {
       const t = await aiResp.text();
@@ -410,31 +424,48 @@ Para M1/M2/M3, \`imagePrompt\` deve ser string vazia (sem foto). Para M4/M5, \`i
     } else {
       const data = await aiResp.json();
       const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
-      let parsed: { slides: { title: string; subtitle?: string; body: string; imagePrompt: string }[] } = {
-        slides: [],
-      };
+      let parsed: { slides: any[] } = { slides: [] };
       try {
         parsed = JSON.parse(toolCall?.function?.arguments ?? "{}");
       } catch (e) {
         console.error("[carrossel-generate] parse tool call failed", e);
       }
 
-      slides = (parsed.slides ?? []).slice(0, slideCount).map((s) => ({
-        title: s.title ?? "",
-        subtitle: s.subtitle ?? "",
-        body: s.body ?? "",
-        imagePrompt: s.imagePrompt ?? "",
-        imageDataUrl: null as string | null,
-      }));
+      slides = (parsed.slides ?? []).slice(0, slideCount).map((s: any) => {
+        const out: SlideOut = {
+          title: s.title ?? "",
+          subtitle: s.subtitle ?? "",
+          body: s.body ?? "",
+          imagePrompt: s.imagePrompt ?? "",
+          imageDataUrl: null,
+          alignment: ALINHAMENTO,
+        };
+        if (isMinimalist) {
+          out.sistema = "minimalista";
+          if (s.tipo) out.tipo = s.tipo;
+          if (s.fundo) out.fundo = s.fundo;
+          if (typeof s.label === "string") out.label = s.label;
+          if (Array.isArray(s.tags)) out.tags = s.tags.filter((x: any) => typeof x === "string");
+          if (s.elemento_decorativo) out.elemento_decorativo = s.elemento_decorativo;
+          // Para M4/M5, garantir que imagePrompt = nota_visual quando vier
+          if ((out.tipo === "M4" || out.tipo === "M5") && typeof s.nota_visual === "string" && s.nota_visual.trim()) {
+            out.imagePrompt = s.nota_visual.trim();
+          }
+          // Para M1/M2/M3, NUNCA gerar foto
+          if (out.tipo === "M1" || out.tipo === "M2" || out.tipo === "M3") {
+            out.imagePrompt = "";
+          }
+        }
+        return out;
+      });
 
       if (slides.length === 0) {
         console.warn("[carrossel-generate] empty slides from model — using fallback");
         slides = fallbackSlides(topic.trim(), clientName, slideCount);
         textFallback = true;
       } else {
-        // Pad if model returned fewer slides
         while (slides.length < slideCount) {
-          slides.push({ title: "", subtitle: "", body: "", imagePrompt: topic, imageDataUrl: null });
+          slides.push({ title: "", subtitle: "", body: "", imagePrompt: topic, imageDataUrl: null, alignment: ALINHAMENTO });
         }
       }
     }
