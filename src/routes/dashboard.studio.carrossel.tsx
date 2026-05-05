@@ -172,6 +172,13 @@ function CarrosselEditorPage() {
       body: string;
       imagePrompt?: string;
       imageDataUrl: string | null;
+      sistema?: "minimalista";
+      tipo?: "M1" | "M2" | "M3" | "M4" | "M5";
+      fundo?: "off-white" | "bege-texturizado" | "foto";
+      label?: string;
+      tags?: string[];
+      elemento_decorativo?: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum";
+      alignment?: "left" | "center" | "right";
     }>;
     fontPair?: { heading: string; body: string } | null;
     palette?: [string, string, string];
@@ -235,8 +242,35 @@ function CarrosselEditorPage() {
         };
         if (s.imageDataUrl) slide.bgImage = s.imageDataUrl;
         if (sigBase) slide.signature = { ...sigBase };
-        // If image is set, ensure title contrasts against image (white)
-        if (s.imageDataUrl) {
+
+        // Alinhamento global escolhido no wizard
+        const align = (s.alignment === "left" || s.alignment === "right" || s.alignment === "center")
+          ? s.alignment
+          : null;
+        if (align) {
+          slide.textAlign = { title: align, subtitle: align, body: align };
+        }
+
+        // Sistema minimalista
+        if (s.sistema === "minimalista") {
+          slide.system = "minimalista";
+          slide.slideType = s.tipo;
+          slide.bgKind = s.fundo;
+          slide.label = s.label;
+          slide.tags = Array.isArray(s.tags) ? s.tags : undefined;
+          slide.decor = s.elemento_decorativo;
+
+          // Cores neutras + tipografia para minimalista (M1/M2/M3 sem foto)
+          const isPhoto = s.tipo === "M4" || s.tipo === "M5";
+          if (isPhoto && s.imageDataUrl) {
+            slide.textColor = { title: "#FFFFFF", subtitle: "#F5F5F5", body: "#F5F5F5" };
+            slide.overlay = { enabled: true, intensity: 30, type: "dark" };
+          } else {
+            slide.textColor = { title: "#1A1714", subtitle: "#3D3B40", body: "#3D3B40" };
+            slide.overlay = { enabled: false, intensity: 0, type: "dark" };
+          }
+        } else if (s.imageDataUrl) {
+          // Comportamento legacy
           slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
           slide.overlay = { enabled: true, intensity: 40, type: "dark" };
         }
