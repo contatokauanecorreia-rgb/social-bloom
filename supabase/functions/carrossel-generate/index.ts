@@ -529,6 +529,15 @@ Para M1/M2/M3, \`imagePrompt\` deve ser string vazia (sem foto). Para M4/M5, \`i
 
       const genOne = async (i: number): Promise<string | null> => {
         const s = slides[i];
+        // Sistema minimalista: tipos M1/M2/M3 nunca usam foto.
+        if (s.sistema === "minimalista" && (s.tipo === "M1" || s.tipo === "M2" || s.tipo === "M3")) {
+          console.log("[carrossel-generate] image_skip_minimalist", { i, tipo: s.tipo });
+          return null;
+        }
+        // Sem nota visual? não gera.
+        if (!s.imagePrompt || !s.imagePrompt.trim()) {
+          if (s.sistema === "minimalista") return null;
+        }
         const prompt = buildImagePrompt(s.imagePrompt || topic.trim());
         console.log("[carrossel-generate] image_start", { i, ms: Date.now() - t0 });
         try {
