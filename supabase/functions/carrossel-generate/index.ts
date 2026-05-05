@@ -1,4 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
+import { generateWithFal } from "../_shared/fal-image.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
