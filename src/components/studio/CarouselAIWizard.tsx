@@ -69,7 +69,7 @@ type DnaInfo = {
 
 type SelectedSource = "dna" | "suggestion" | "custom";
 
-const WEIGHT_MAP = { light: 300, medium: 500, bold: 700 } as const;
+
 
 const CATEGORY_OPTIONS: { key: GoogleFontCategory; label: string }[] = [
   { key: "serif", label: "Serif" },
@@ -129,7 +129,6 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
   const [filterCats, setFilterCats] = useState<GoogleFontCategory[]>([]);
   const [exploreLimit, setExploreLimit] = useState(30);
   const [pendingFont, setPendingFont] = useState<string | null>(null); // ao clicar uma fonte no explorar
-  const [fontWeightChoice, setFontWeightChoice] = useState<"light" | "medium" | "bold">("medium");
 
   // Loading
   const [progress, setProgress] = useState(0);
@@ -167,7 +166,6 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         setFilterCats([]);
         setExploreLimit(30);
         setPendingFont(null);
-        setFontWeightChoice("medium");
       }, 200);
       return () => window.clearTimeout(t);
     }
@@ -501,10 +499,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         imageStyle: trimmedStyle,
         fontWeightOverride:
           selected && selected.source !== "dna"
-            ? (() => {
-                const w = WEIGHT_MAP[fontWeightChoice];
-                return { title: w, subtitle: w, body: w };
-              })()
+            ? { title: 700, subtitle: 500, body: 300 }
             : null,
       };
       try {
@@ -1019,29 +1014,6 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
                   )}
                 </div>
 
-                {/* PESO DA FONTE — apenas para sugeridas/personalizadas */}
-                {selected && selected.source !== "dna" && (
-                  <div className="mt-4">
-                    <Label className="text-sm font-medium">Peso da fonte</Label>
-                    <div className="mt-2 grid grid-cols-3 gap-2">
-                      {(["light", "medium", "bold"] as const).map((w) => (
-                        <Button
-                          key={w}
-                          type="button"
-                          variant={fontWeightChoice === w ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setFontWeightChoice(w)}
-                          style={{ fontWeight: WEIGHT_MAP[w] }}
-                        >
-                          {w === "light" ? "Light" : w === "medium" ? "Medium" : "Bold"}
-                        </Button>
-                      ))}
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Aplicado a títulos, subtítulos e corpo dos slides.
-                    </p>
-                  </div>
-                )}
               </div>
 
               {/* PALETA */}
