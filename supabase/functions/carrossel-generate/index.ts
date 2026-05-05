@@ -640,6 +640,23 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
         }
         const prompt = buildImagePrompt(s.imagePrompt || topic.trim());
         console.log("[carrossel-generate] image_start", { i, ms: Date.now() - t0 });
+
+        // 1) Tenta fal.ai (FLUX 1.1 [pro]) primeiro
+        const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
+        if (FAL_API_KEY) {
+          const falUrl = await generateWithFal(prompt, {
+            apiKey: FAL_API_KEY,
+            aspectRatio: "4:5",
+            timeoutMs: Math.min(45_000, Math.max(10_000, remaining() - 3_000)),
+          });
+          if (falUrl) {
+            console.log("[carrossel-generate] image_done_fal", { i, ms: Date.now() - t0 });
+            return falUrl;
+          }
+          console.warn("[carrossel-generate] fal_failed_fallback_gemini", { i });
+        }
+
+        // 2) Fallback Gemini
         try {
           const imgResp = await callAI(
             {
@@ -657,7 +674,7 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
           const imgData = await imgResp.json();
           const url = imgData?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
           const ok = typeof url === "string" && url.startsWith("data:");
-          console.log("[carrossel-generate] image_done", { i, ok, ms: Date.now() - t0 });
+          console.log("[carrossel-generate] image_done_gemini", { i, ok, ms: Date.now() - t0 });
           return ok ? url : null;
         } catch (e) {
           console.error("[carrossel-generate] image exception", { i, err: String(e) });
