@@ -1713,7 +1713,11 @@ function SlideContent({
               ...editableStyle,
             }}
           >
-            {isMinimal && !editable ? renderItalicized(slide.text.title) : slide.text.title}
+            {isMinimal && !editable
+              ? renderItalicized(slide.text.title)
+              : isCreative && !editable
+              ? renderCreativeTitle(slide.text.title)
+              : slide.text.title}
           </h1>
         )}
         {(editable || slide.text.subtitle) && (
