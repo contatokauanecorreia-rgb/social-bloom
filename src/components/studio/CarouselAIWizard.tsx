@@ -118,6 +118,9 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
   const [selectedPaletteIdx, setSelectedPaletteIdx] = useState<number>(0);
   const [useDnaPalette, setUseDnaPalette] = useState(true);
 
+  // Alinhamento global dos textos (sistema minimalista usa também)
+  const [alignment, setAlignment] = useState<"left" | "center" | "right">("center");
+
   // Fontes
   const [catalog, setCatalog] = useState<GoogleFontItem[] | null>(null);
   const [suggestions, setSuggestions] = useState<FontPair[]>([]);
@@ -157,6 +160,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         setImageStyle("");
         setInstagram("");
         setSelectedPaletteIdx(0);
+        setAlignment("center");
         setProgress(0);
         setSelected(null);
         setCustomPairs([]);
