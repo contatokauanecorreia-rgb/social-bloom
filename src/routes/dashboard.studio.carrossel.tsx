@@ -1759,7 +1759,11 @@ function SlideContent({
               ...editableStyle,
             }}
           >
-            {isMinimal && !editable ? renderItalicized(slide.text.body) : slide.text.body}
+            {isMinimal && !editable
+              ? renderItalicized(slide.text.body)
+              : isCreative && slide.slideType === "C5" && !editable
+              ? slide.text.body.toUpperCase()
+              : slide.text.body}
           </p>
         )}
       </div>
