@@ -521,6 +521,7 @@ Para M1/M2/M3, \`imagePrompt\` deve ser string vazia (sem foto). Para M4/M5, \`i
           archetypeStr ? `Brand archetype: ${archetypeStr}.` : "",
           `Quality: high optical sharpness, fine detail rendering, natural skin micro texture, visible pores, realistic photography clarity, professional photography, 2K resolution.`,
           `Negative: no text, no letters, no typography, no captions, no watermark, no logo, no signage with words, no blurry skin, no plastic skin, no over-smoothed face, no AI skin smoothing, no texture loss, no suggestive or sensual posing.`,
+          isMinimalist ? `Composition style: editorial minimalist, generous negative space, off-white or linen tones, calm and refined.` : "",
           `Aspect ratio: vertical 4:5.`,
         ].filter(Boolean);
         return parts.join(" ");
