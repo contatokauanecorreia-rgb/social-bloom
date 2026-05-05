@@ -1,94 +1,105 @@
-## Sistema Visual Criativo para o gerador de carrossel
 
-Adicionar um segundo sistema visual ("criativo") espelhando a arquitetura do sistema minimalista já implementado. Ativado **automaticamente** quando o DNA da marca cruza arquétipo Criador / Fora-da-lei / Bobo / Herói / Mago, ou tom jovem / irreverente / ousado / disruptivo / vibrante, ou segmento marketing / tecnologia / moda / entretenimento / agências / negócios digitais.
+# Integração fal.ai — FLUX 1.1 [pro] para carrosséis
 
-Quando uma marca cruza critérios de **ambos** os sistemas, o minimalista vence (já é o mais conservador para perfis que pedem elegância).
+## Objetivo
 
----
+Substituir o Gemini como engine padrão de geração de imagem por **FLUX 1.1 [pro]** via **fal.ai**, mantendo Gemini como fallback automático caso a chamada principal falhe (timeout, créditos, erro).
 
-### 1. Edge function — `supabase/functions/carrossel-generate/index.ts`
+Não altera UI, não altera prompts, não altera estrutura de slides. Mudança 100% no backend (edge functions).
 
-**Detector** (depois do bloco `isMinimalist`):
+## Arquitetura
 
-```ts
-const creativeArchetypes = ["criador", "fora-da-lei", "bobo", "heroi", "mago"];
-const creativeTone = /jovem|irreverente|ousad|disruptiv|vibrante/i;
-const creativeSegment = /marketing|tecnolog|moda|entretenimento|ag[êe]ncia|neg[óo]cios?\s*digit|digital/i;
-const isCreative = !isMinimalist && (
-  creativeArchetypes.includes(archLower) ||
-  creativeTone.test(toneLower) ||
-  creativeSegment.test(segLower)
-);
+```text
+genOne(slide)
+   ├─ tenta fal.ai (FLUX 1.1 [pro])  ← novo, padrão
+   │      ↓ falhou (4xx/5xx/timeout)
+   └─ fallback Gemini (atual)
+          ↓ falhou
+       null (slide sem imagem)
 ```
 
-**Apêndice no system prompt** (`creativeAppendix`, anexado quando `isCreative`):
-- Regras globais (contraste extremo, títulos gigantes, cor de destaque do DNA = `palette[0]`, máx 2 fontes contrastantes, alinhamento `[ALINHAMENTO]`).
-- 5 tipos C1–C5 com função e elementos próprios.
-- Regra de alternância: slide 1 = C1 ou C4; 2 e 3 = C2 ou C3; 4 e 5 = C3 ou C4; último = C5; nunca dois iguais consecutivos.
-- Elementos gráficos permitidos por tipo (círculo SVG, seta curva, ticker, seta vertical ↓, toggle ⊙→, underline).
-- Fontes: Bebas Neue + Inter, Archivo Black + DM Sans, ou Syne + Outfit (se DNA não tiver fonte).
-- Campos extras obrigatórios na tool: `sistema: "criativo"`, `tipo`, `fundo`, `palavra_destaque`, `ticker_texto` (só C3), `elemento_grafico`, `nota_visual` (só C1/C3).
+A mesma lógica é replicada na edge function `carrossel-image` (regeneração individual no editor).
 
-`finalSystemPrompt = systemPrompt + minimalistAppendix + creativeAppendix`.
+## Passos de implementação
 
-**Tool `build_carousel`** — quando `isCreative`, adicionar propriedades:
-- `sistema: { type: "string" }`
-- `tipo: { enum: ["C1","C2","C3","C4","C5"] }`
-- `fundo: { enum: ["branco","off-white","foto"] }`
-- `palavra_destaque: { type: "string" }`
-- `ticker_texto: { type: "string" }`
-- `elemento_grafico: { enum: ["circulo","seta-curva","ticker","seta-vertical","toggle"] }`
-- `nota_visual: { type: "string" }`
+### 1. Configurar API key da fal.ai
 
-**Mapeamento dos slides** (no `slides = parsed.slides.map(...)`): igual ao minimalista. Para C1/C3, `imagePrompt = nota_visual`; para C2/C4/C5, `imagePrompt = ""` (sem foto).
+- O usuário precisa criar conta em https://fal.ai e gerar uma API key em **Dashboard → Keys**.
+- Vou usar `add_secret` para pedir o valor de **`FAL_API_KEY`** e armazenar em Lovable Cloud.
+- Não precisa de connector — fal.ai não tem um listado, então é integração via secret + REST.
 
-**`SlideOut` type**: estender com `palavra_destaque?: string`, `ticker_texto?: string`, `elemento_grafico?: ...` e `sistema?: "minimalista" | "criativo"` e `tipo` agora aceitando também C1–C5.
+### 2. Criar helper compartilhado `_shared/fal-image.ts`
 
-**`genOne`**: skip de geração quando `s.sistema === "criativo"` e `s.tipo` ∈ {C2, C4, C5}. Para C1/C3, anexar diretiva extra ao prompt fotográfico: `Composition style: bold editorial, high contrast, vibrant accent color, dynamic energy.`
+Novo arquivo `supabase/functions/_shared/fal-image.ts` exportando:
 
----
+```ts
+export async function generateWithFal(prompt: string, opts?: {
+  aspectRatio?: "4:5" | "1:1" | "9:16";
+  apiKey: string;
+}): Promise<string | null>  // retorna data URL base64 ou null
+```
 
-### 2. Wizard — `src/components/studio/CarouselAIWizard.tsx`
+Implementação:
+- Endpoint síncrono: `POST https://fal.run/fal-ai/flux-pro/v1.1` com `Authorization: Key ${FAL_API_KEY}`.
+- Body: `{ prompt, image_size: "portrait_4_3", num_images: 1, enable_safety_checker: true, output_format: "jpeg" }` (mapeio 4:5 → `portrait_4_3`, mais próximo suportado pelo FLUX pro; 1:1 → `square_hd`; 9:16 → `portrait_16_9`).
+- Resposta vem como `{ images: [{ url: "https://fal.media/..." }] }` — fal.ai retorna URL pública, não base64.
+- Fetcho a URL e converto para `data:image/jpeg;base64,...` para manter compatibilidade total com o resto do código (que espera data URL).
+- Timeout interno de 45s (FLUX 1.1 pro é rápido, 5–15s típico).
 
-Estender o tipo `slidesData` recebido para incluir os campos criativos (`palavra_destaque`, `ticker_texto`, `elemento_grafico`) além dos minimalistas. Nada mais muda — o estado de `alignment` já é enviado.
+### 3. Atualizar `carrossel-generate/index.ts`
 
----
+Em `genOne` (linha 623), trocar a chamada Gemini por:
 
-### 3. Editor — `src/routes/dashboard.studio.carrossel.tsx`
+```ts
+const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
+let url: string | null = null;
 
-**Tipo `Slide`**: estender campos opcionais já existentes:
-- `system?: "minimalista" | "criativo"`
-- `slideType?: "M1"|"M2"|"M3"|"M4"|"M5" | "C1"|"C2"|"C3"|"C4"|"C5"`
-- `bgKind?: "off-white" | "bege-texturizado" | "foto" | "branco"`
-- novos: `highlightWord?: string`, `tickerText?: string`, `graphic?: "circulo"|"seta-curva"|"ticker"|"seta-vertical"|"toggle"`
+if (FAL_API_KEY) {
+  url = await generateWithFal(prompt, { aspectRatio: "4:5", apiKey: FAL_API_KEY });
+  if (url) console.log("[carrossel-generate] image_done_fal", { i });
+}
 
-**Bootstrap consumer**: quando `s.sistema === "criativo"`, mapear:
-- `slide.system = "criativo"`
-- `slide.slideType = s.tipo`
-- `slide.bgKind = s.fundo`
-- `slide.highlightWord = s.palavra_destaque`
-- `slide.tickerText = s.ticker_texto`
-- `slide.graphic = s.elemento_grafico`
-- Cores: cor de destaque = `palette[0]`. Para C1/C3 com foto, texto branco + sem overlay (C1) ou overlay leve. Para C2 título na cor de destaque, subtítulo preto. Para C5, todo texto na cor de destaque.
+if (!url) {
+  // fallback Gemini (código atual)
+  console.log("[carrossel-generate] fallback_gemini", { i });
+  url = await generateWithGemini(prompt, LOVABLE_API_KEY);
+}
 
-**`SlideContent` render**: detectar `slide.system === "criativo"` e:
-- Fundo branco/off-white para C2/C4/C5; foto para C1/C3.
-- Renderizar `palavra_destaque` no título com:
-  - C2: underline bold abaixo do label.
-  - C4: círculo SVG ao redor (cor de destaque).
-  - C5: bold extra na palavra.
-- C3: faixa horizontal no terço inferior com `tickerText` repetido na cor de destaque.
-- C4: seta curva manuscrita SVG na cor de destaque + subtítulo deslocado à direita + toggle ⊙→ no rodapé.
-- C5: seta vertical ↓ centralizada + seta → no rodapé.
-- C1: sem overlay, marca duplicada (canto superior direito + rodapé bold).
+return url;
+```
 
-Tudo encapsulado em blocos condicionais a `slide.system === "criativo"`. Comportamento legacy e minimalista intactos.
+Extraio o bloco Gemini atual para uma função `generateWithGemini` no mesmo arquivo (ou no `_shared/`) para clareza.
 
----
+### 4. Atualizar `carrossel-image/index.ts`
 
-### Arquivos editados
-- `supabase/functions/carrossel-generate/index.ts`
-- `src/components/studio/CarouselAIWizard.tsx`
-- `src/routes/dashboard.studio.carrossel.tsx`
+Mesma lógica: tenta fal.ai primeiro, fallback Gemini. Mantém a interface pública intacta (`{ imageDataUrl }`).
 
-Nada mais é alterado: motor fotográfico, sistema minimalista, layout horizontal do editor e demais edge functions permanecem como estão.
+### 5. Deploy + teste
+
+- Deploy de `carrossel-generate` e `carrossel-image`.
+- Testar gerando 1 carrossel novo (verifico nos logs se `image_done_fal` aparece).
+- Testar regeneração individual de slide no editor.
+
+## Considerações técnicas
+
+- **Modelo escolhido:** `fal-ai/flux-pro/v1.1` (não a `ultra`). Razão: FLUX 1.1 [pro] entrega ~95% da qualidade da Ultra a metade do preço (~$0.04 vs $0.06) e ~3x mais rápido. Se quiser depois, é só trocar a string do endpoint para `fal-ai/flux-pro/v1.1-ultra`.
+- **Custo estimado:** ~$0.04/imagem. Carrossel de 5 slides com 3 fotos = ~$0.12.
+- **Aspect ratio:** FLUX pro 1.1 não tem 4:5 nativo, então uso `portrait_4_3` (1024×1280) que é visualmente equivalente para Instagram.
+- **Sem texto nas imagens:** mantenho o prompt negativo atual (`no text, no letters...`), que o FLUX respeita melhor que o Gemini.
+- **Fallback automático:** se `FAL_API_KEY` não estiver setada OU a chamada falhar, o sistema cai no Gemini sem erro visível para o usuário. Isso garante que o app continua funcionando mesmo se você não setar a key imediatamente.
+- **Sem mudança no schema** das slides nem no frontend. `imageDataUrl` continua sendo data URL base64, só muda o modelo que gerou.
+
+## Arquivos afetados
+
+- **Novo:** `supabase/functions/_shared/fal-image.ts`
+- **Editado:** `supabase/functions/carrossel-generate/index.ts` (função `genOne`)
+- **Editado:** `supabase/functions/carrossel-image/index.ts` (handler principal)
+- **Secret novo:** `FAL_API_KEY` (solicitado via `add_secret` após aprovação)
+
+## O que NÃO está incluído (pode virar próximo passo)
+
+- Seletor de engine no wizard (Gemini / FLUX / Ideogram). Hoje é fixo: tenta FLUX, fallback Gemini.
+- Suporte a Ideogram para slides com tipografia integrada.
+- UI mostrando qual engine gerou cada imagem.
+
+Se quiser qualquer um desses depois, é incremento simples sobre essa base.
