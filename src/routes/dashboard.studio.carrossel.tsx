@@ -276,6 +276,38 @@ function CarrosselEditorPage() {
             slide.textColor = { title: "#1A1714", subtitle: "#3D3B40", body: "#3D3B40" };
             slide.overlay = { enabled: false, intensity: 0, type: "dark" };
           }
+        } else if (s.sistema === "criativo") {
+          slide.system = "criativo";
+          slide.slideType = s.tipo;
+          slide.bgKind = s.fundo;
+          slide.highlightWord = s.palavra_destaque;
+          slide.tickerText = s.ticker_texto;
+          slide.graphic = s.elemento_grafico;
+          slide.accentColor = palette?.[0] ?? DEFAULT_PALETTE[0];
+
+          const accent = slide.accentColor!;
+          const isPhoto = s.tipo === "C1" || s.tipo === "C3";
+          if (isPhoto && s.imageDataUrl) {
+            // C1: sem overlay; C3: overlay leve
+            slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
+            slide.overlay = s.tipo === "C1"
+              ? { enabled: false, intensity: 0, type: "dark" }
+              : { enabled: true, intensity: 25, type: "dark" };
+          } else if (s.tipo === "C2") {
+            // título na cor de destaque, subtítulo preto
+            slide.textColor = { title: accent, subtitle: "#0A0A0A", body: "#1A1A1A" };
+            slide.overlay = { enabled: false, intensity: 0, type: "dark" };
+          } else if (s.tipo === "C5") {
+            // todo texto na cor de destaque
+            slide.textColor = { title: accent, subtitle: accent, body: accent };
+            slide.overlay = { enabled: false, intensity: 0, type: "dark" };
+          } else {
+            // C4 e fallbacks: preto sobre off-white
+            slide.textColor = { title: "#0A0A0A", subtitle: "#1A1A1A", body: "#1A1A1A" };
+            slide.overlay = { enabled: false, intensity: 0, type: "dark" };
+          }
+          // Pesos mais fortes
+          slide.fontWeight = { title: 900, subtitle: 700, body: 400 };
         } else if (s.imageDataUrl) {
           // Comportamento legacy
           slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
