@@ -1523,6 +1523,55 @@ function SlideContent({
     slide.decor === "seta-circular" ? "⊙" : "";
   const minimalPad = format.w * 0.045; // ~48px @1080w
 
+  // Render do título no sistema CRIATIVO com palavra-destaque (círculo SVG / underline / bold extra)
+  const renderCreativeTitle = (txt: string): React.ReactNode => {
+    if (!txt) return txt;
+    const word = (slide.highlightWord ?? "").trim();
+    const upper = slide.slideType === "C5" ? txt.toUpperCase() : txt;
+    if (!word) return upper;
+    const wordRe = new RegExp(`(${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "i");
+    const parts = upper.split(wordRe);
+    return parts.map((p, i) => {
+      if (!wordRe.test(p)) return <span key={i}>{p}</span>;
+      if (slide.slideType === "C2") {
+        return (
+          <span
+            key={i}
+            style={{
+              color: accent,
+              borderBottom: `${format.w * 0.012}px solid ${accent}`,
+              paddingBottom: format.w * 0.005,
+            }}
+          >
+            {p}
+          </span>
+        );
+      }
+      if (slide.slideType === "C4") {
+        return (
+          <span key={i} style={{ position: "relative", display: "inline-block", padding: `0 ${format.w * 0.015}px` }}>
+            <svg
+              viewBox="0 0 100 60"
+              preserveAspectRatio="none"
+              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", pointerEvents: "none" }}
+            >
+              <ellipse
+                cx="50" cy="30" rx="46" ry="24"
+                fill="none" stroke={accent} strokeWidth="2.2"
+                transform="rotate(-3 50 30)"
+              />
+            </svg>
+            <span style={{ fontStyle: "italic", position: "relative" }}>{p}</span>
+          </span>
+        );
+      }
+      if (slide.slideType === "C5") {
+        return <span key={i} style={{ fontWeight: 900, color: accent }}>{p}</span>;
+      }
+      return <span key={i}>{p}</span>;
+    });
+  };
+
   return (
     <div
       style={{
