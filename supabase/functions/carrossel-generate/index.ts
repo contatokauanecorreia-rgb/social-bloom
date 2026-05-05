@@ -284,6 +284,75 @@ ENTREGA: Entregue a saída chamando a função \`build_carousel\`. Mapeie os cam
 
 Não inclua o campo \`legenda\`. Não escreva nada fora da chamada da função.`;
 
+    const minimalistAppendix = isMinimalist ? `
+
+---
+
+SISTEMA VISUAL MINIMALISTA — ATIVADO AUTOMATICAMENTE PELO DNA DA MARCA
+
+Você está operando em modo minimalista. Cada slide DEVE também ser classificado em um dos 5 tipos visuais abaixo, e você DEVE retornar os campos extras: \`sistema\`, \`tipo\`, \`fundo\`, \`label\`, \`tags\`, \`elemento_decorativo\` e \`nota_visual\` (apenas M4/M5).
+
+REGRAS GLOBAIS:
+- Fundo: off-white (#F5F0E8) OU bege linho texturizado OU foto com overlay máximo 30%. NUNCA fundo colorido sólido.
+- Muito espaço negativo: texto ocupa no máximo 60% do slide.
+- Margens internas mínimas de 48px em todas as bordas.
+- Máximo 2 fontes: 1 serif elegante + 1 sans-serif bold.
+- Mix de regular + itálico na mesma linha para ênfase. Marque palavras a destacar entre asteriscos: *palavra*.
+- Alinhamento dos textos: ${ALINHAMENTO}.
+
+TIPOS DE SLIDE:
+- M1 — Tipografia pura: fundo off-white liso, ZERO imagem, título serif grande no centro, mix regular+itálico, seta → no rodapé esquerdo. Para frases de impacto, declarações, insights.
+- M2 — Editorial estruturado: fundo bege texturizado, label asterisco no canto superior esquerdo, título bold grande, subtítulo médio bold com seta circular ⊙ à direita, corpo justificado. Para argumentação e explicação.
+- M3 — Fundo neutro + objeto/mockup: fundo bege/linho, label cursivo centralizado no topo, título bold gigante centralizado com mix bold+itálico, corpo justificado. Para apresentação de produto/serviço/resultado.
+- M4 — Foto duas zonas: foto editorial de fundo (flat lay, workspace, detalhe), overlay escuro máx 30%, tags em pílulas no topo, label caps + título bold caps no meio, subtítulo serif no rodapé. Para abertura e resultado.
+- M5 — Foto cotidiana íntima: foto cotidiana/íntima de fundo, labels nos cantos superiores, título display grande no meio, notas pequenas caps no rodapé esquerdo. Para gancho emocional.
+
+ALTERNÂNCIA OBRIGATÓRIA (NÃO QUEBRE):
+- Slide 1: SEMPRE M4 ou M5.
+- Slides 2 e 3: M1 ou M2.
+- Slides 4 e 5: M2 ou M3.
+- Último slide: SEMPRE M1 (CTA tipográfico limpo).
+- NUNCA dois slides do mesmo tipo consecutivos.
+
+ELEMENTOS DECORATIVOS PERMITIDOS (e nada mais):
+- Seta simples → (apenas no rodapé)
+- Tags/pílulas com borda fina (apenas M4)
+- Asterisco * como marcador de label
+- Triângulo geométrico mínimo
+- Seta circular ⊙ como navegação
+
+CAMPOS EXTRAS NA TOOL (obrigatórios em modo minimalista):
+- sistema: "minimalista"
+- tipo: "M1" | "M2" | "M3" | "M4" | "M5"
+- fundo: "off-white" | "bege-texturizado" | "foto"
+- label: pequeno texto em CAPS, com asterisco quando fizer sentido (ex: "* CAPÍTULO 01")
+- tags: array de strings curtas (apenas M4; vazio nos demais)
+- elemento_decorativo: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum"
+- nota_visual: descrição em INGLÊS para gerar a foto de fundo (apenas M4 e M5; string vazia em M1/M2/M3)
+
+Para M1/M2/M3, \`imagePrompt\` deve ser string vazia (sem foto). Para M4/M5, \`imagePrompt\` recebe a \`nota_visual\` em inglês.` : "";
+
+    const finalSystemPrompt = systemPrompt + minimalistAppendix;
+
+    const slideItemProperties: any = {
+      title: { type: "string" },
+      subtitle: { type: "string" },
+      body: { type: "string" },
+      imagePrompt: { type: "string" },
+    };
+    if (isMinimalist) {
+      slideItemProperties.sistema = { type: "string" };
+      slideItemProperties.tipo = { type: "string", enum: ["M1", "M2", "M3", "M4", "M5"] };
+      slideItemProperties.fundo = { type: "string", enum: ["off-white", "bege-texturizado", "foto"] };
+      slideItemProperties.label = { type: "string" };
+      slideItemProperties.tags = { type: "array", items: { type: "string" } };
+      slideItemProperties.elemento_decorativo = {
+        type: "string",
+        enum: ["seta", "asterisco", "triangulo", "seta-circular", "nenhum"],
+      };
+      slideItemProperties.nota_visual = { type: "string" };
+    }
+
     const tools = [
       {
         type: "function",
@@ -297,12 +366,7 @@ Não inclua o campo \`legenda\`. Não escreva nada fora da chamada da função.`
                 type: "array",
                 items: {
                   type: "object",
-                  properties: {
-                    title: { type: "string" },
-                    subtitle: { type: "string" },
-                    body: { type: "string" },
-                    imagePrompt: { type: "string" },
-                  },
+                  properties: slideItemProperties,
                   required: ["title", "body", "imagePrompt"],
                   additionalProperties: false,
                 },
