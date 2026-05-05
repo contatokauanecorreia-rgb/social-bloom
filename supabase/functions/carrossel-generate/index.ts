@@ -348,7 +348,54 @@ CAMPOS EXTRAS NA TOOL (obrigatórios em modo minimalista):
 
 Para M1/M2/M3, \`imagePrompt\` deve ser string vazia (sem foto). Para M4/M5, \`imagePrompt\` recebe a \`nota_visual\` em inglês.` : "";
 
-    const finalSystemPrompt = systemPrompt + minimalistAppendix;
+    const creativeAppendix = isCreative ? `
+
+---
+
+SISTEMA VISUAL CRIATIVO — ATIVADO AUTOMATICAMENTE PELO DNA DA MARCA
+
+Você está operando em modo criativo. Cada slide DEVE também ser classificado em um dos 5 tipos visuais abaixo, e você DEVE retornar os campos extras: \`sistema\`, \`tipo\`, \`fundo\`, \`palavra_destaque\`, \`ticker_texto\` (apenas C3), \`elemento_grafico\` e \`nota_visual\` (apenas C1/C3).
+
+REGRAS GLOBAIS:
+- Contraste visual extremo entre elementos.
+- Títulos gigantes que dominam o slide.
+- Cor de destaque do DNA (${COR_DESTAQUE}) usada com ousadia.
+- Máximo 2 fontes com contraste máximo entre elas.
+- Elementos gráficos criativos como diferencial.
+- Alinhamento dos textos: ${ALINHAMENTO}.
+
+TIPOS DE SLIDE:
+- C1 — Foto + tipografia gigante sobreposta: foto editorial sem overlay, título gigante bold branco diretamente sobre a foto, marca duplicada (canto superior direito + rodapé bold), slogan pequeno no rodapé. Para abertura e impacto visual máximo.
+- C2 — Fundo neutro + tipografia colorida explosiva: fundo off-white, label caps com underline no topo, título gigante em fonte display NA COR DE DESTAQUE (${COR_DESTAQUE}), subtítulo bold preto em contraste, mockup/objeto no centro, corpo pequeno no rodapé. Para declarações de impacto e propostas de valor.
+- C3 — Foto + faixa ticker: foto editorial de pessoa/ambiente, título bold sans-serif no topo, corpo justificado no centro, faixa horizontal no terço inferior com texto repetido NA COR DE DESTAQUE (${COR_DESTAQUE}), marca nos cantos superiores. Para desenvolvimento e engajamento.
+- C4 — Tipografia pura + elemento manuscrito: fundo off-white texturizado, título gigante serif bold + itálico expressivo, palavra-chave destacada com círculo SVG NA COR DE DESTAQUE, seta curva manuscrita SVG NA COR DE DESTAQUE, subtítulo deslocado à direita, rodapé com toggle ⊙→. Para frases provocativas e ganchos emocionais.
+- C5 — Tipografia 100% caps + cor dominante: fundo branco, TODO texto em CAPS LOCK BOLD, COR DE DESTAQUE (${COR_DESTAQUE}) dominante em todo o texto, palavras-chave em bold extra, seta vertical ↓ como separador no centro, rodapé com marca + seta →. Para CTA final e declarações de autoridade.
+
+ALTERNÂNCIA OBRIGATÓRIA (NÃO QUEBRE):
+- Slide 1: SEMPRE C1 ou C4.
+- Slides 2 e 3: C2 ou C3.
+- Slides 4 e 5: C3 ou C4.
+- Último slide: SEMPRE C5 (CTA dominante).
+- NUNCA dois slides do mesmo tipo consecutivos.
+
+ELEMENTOS GRÁFICOS PERMITIDOS POR TIPO (não misturar):
+- C2: underline em palavra do título.
+- C3: faixa/ticker horizontal com \`ticker_texto\` repetido.
+- C4: círculo SVG ao redor da \`palavra_destaque\` + seta curva manuscrita + toggle ⊙→.
+- C5: seta vertical ↓ + seta → no rodapé.
+
+CAMPOS EXTRAS NA TOOL (obrigatórios em modo criativo):
+- sistema: "criativo"
+- tipo: "C1" | "C2" | "C3" | "C4" | "C5"
+- fundo: "branco" | "off-white" | "foto"
+- palavra_destaque: palavra única do título que recebe círculo/underline (string vazia quando não se aplica)
+- ticker_texto: texto curto repetido na faixa (apenas C3; vazio nos demais)
+- elemento_grafico: "circulo" | "seta-curva" | "ticker" | "seta-vertical" | "toggle"
+- nota_visual: descrição em INGLÊS para gerar a foto (apenas C1 e C3; vazio em C2/C4/C5)
+
+Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`imagePrompt\` recebe a \`nota_visual\` em inglês.` : "";
+
+    const finalSystemPrompt = systemPrompt + minimalistAppendix + creativeAppendix;
 
     const slideItemProperties: any = {
       title: { type: "string" },
@@ -365,6 +412,18 @@ Para M1/M2/M3, \`imagePrompt\` deve ser string vazia (sem foto). Para M4/M5, \`i
       slideItemProperties.elemento_decorativo = {
         type: "string",
         enum: ["seta", "asterisco", "triangulo", "seta-circular", "nenhum"],
+      };
+      slideItemProperties.nota_visual = { type: "string" };
+    }
+    if (isCreative) {
+      slideItemProperties.sistema = { type: "string" };
+      slideItemProperties.tipo = { type: "string", enum: ["C1", "C2", "C3", "C4", "C5"] };
+      slideItemProperties.fundo = { type: "string", enum: ["branco", "off-white", "foto"] };
+      slideItemProperties.palavra_destaque = { type: "string" };
+      slideItemProperties.ticker_texto = { type: "string" };
+      slideItemProperties.elemento_grafico = {
+        type: "string",
+        enum: ["circulo", "seta-curva", "ticker", "seta-vertical", "toggle"],
       };
       slideItemProperties.nota_visual = { type: "string" };
     }
