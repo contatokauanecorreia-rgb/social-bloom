@@ -208,6 +208,22 @@ Deno.serve(async (req) => {
       minimalistSegment.test(segLower);
     console.log("[carrossel-generate] minimalist?", { isMinimalist, archLower, alignment: ALINHAMENTO });
 
+    // ---- Detecção automática do Sistema Visual Criativo ----
+    const creativeArchetypes = ["criador", "fora-da-lei", "bobo", "heroi", "mago"];
+    const creativeTone = /jovem|irreverente|ousad|disruptiv|vibrante/i;
+    const creativeSegment = /marketing|tecnolog|moda|entretenimento|ag[êe]ncia|neg[óo]cios?\s*digit|digital/i;
+    const isCreative =
+      !isMinimalist && (
+        creativeArchetypes.includes(archLower) ||
+        creativeTone.test(toneLower) ||
+        creativeSegment.test(segLower)
+      );
+    console.log("[carrossel-generate] creative?", { isCreative, archLower });
+
+    const COR_DESTAQUE = Array.isArray(briefing?.palette) && briefing!.palette.length
+      ? briefing!.palette[0]
+      : "#FF5A1F";
+
     const systemPrompt = `Você é um Consultor Criativo Estratégico e Especialista em Copywriting de Alta Conversão para Instagram.
 
 Você combina dois superpoderes: 1. Pensamento estratégico — analisa ângulos, dores reais e potencial viral antes de criar 2. Copywriting de conversão — executa com precisão, sem genericidade, sem bullet points, sem conteúdo fraco
