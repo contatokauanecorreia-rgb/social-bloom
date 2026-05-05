@@ -1,59 +1,127 @@
 ## Objetivo
 
-Substituir a construção do prompt de imagem na edge function `carrossel-generate` por um motor de raciocínio fotográfico estruturado (em inglês), mantendo todo o resto intacto.
+Trocar o layout do editor de carrossel: remover a barra de miniaturas inferior e exibir os slides lado a lado horizontalmente no centro, em tamanho proporcional grande, com scroll horizontal, slide ativo destacado por borda rosa, botão `+` ao final e botão `×` em cada slide.
 
 ## Arquivo único alterado
-`supabase/functions/carrossel-generate/index.ts`
+`src/routes/dashboard.studio.carrossel.tsx`
 
-## Mudança pontual (linhas 373-378)
+Nada fora deste arquivo. Nenhum outro componente, rota, edge function, estilo global ou tipo é alterado.
 
-Hoje:
-```ts
-const archetypeStr = briefing?.archetype ? `Brand archetype: ${briefing.archetype}.` : "";
-const segStr = segment ? `Segment: ${segment}.` : "";
+## Mudanças
 
-const genOne = async (i: number): Promise<string | null> => {
-  const s = slides[i];
-  const prompt = `${s.imagePrompt}. ${archetypeStr} ${segStr} Editorial, ... vertical 4:5 composition.`;
-```
+### 1. Remover (linhas 727–772)
+- O `<main>` central que renderiza só o `ScaledPreview` do slide ativo.
+- O bloco inteiro `{/* Barra de slides */}` com `<SlidesBar ... />` (mantendo apenas o indicador de progresso `imageProgress`, que continua aparecendo acima da nova área).
 
-Será substituído por uma função `buildImagePrompt(slide)` que monta o prompt em inglês na ordem exigida:
+### 2. Substituir por: nova área central horizontal
+No lugar dos dois blocos removidos, inserir um único `<main>` que ocupa o espaço entre o painel esquerdo e a borda direita:
 
 ```
-[IMAGE TYPE] [SUBJECT & ACTION] [ENVIRONMENT & CONTEXT]
-Visual style: <ESTILO_IMAGENS>
-Lighting: <coerente, natural ou motivada>
-Camera/lens/angle: <inferido pelo tipo de cena: medium-format / 35mm / portrait prime / cinema camera>
-Depth of field: <coerente com a lente>
-Color palette: <CORES do DNA>
-Mood/Narrative: <derivado do title/body do slide>
-Reference cues: <só se houver referência: composition, light behavior, framing, depth, environment, palette, styling>
-Quality: high optical sharpness, fine detail rendering, natural skin micro texture, visible pores, realistic photography clarity, professional photography, 2K resolution
-Negative: no text, no letters, no typography, no captions, no watermark, no logo, no blurry skin, no plastic skin, no over-smoothed face, no AI skin smoothing, no texture loss
-Aspect: vertical 4:5
-Brand context: segment <SEGMENTO>, archetype <ARQUETIPO>
+<main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+  {imageProgress && (... barra de progresso atual, sem mudanças ...)}
+
+  <div className="flex-1 overflow-x-auto overflow-y-hidden">
+    <div className="flex h-full items-center gap-6 px-8 py-6 min-w-max">
+      {slides.map((s, i) => (
+        <SlideCard
+          key={s.id}
+          slide={s}
+          index={i}
+          format={format}
+          dna={dna}
+          active={s.id === activeId}
+          onSelect={() => setActiveId(s.id)}
+          onRemove={() => removeSlide(s.id)}
+          onEditField={
+            s.id === activeId
+              ? (field, value) =>
+                  updateActive((sl) => ({ ...sl, text: { ...sl.text, [field]: value } }))
+              : undefined
+          }
+          onSelectField={s.id === activeId ? setSelectedField : undefined}
+        />
+      ))}
+      <button
+        type="button"
+        onClick={addSlide}
+        className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+        style={{ width: 220, height: 275 /* proporcional ao formato */ }}
+      >
+        <Plus className="h-8 w-8" />
+        <span className="text-xs font-medium">Adicionar slide</span>
+      </button>
+    </div>
+  </div>
+</main>
 ```
 
-Onde:
-- `[IMAGE TYPE] [SUBJECT & ACTION] [ENVIRONMENT & CONTEXT]` ← `slide.imagePrompt` (já vem em inglês do tool-call)
-- `<ESTILO_IMAGENS>` ← variável `ESTILO_IMAGENS` já definida acima na função
-- `<CORES>` ← `briefing?.palette` (lista) ou string vazia
-- `<SEGMENTO>` / `<ARQUETIPO>` ← `segment` / `briefing?.archetype`
-- Câmera/lente: heurística simples sobre `slide.imagePrompt` (palavras-chave `portrait` → 85mm prime; `street` → 35mm; `editorial`/`fashion` → medium-format; `cinematic`/`film` → cinema camera; default → 50mm full-frame). Sem expor lógica ao usuário.
-- Referência: incluída só se `referenceImageDataUrl` existir.
+### 3. Novo componente local `SlideCard` (mesmo arquivo)
+Renderiza um slide em **tamanho grande proporcional** (não miniatura) usando o mesmo padrão de scaling do `ScaledPreview` existente, mas com altura fixa baseada na altura da viewport (ex.: `min(70vh, 600px)`) e largura derivada do aspect ratio `format.w/format.h`.
 
-## Regras aplicadas no prompt final
-- Sempre em inglês
-- Sem texto/letras/logos/marcas d'água na imagem
-- Sem expressões sugestivas/sensuais (descrições editoriais neutras)
-- Iluminação coerente, cena fotograficamente plausível
-- Sempre inclui: `natural skin texture, high optical sharpness, realistic photography clarity, 2K resolution`
-- Sempre evita (lista negativa): `blurry skin, plastic skin, over-smoothed face, AI skin smoothing, texture loss`
-- Nunca pede 8K
-- Mantém `vertical 4:5`
+Estrutura:
+```
+<div
+  className={cn(
+    "group relative shrink-0 rounded-2xl bg-white shadow-lg overflow-hidden transition-all",
+    "border-4",
+    active ? "border-primary ring-2 ring-primary/30" : "border-transparent hover:border-primary/40"
+  )}
+  style={{ width: cardW, height: cardH }}
+  onClick={onSelect}
+>
+  {/* conteúdo escalado — mesma técnica do ScaledPreview */}
+  <div style={{ width: format.w, height: format.h, transform: `scale(${scale})`, transformOrigin: "top left" }}>
+    <SlideContent
+      slide={slide}
+      format={format}
+      dna={dna}
+      scale={scale}
+      editable={active}
+      onEditField={onEditField}
+      onSelectField={onSelectField}
+    />
+  </div>
+
+  {/* índice */}
+  <div className="absolute left-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">
+    {index + 1}
+  </div>
+
+  {/* botão remover */}
+  <button
+    type="button"
+    onClick={(e) => { e.stopPropagation(); onRemove(); }}
+    className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-foreground/80 text-background shadow hover:bg-foreground"
+    title="Remover slide"
+  >
+    <X className="h-4 w-4" />
+  </button>
+</div>
+```
+
+Cálculo do tamanho (dentro do `SlideCard`, via `useEffect` + ResizeObserver no container pai):
+- `cardH = clamp(360, contêiner.clientHeight - 48, 640)`
+- `cardW = cardH * (format.w / format.h)`
+- `scale = cardH / format.h`
+
+### 4. Comportamento
+- Clicar em qualquer slide → `setActiveId(s.id)` → painel esquerdo (`EditorPanel`) já lê `activeSlide` via `slides.find(s => s.id === activeId)` (linha 428) e aplica edições nele. **Nenhuma mudança no painel esquerdo.**
+- Slide ativo: borda rosa (`border-primary` + `ring-primary/30`), edição inline habilitada (`editable`).
+- Slides inativos: sem borda, click apenas seleciona (não edita inline).
+- Scroll horizontal nativo via `overflow-x-auto` no contêiner.
+- Botão `+` no final da fila chama `addSlide` (já existente).
+- Botão `×` em cada slide chama `removeSlide(s.id)` (já existente, com a proteção de mínimo 1 slide já implementada na linha 453).
+
+### 5. Limpeza
+- Remover do JSX o uso de `<SlidesBar />` (mas **manter** as funções `SlidesBar` e `SlideThumb` no arquivo intactas para não tocar em código fora do escopo). Alternativamente, se preferir remoção total, posso apagar essas duas funções — confirmar se quiser.
+- Remover `<ScaledPreview />` do JSX (também manter a definição da função intacta).
 
 ## O que NÃO muda
-- Nada fora do bloco `genOne` interno (linhas ~373-378).
-- Modelo da imagem (`google/gemini-3-pro-image-preview`), modalities, deadline, paralelismo, fallback, padding, system prompt do texto, tool-call, parsing, headers CORS, etc.
-- Nenhum outro arquivo.
-- Sem logs do prompt construído (não exposto ao usuário).
+- `EditorPanel` e toda a coluna esquerda (incluindo "Baixar todos" e "Salvar rascunho").
+- `SlideContent`, `ScaledPreview`, `SlidesBar`, `SlideThumb` (definições preservadas; só o uso no JSX muda).
+- Lógica de `addSlide`, `removeSlide`, `updateActive`, `applyToAll`, drag-and-drop, geração de imagens, exportação ZIP, salvamento de rascunho.
+- Edge functions, hierarquia de fontes, prompts, briefing, qualquer coisa fora deste arquivo.
+- Nodes ocultos para export (`exportRef`) permanecem.
+
+## Observação
+A reordenação por drag-and-drop existente (via `dnd-kit` em `SlidesBar`) deixa de ter UI nesse novo layout. Se for desejado manter reorder no novo layout horizontal, posso adicionar `dnd-kit` ao novo `SlideCard` em uma próxima iteração — fora do escopo deste pedido ("não altere nenhuma outra parte").

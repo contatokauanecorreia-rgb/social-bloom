@@ -724,51 +724,52 @@ function CarrosselEditorPage() {
               </div>
             </aside>
 
-            {/* Preview central */}
-            <main className="flex min-h-0 flex-1 items-center justify-center overflow-hidden p-6">
-              <ScaledPreview
-                slide={activeSlide}
-                format={format}
-                dna={dna}
-                editable
-                onSelectField={setSelectedField}
-                onEditField={(field, value) =>
-                  updateActive((s) => ({ ...s, text: { ...s.text, [field]: value } }))
-                }
-              />
-            </main>
-          </div>
-
-          {/* Barra de slides */}
-          <div className="border-t bg-card p-3">
-            {imageProgress && (
-              <div className="mb-2">
-                <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-1">
-                  <span>Gerando imagens em segundo plano…</span>
-                  <span>
-                    {imageProgress.current}/{imageProgress.total}
-                  </span>
+            {/* Área central — slides lado a lado horizontalmente */}
+            <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              {imageProgress && (
+                <div className="border-b bg-card px-6 py-2">
+                  <div className="mb-1 flex items-center justify-between text-[11px] text-muted-foreground">
+                    <span>Gerando imagens em segundo plano…</span>
+                    <span>
+                      {imageProgress.current}/{imageProgress.total}
+                    </span>
+                  </div>
+                  <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full bg-primary transition-all duration-300"
+                      style={{ width: `${imageProgress.percent}%` }}
+                    />
+                  </div>
                 </div>
-                <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full bg-primary transition-all duration-300"
-                    style={{ width: `${imageProgress.percent}%` }}
-                  />
+              )}
+              <div className="flex-1 overflow-x-auto overflow-y-hidden">
+                <div className="flex h-full min-w-max items-center gap-6 px-8 py-6">
+                  {slides.map((s, i) => (
+                    <SlideCard
+                      key={s.id}
+                      slide={s}
+                      index={i}
+                      format={format}
+                      dna={dna}
+                      active={s.id === activeId}
+                      onSelect={() => setActiveId(s.id)}
+                      onRemove={() => removeSlide(s.id)}
+                      onSelectField={s.id === activeId ? setSelectedField : undefined}
+                      onEditField={
+                        s.id === activeId
+                          ? (field, value) =>
+                              updateActive((sl) => ({
+                                ...sl,
+                                text: { ...sl.text, [field]: value },
+                              }))
+                          : undefined
+                      }
+                    />
+                  ))}
+                  <AddSlideCard format={format} onAdd={addSlide} />
                 </div>
               </div>
-            )}
-            <SlidesBar
-              slides={slides}
-              format={format}
-              dna={dna}
-              activeId={activeId}
-              onSelect={setActiveId}
-              onAdd={addSlide}
-              onRemove={removeSlide}
-              onReorder={(from, to) => {
-                setSlides((prev) => arrayMove(prev, from, to));
-              }}
-            />
+            </main>
           </div>
 
           {/* Nodes ocultos para export em tamanho real */}
@@ -1650,5 +1651,145 @@ function SlideThumb({
         <X className="h-3 w-3" />
       </button>
     </div>
+  );
+}
+
+function SlideCard({
+  slide,
+  index,
+  format,
+  dna,
+  active,
+  onSelect,
+  onRemove,
+  onEditField,
+  onSelectField,
+}: {
+  slide: Slide;
+  index: number;
+  format: Format;
+  dna: BriefingDNA;
+  active: boolean;
+  onSelect: () => void;
+  onRemove: () => void;
+  onEditField?: (field: TextField, value: string) => void;
+  onSelectField?: (f: TextField) => void;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [cardH, setCardH] = useState(420);
+
+  useEffect(() => {
+    const compute = () => {
+      const el = ref.current;
+      if (!el) return;
+      const parent = el.parentElement?.parentElement;
+      if (!parent) return;
+      const h = parent.clientHeight - 48;
+      const clamped = Math.min(640, Math.max(320, h));
+      setCardH(clamped);
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    if (ref.current?.parentElement?.parentElement) {
+      ro.observe(ref.current.parentElement.parentElement);
+    }
+    window.addEventListener("resize", compute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", compute);
+    };
+  }, [format]);
+
+  const ar = format.w / format.h;
+  const cardW = cardH * ar;
+  const scale = cardH / format.h;
+
+  return (
+    <div
+      ref={ref}
+      onClick={onSelect}
+      className={cn(
+        "group relative shrink-0 cursor-pointer overflow-hidden rounded-2xl bg-white shadow-lg transition-all",
+        "border-4",
+        active
+          ? "border-primary ring-2 ring-primary/30"
+          : "border-transparent hover:border-primary/40",
+      )}
+      style={{ width: cardW, height: cardH }}
+    >
+      <div
+        style={{
+          width: format.w,
+          height: format.h,
+          transform: `scale(${scale})`,
+          transformOrigin: "top left",
+        }}
+      >
+        <SlideContent
+          slide={slide}
+          format={format}
+          dna={dna}
+          scale={scale}
+          editable={active}
+          onEditField={onEditField}
+          onSelectField={onSelectField}
+        />
+      </div>
+      <div className="pointer-events-none absolute left-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">
+        {index + 1}
+      </div>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove();
+        }}
+        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-foreground/80 text-background shadow transition-colors hover:bg-foreground"
+        title="Remover slide"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+function AddSlideCard({ format, onAdd }: { format: Format; onAdd: () => void }) {
+  const ref = useRef<HTMLButtonElement | null>(null);
+  const [cardH, setCardH] = useState(420);
+
+  useEffect(() => {
+    const compute = () => {
+      const el = ref.current;
+      if (!el) return;
+      const parent = el.parentElement?.parentElement;
+      if (!parent) return;
+      const h = parent.clientHeight - 48;
+      setCardH(Math.min(640, Math.max(320, h)));
+    };
+    compute();
+    const ro = new ResizeObserver(compute);
+    if (ref.current?.parentElement?.parentElement) {
+      ro.observe(ref.current.parentElement.parentElement);
+    }
+    window.addEventListener("resize", compute);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", compute);
+    };
+  }, [format]);
+
+  const cardW = cardH * (format.w / format.h);
+
+  return (
+    <button
+      ref={ref}
+      type="button"
+      onClick={onAdd}
+      className="flex shrink-0 flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-border text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+      style={{ width: cardW, height: cardH }}
+    >
+      <Plus className="h-10 w-10" />
+      <span className="text-sm font-medium">Adicionar slide</span>
+    </button>
   );
 }
