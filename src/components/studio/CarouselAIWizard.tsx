@@ -457,6 +457,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
           instagram: instagram.trim() || null,
           textOnly: true,
           referenceImageDataUrl: referenceImageDataUrl ?? null,
+          alignment,
         },
       });
 
@@ -1044,8 +1045,37 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
                       }}
                     />
                   ))}
-                </div>
               </div>
+
+              {/* ALINHAMENTO */}
+              <div>
+                <Label className="text-sm font-medium">Alinhamento dos textos</Label>
+                <div className="mt-2 grid grid-cols-3 gap-2">
+                  {([
+                    { v: "left", label: "Esquerda" },
+                    { v: "center", label: "Centro" },
+                    { v: "right", label: "Direita" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.v}
+                      type="button"
+                      onClick={() => setAlignment(opt.v)}
+                      className={cn(
+                        "rounded-lg border px-3 py-2 text-sm transition",
+                        alignment === opt.v
+                          ? "border-primary bg-primary/5 text-foreground"
+                          : "border-border bg-background text-muted-foreground hover:border-primary/40",
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Aplicado a todos os slides. Em marcas com DNA elegante/sofisticado, ativa também o sistema visual minimalista.
+                </p>
+              </div>
+            </div>
             </div>
 
             <div className="flex justify-between gap-2 pt-2">
