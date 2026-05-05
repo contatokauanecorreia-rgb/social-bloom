@@ -370,12 +370,53 @@ Não inclua o campo \`legenda\`. Não escreva nada fora da chamada da função.`
     let imagesGenerated = 0;
 
     if (!textOnly && aiImages && imageMode !== "none" && !textFallback && remaining() > 10_000) {
-      const archetypeStr = briefing?.archetype ? `Brand archetype: ${briefing.archetype}.` : "";
-      const segStr = segment ? `Segment: ${segment}.` : "";
+      const paletteStr = Array.isArray(briefing?.palette) && briefing!.palette.length
+        ? briefing!.palette.join(", ")
+        : "";
+      const archetypeStr = briefing?.archetype ?? "";
+      const segStr = segment ?? "";
+      const hasReference = !!referenceImageDataUrl;
+
+      const inferCamera = (note: string): { camera: string; dof: string } => {
+        const n = note.toLowerCase();
+        if (/portrait|face|close[- ]?up|beauty/.test(n))
+          return { camera: "85mm portrait prime lens, eye-level angle", dof: "shallow depth of field with smooth natural bokeh" };
+        if (/street|urban|candid|sidewalk/.test(n))
+          return { camera: "35mm full-frame lens, natural eye-level angle", dof: "medium depth of field, environmental context preserved" };
+        if (/editorial|fashion|magazine|cover/.test(n))
+          return { camera: "medium-format camera with 80mm lens, slightly elevated angle", dof: "controlled shallow depth of field with crisp subject separation" };
+        if (/cinema|cinematic|film still|movie/.test(n))
+          return { camera: "cinema camera with anamorphic 40mm lens, low angle", dof: "cinematic shallow depth of field with subtle anamorphic bokeh" };
+        if (/product|object|still life|flat lay/.test(n))
+          return { camera: "100mm macro lens on full-frame, top-down or 45-degree angle", dof: "deep depth of field with full subject sharpness" };
+        return { camera: "50mm prime lens on full-frame camera, eye-level angle", dof: "balanced medium depth of field" };
+      };
+
+      const buildImagePrompt = (note: string): string => {
+        const { camera, dof } = inferCamera(note);
+        const parts = [
+          `Photograph: ${note}.`,
+          `Visual style: ${ESTILO_IMAGENS}.`,
+          `Lighting: logically motivated natural or ambient light, soft and directional, photographically plausible.`,
+          `Camera/lens/angle: ${camera}.`,
+          `Depth of field: ${dof}.`,
+          paletteStr ? `Color palette: ${paletteStr}.` : "",
+          `Mood and narrative: editorial, neutral, emotionally coherent with the slide message; storytelling aligned with the topic.`,
+          hasReference
+            ? `Reference cues: respect composition, light behavior, framing, depth, environment, color palette and styling extracted from the attached visual reference.`
+            : "",
+          segStr ? `Brand segment: ${segStr}.` : "",
+          archetypeStr ? `Brand archetype: ${archetypeStr}.` : "",
+          `Quality: high optical sharpness, fine detail rendering, natural skin micro texture, visible pores, realistic photography clarity, professional photography, 2K resolution.`,
+          `Negative: no text, no letters, no typography, no captions, no watermark, no logo, no signage with words, no blurry skin, no plastic skin, no over-smoothed face, no AI skin smoothing, no texture loss, no suggestive or sensual posing.`,
+          `Aspect ratio: vertical 4:5.`,
+        ].filter(Boolean);
+        return parts.join(" ");
+      };
 
       const genOne = async (i: number): Promise<string | null> => {
         const s = slides[i];
-        const prompt = `${s.imagePrompt}. ${archetypeStr} ${segStr} Editorial, high quality, soft natural lighting, instagram feed aesthetic, vertical 4:5 composition.`;
+        const prompt = buildImagePrompt(s.imagePrompt || topic.trim());
         console.log("[carrossel-generate] image_start", { i, ms: Date.now() - t0 });
         try {
           const imgResp = await callAI(

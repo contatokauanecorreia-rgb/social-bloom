@@ -1,52 +1,59 @@
-## Substituir o system prompt da edge function `carrossel-generate`
+## Objetivo
 
-Mantém tudo o que já existe. Apenas troca o `systemPrompt` (linhas 177-186) em `supabase/functions/carrossel-generate/index.ts` pelo novo prompt de "Consultor Criativo Estratégico", com placeholders preenchidos dinamicamente a partir do contexto que a função já carrega (briefing + cliente + body do request).
+Substituir a construção do prompt de imagem na edge function `carrossel-generate` por um motor de raciocínio fotográfico estruturado (em inglês), mantendo todo o resto intacto.
 
-### 1) Mapear placeholders → variáveis já existentes
+## Arquivo único alterado
+`supabase/functions/carrossel-generate/index.ts`
 
-Tudo já está disponível no escopo do `Deno.serve` handler — nenhum dado novo precisa ser buscado:
+## Mudança pontual (linhas 373-378)
 
-- `[NOME_CLIENTE]` → `clientName ?? "—"`
-- `[SEGMENTO]` → `segment ?? "—"` (vem de `clients.company`)
-- `[TOM_VOZ]` → `briefing?.tone_of_voice ?? "—"`
-- `[ARQUETIPO]` → `briefing?.archetype ?? "—"` (mapear opcionalmente para `ARCHETYPE_TONE` como complemento)
-- `[PUBLICO]` → `briefing?.target_audience ?? "—"`
-- `[OBJETIVO]` → `(briefing?.goals ?? []).join(", ") || "—"`
-- `[PALAVRAS_CHAVE]` → `(briefing?.dos ?? []).join(", ") || "—"`
-- `[PALAVRAS_PROIBIDAS]` → `(briefing?.donts ?? []).join(", ") || "—"`
-- `[CORES]` → `(briefing?.palette ?? []).join(", ") || "—"`
-- `[TEMA]` → `topic.trim()`
-- `[N]` → `slideCount`
-- `[DESCRICAO_REFERENCIA]` → `referenceImageDataUrl ? "imagem de referência anexada na mensagem do usuário" : "nenhuma"`
-- `[ESTILO_IMAGENS]` → `"editorial, instagram feed aesthetic, soft natural lighting, vertical 4:5"` (default fixo, alinhado ao que `carrossel-image` já usa)
+Hoje:
+```ts
+const archetypeStr = briefing?.archetype ? `Brand archetype: ${briefing.archetype}.` : "";
+const segStr = segment ? `Segment: ${segment}.` : "";
 
-### 2) Compatibilidade com o tool-call atual (CRÍTICO)
+const genOne = async (i: number): Promise<string | null> => {
+  const s = slides[i];
+  const prompt = `${s.imagePrompt}. ${archetypeStr} ${segStr} Editorial, ... vertical 4:5 composition.`;
+```
 
-O código abaixo do prompt usa `tools` com `function: build_carousel` que exige `slides[].{title, body, imagePrompt}` (e opcional `subtitle`). O novo prompt do usuário pede um JSON com chaves em **português** (`titulo`, `subtitulo`, `corpo`, `nota_visual`, `legenda`) — se enviarmos só esse texto, o modelo vai responder via tool-call com as chaves em inglês mesmo (o tool-call é o que vence), mas o conteúdo da seção "RETORNE APENAS JSON" do prompt entraria em conflito.
+Será substituído por uma função `buildImagePrompt(slide)` que monta o prompt em inglês na ordem exigida:
 
-Para preservar 100% o pipeline existente (parsing do tool-call em `parsed.slides`, padding, fallback, geração de imagem usando `imagePrompt`), vou:
+```
+[IMAGE TYPE] [SUBJECT & ACTION] [ENVIRONMENT & CONTEXT]
+Visual style: <ESTILO_IMAGENS>
+Lighting: <coerente, natural ou motivada>
+Camera/lens/angle: <inferido pelo tipo de cena: medium-format / 35mm / portrait prime / cinema camera>
+Depth of field: <coerente com a lente>
+Color palette: <CORES do DNA>
+Mood/Narrative: <derivado do title/body do slide>
+Reference cues: <só se houver referência: composition, light behavior, framing, depth, environment, palette, styling>
+Quality: high optical sharpness, fine detail rendering, natural skin micro texture, visible pores, realistic photography clarity, professional photography, 2K resolution
+Negative: no text, no letters, no typography, no captions, no watermark, no logo, no blurry skin, no plastic skin, no over-smoothed face, no AI skin smoothing, no texture loss
+Aspect: vertical 4:5
+Brand context: segment <SEGMENTO>, archetype <ARQUETIPO>
+```
 
-- Inserir o prompt do usuário **na íntegra** (pensamento estratégico, regras, processo, hooks, narrativa, regras absolutas).
-- Substituir apenas o bloco final "RETORNE APENAS JSON ..." por uma instrução curta dizendo que a saída deve ser entregue **via a function tool `build_carousel`**, mapeando: `titulo→title`, `subtitulo→subtitle`, `corpo→body`, `nota_visual→imagePrompt` (em inglês), e que `legenda` deve ser ignorada (o sistema atual não consome `legenda`, então mantemos isso fora para não quebrar o schema).
-- Manter a regra existente de que `imagePrompt` é em inglês e nunca pede texto/tipografia na imagem (já está coberto pelas regras do novo prompt + reforço explícito).
+Onde:
+- `[IMAGE TYPE] [SUBJECT & ACTION] [ENVIRONMENT & CONTEXT]` ← `slide.imagePrompt` (já vem em inglês do tool-call)
+- `<ESTILO_IMAGENS>` ← variável `ESTILO_IMAGENS` já definida acima na função
+- `<CORES>` ← `briefing?.palette` (lista) ou string vazia
+- `<SEGMENTO>` / `<ARQUETIPO>` ← `segment` / `briefing?.archetype`
+- Câmera/lente: heurística simples sobre `slide.imagePrompt` (palavras-chave `portrait` → 85mm prime; `street` → 35mm; `editorial`/`fashion` → medium-format; `cinematic`/`film` → cinema camera; default → 50mm full-frame). Sem expor lógica ao usuário.
+- Referência: incluída só se `referenceImageDataUrl` existir.
 
-Isso preserva a estratégia/copy nova **e** o contrato de I/O atual.
+## Regras aplicadas no prompt final
+- Sempre em inglês
+- Sem texto/letras/logos/marcas d'água na imagem
+- Sem expressões sugestivas/sensuais (descrições editoriais neutras)
+- Iluminação coerente, cena fotograficamente plausível
+- Sempre inclui: `natural skin texture, high optical sharpness, realistic photography clarity, 2K resolution`
+- Sempre evita (lista negativa): `blurry skin, plastic skin, over-smoothed face, AI skin smoothing, texture loss`
+- Nunca pede 8K
+- Mantém `vertical 4:5`
 
-### 3) Edição
-
-Arquivo: `supabase/functions/carrossel-generate/index.ts`
-
-- Substituir o array `systemPrompt` (linhas 177-186) por uma string única (`const systemPrompt = \`...\``) que:
-  1. Contém todo o prompt do usuário com os placeholders interpolados.
-  2. Termina com um bloco curto: "Entregue a saída chamando a função `build_carousel`. Mapeie: titulo→title, subtitulo→subtitle, corpo→body, nota_visual→imagePrompt (em inglês, apenas visual, nunca peça texto/tipografia/logos na imagem). Não inclua o campo `legenda` na saída."
-
-### Sem alterações em
-
-- `tools` schema, parsing, fallback, padding, geração de imagens.
-- `buildBriefingContext` (deixa a função no arquivo; deixa de ser usada — opcionalmente removo a chamada `briefingCtx`, mas mantenho a função para não tocar em mais nada).
-- `dashboard.studio.carrossel.tsx`, `CarouselAIWizard.tsx`, `carrossel-image`.
-- `supabase/config.toml`.
-
-### Arquivo editado
-
-- `supabase/functions/carrossel-generate/index.ts` (apenas o bloco do `systemPrompt`)
+## O que NÃO muda
+- Nada fora do bloco `genOne` interno (linhas ~373-378).
+- Modelo da imagem (`google/gemini-3-pro-image-preview`), modalities, deadline, paralelismo, fallback, padding, system prompt do texto, tool-call, parsing, headers CORS, etc.
+- Nenhum outro arquivo.
+- Sem logs do prompt construído (não exposto ao usuário).
