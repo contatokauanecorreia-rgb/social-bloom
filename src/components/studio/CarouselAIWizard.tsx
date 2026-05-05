@@ -473,6 +473,13 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         body: string;
         imagePrompt: string;
         imageDataUrl: string | null;
+        sistema?: "minimalista";
+        tipo?: "M1" | "M2" | "M3" | "M4" | "M5";
+        fundo?: "off-white" | "bege-texturizado" | "foto";
+        label?: string;
+        tags?: string[];
+        elemento_decorativo?: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum";
+        alignment?: "left" | "center" | "right";
       }>;
 
       // Jobs de imagem (geradas em background no editor)
