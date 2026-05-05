@@ -1,4 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
+import { generateWithFal } from "../_shared/fal-image.ts";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers":
@@ -24,19 +26,37 @@ Deno.serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY não configurada." }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     const styleStr = imageStyle && imageStyle.trim()
       ? `Visual style: ${imageStyle.trim()}.`
       : (archetype ? `Brand archetype: ${archetype}.` : "");
     const segStr = segment ? `Segment: ${segment}.` : "";
     const fullPrompt = `${prompt}. ${styleStr} ${segStr} Editorial, high quality, soft natural lighting, instagram feed aesthetic, vertical 4:5 composition. Pure photographic/visual content only — absolutely no text, no letters, no typography, no captions, no watermarks, no logos with text, no signs anywhere in the image.`;
+
+    // 1) Tenta fal.ai (FLUX 1.1 [pro]) primeiro
+    const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
+    if (FAL_API_KEY) {
+      const falUrl = await generateWithFal(fullPrompt, {
+        apiKey: FAL_API_KEY,
+        aspectRatio: "4:5",
+        timeoutMs: 45_000,
+      });
+      if (falUrl) {
+        console.log("[carrossel-image] done_fal");
+        return new Response(JSON.stringify({ imageDataUrl: falUrl }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      console.warn("[carrossel-image] fal_failed_fallback_gemini");
+    }
+
+    // 2) Fallback Gemini
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      return new Response(JSON.stringify({ error: "Nenhuma engine de imagem configurada." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -53,7 +73,7 @@ Deno.serve(async (req) => {
 
     if (!resp.ok) {
       const t = await resp.text();
-      console.error("[carrossel-image] error", resp.status, t.slice(0, 200));
+      console.error("[carrossel-image] gemini_error", resp.status, t.slice(0, 200));
       const status = resp.status === 429 ? 429 : resp.status === 402 ? 402 : 500;
       return new Response(JSON.stringify({ imageDataUrl: null, error: `AI ${resp.status}` }), {
         status,
@@ -64,6 +84,7 @@ Deno.serve(async (req) => {
     const data = await resp.json();
     const url = data?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
     const ok = typeof url === "string" && url.startsWith("data:");
+    console.log("[carrossel-image] done_gemini", { ok });
 
     return new Response(JSON.stringify({ imageDataUrl: ok ? url : null }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
