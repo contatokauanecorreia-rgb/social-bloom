@@ -191,6 +191,22 @@ Deno.serve(async (req) => {
       ? "imagem de referência anexada na mensagem do usuário — observe paleta, tipografia, layout, densidade de texto e estilo visual"
       : "nenhuma";
     const ESTILO_IMAGENS = "editorial, instagram feed aesthetic, soft natural lighting, vertical 4:5";
+    const ALINHAMENTO = (body.alignment === "left" || body.alignment === "right" || body.alignment === "center")
+      ? body.alignment
+      : "center";
+
+    // ---- Detecção automática do Sistema Visual Minimalista ----
+    const archLower = (briefing?.archetype ?? "").toLowerCase();
+    const toneLower = (briefing?.tone_of_voice ?? "").toLowerCase();
+    const segLower = `${segment ?? ""} ${clientName ?? ""}`.toLowerCase();
+    const minimalistArchetypes = ["inocente", "sabio", "cuidador", "sofisticado", "governante", "amante"];
+    const minimalistTone = /elegante|leve|acolhedor|formal|sofisticad/i;
+    const minimalistSegment = /sa[úu]de|beleza|bem.?estar|educa[çc][ãa]o|moda|lifestyle/i;
+    const isMinimalist =
+      minimalistArchetypes.includes(archLower) ||
+      minimalistTone.test(toneLower) ||
+      minimalistSegment.test(segLower);
+    console.log("[carrossel-generate] minimalist?", { isMinimalist, archLower, alignment: ALINHAMENTO });
 
     const systemPrompt = `Você é um Consultor Criativo Estratégico e Especialista em Copywriting de Alta Conversão para Instagram.
 
