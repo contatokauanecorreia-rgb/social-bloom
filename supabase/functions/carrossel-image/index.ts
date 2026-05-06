@@ -47,7 +47,10 @@ Deno.serve(async (req) => {
       ? `Visual style: ${imageStyle.trim()}.`
       : (archetype ? `Brand archetype: ${archetype}.` : "");
     const segStr = segment ? `Segment: ${segment}.` : "";
-    const fullPrompt = `Pure photographic image with absolutely no text, no letters, no words, no typography, no captions, no signs, no logos with text, no watermarks anywhere in the frame. ${safePrompt}. ${styleStr} ${segStr} Editorial, high quality, soft natural lighting, instagram feed aesthetic, vertical 4:5 composition. Pure photographic/visual content only — absolutely no text, no letters, no typography, no captions, no watermarks, no logos with text, no signs anywhere in the image. Final constraint: zero text, zero letters, zero typography in the final image — any book, screen, sign, paper or label visible must appear blank, closed, powered off, or out of focus.`;
+    // Prompt enxuto para FLUX: descrição visual primeiro, restrição de texto
+    // mencionada uma única vez no final. Excesso de instrução negativa estava
+    // colapsando o resultado para uma imagem preta sólida.
+    const fullPrompt = `${safePrompt}. ${styleStr} ${segStr} Editorial photography, soft natural lighting, instagram feed aesthetic, vertical 4:5 composition, vibrant and well exposed. No text, no letters, no captions, no logos, no watermarks anywhere in the image.`;
 
     // 1) Tenta fal.ai (FLUX 1.1 [pro]) primeiro
     const FAL_API_KEY = Deno.env.get("FAL_API_KEY");

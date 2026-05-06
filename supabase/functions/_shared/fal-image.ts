@@ -129,9 +129,13 @@ export async function generateWithFal(
         prompt,
         image_size: mapImageSize(aspectRatio),
         num_images: 1,
-        enable_safety_checker: true,
+        // Desligamos o safety checker do FAL aqui porque ele estava devolvendo
+        // imagens pretas sólidas como "sucesso" para prompts editoriais
+        // perfeitamente legítimos (ex.: yoga, lifestyle). A moderação real é
+        // feita pelo gateway/Lovable AI quando houver fallback.
+        enable_safety_checker: false,
         output_format: "jpeg",
-        safety_tolerance: "2",
+        safety_tolerance: "6",
       }),
       signal: controller.signal,
     });
@@ -144,6 +148,11 @@ export async function generateWithFal(
 
     const data: any = await resp.json();
     const url: string | undefined = data?.images?.[0]?.url;
+    const nsfwFlags: any[] = Array.isArray(data?.has_nsfw_concepts) ? data.has_nsfw_concepts : [];
+    if (nsfwFlags.some(Boolean)) {
+      console.warn("[fal-image] nsfw_blocked_by_safety_checker — returning null so caller can fallback");
+      return null;
+    }
     if (!url || typeof url !== "string") {
       console.error("[fal-image] no_url_in_response", { keys: Object.keys(data ?? {}) });
       return null;
@@ -157,6 +166,17 @@ export async function generateWithFal(
     }
     const contentType = imgResp.headers.get("content-type") || "image/jpeg";
     const buf = new Uint8Array(await imgResp.arrayBuffer());
+
+    // Heurística anti-imagem-em-branco: imagens preto-sólido / placeholder
+    // do safety checker do FAL costumam ter byte-payload extremamente uniforme
+    // (sequência longa do mesmo byte). Detectamos isso amostrando o buffer.
+    if (isLikelyBlankImage(buf)) {
+      console.warn("[fal-image] suspect_blank_image — discarding, caller should fallback", {
+        bytes: buf.length,
+        contentType,
+      });
+      return null;
+    }
 
     // Base64 encode
     let binary = "";
@@ -172,4 +192,45 @@ export async function generateWithFal(
   } finally {
     clearTimeout(timeout);
   }
+}
+
+/**
+ * Heurística rápida para detectar imagens "blank"/sólidas que algumas engines
+ * (ex.: FAL com safety checker disparado) devolvem como placeholder preto.
+ *
+ * Estratégia:
+ * - Amostra ~256 bytes do payload em posições espalhadas.
+ * - Se quase todos os bytes amostrados forem o mesmo valor (>95%), tratamos
+ *   como imagem provavelmente uniforme/inutilizável e descartamos.
+ * - Também descartamos imagens muito pequenas (provavelmente erro/placeholder).
+ */
+export function isLikelyBlankImage(buf: Uint8Array): boolean {
+  if (!buf || buf.length < 2_000) return true;
+
+  const samples = 256;
+  // Pula um possível header (PNG/JPEG) para evitar viés.
+  const start = Math.min(2048, Math.floor(buf.length * 0.05));
+  const end = buf.length - 32;
+  if (end <= start) return false;
+
+  const counts = new Map<number, number>();
+  for (let i = 0; i < samples; i++) {
+    const idx = start + Math.floor(((end - start) * i) / samples);
+    const v = buf[idx];
+    counts.set(v, (counts.get(v) ?? 0) + 1);
+  }
+  let topByte = 0;
+  let topCount = 0;
+  for (const [b, c] of counts) {
+    if (c > topCount) {
+      topCount = c;
+      topByte = b;
+    }
+  }
+  const ratio = topCount / samples;
+  if (ratio >= 0.95) {
+    console.warn("[fal-image] blank_check uniform_bytes", { topByte, ratio });
+    return true;
+  }
+  return false;
 }
