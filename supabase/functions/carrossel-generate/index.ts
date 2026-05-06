@@ -579,6 +579,30 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
       }
     }
 
+    // Trava defensiva: garante limite de caracteres por slide.
+    // Sem título: subtitle+body <= 369. Com título: title+subtitle+body <= 422.
+    slides = slides.map((s) => {
+      const hasTitle = (s.title ?? "").trim().length > 0;
+      const limit = hasTitle ? 422 : 369;
+      const used = (hasTitle ? s.title.length : 0) + s.subtitle.length + s.body.length;
+      if (used <= limit) return s;
+      let over = used - limit;
+      // 1) corta o body do fim, preservando palavras
+      if (over > 0 && s.body.length > 0) {
+        const newLen = Math.max(0, s.body.length - over);
+        let cut = s.body.slice(0, newLen).replace(/\s+\S*$/, "").trimEnd();
+        if (cut.length < s.body.length && cut.length > 0 && !/[.!?…]$/.test(cut)) cut += "…";
+        over -= s.body.length - cut.length;
+        s.body = cut;
+      }
+      // 2) ainda sobrando — corta subtítulo
+      if (over > 0 && s.subtitle.length > 0) {
+        const newLen = Math.max(0, s.subtitle.length - over);
+        s.subtitle = s.subtitle.slice(0, newLen).replace(/\s+\S*$/, "").trimEnd();
+      }
+      return s;
+    });
+
     console.log("[carrossel-generate] text_done", {
       ms: Date.now() - t0,
       slides: slides.length,
