@@ -5,7 +5,6 @@ import {
   looksLikeCopyNotImagePrompt,
   sanitizeImageNote,
 } from "../_shared/fal-image.ts";
-import { generateWithNanoBanana } from "../_shared/lovable-image.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -667,43 +666,23 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
         const prompt = buildImagePrompt(s.imagePrompt);
         console.log("[carrossel-generate] image_start", { i, ms: Date.now() - t0 });
 
-        // 1) PRIMÁRIO: FAL/FLUX 1.1 Pro — fotografia ultrarrealista.
+        // ÚNICA ENGINE: FAL/FLUX 1.1 Pro — fotografia ultrarrealista.
+        // Sem fallback: se falhar, o slide fica sem imagem (usuário regenera).
         const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
-        if (FAL_API_KEY) {
-          const falUrl = await generateWithFal(prompt, {
-            apiKey: FAL_API_KEY,
-            aspectRatio: "4:5",
-            timeoutMs: Math.min(60_000, Math.max(10_000, remaining() - 3_000)),
-          });
-          if (falUrl) {
-            console.log("[carrossel-generate] image_done_fal", { i, ms: Date.now() - t0 });
-            return falUrl;
-          }
-          console.warn("[carrossel-generate] fal_failed_fallback_nano_banana", { i });
+        if (!FAL_API_KEY) {
+          console.warn("[carrossel-generate] image_skip_no_fal_key", { i });
+          return null;
         }
-
-        // 2) FALLBACK técnico: Nano Banana Pro
-        if (LOVABLE_API_KEY) {
-          const nbUrl = await generateWithNanoBanana(prompt, {
-            apiKey: LOVABLE_API_KEY,
-            model: "google/gemini-3-pro-image-preview",
-            timeoutMs: Math.min(45_000, Math.max(10_000, remaining() - 3_000)),
-          });
-          if (nbUrl) {
-            console.log("[carrossel-generate] image_done_nano_banana_fallback", { i, ms: Date.now() - t0 });
-            return nbUrl;
-          }
-          console.warn("[carrossel-generate] nano_banana_failed_fallback_gemini_flash", { i });
-
-          // 3) ÚLTIMO RECURSO: Gemini 2.5 flash-image
-          const flashUrl = await generateWithNanoBanana(prompt, {
-            apiKey: LOVABLE_API_KEY,
-            model: "google/gemini-2.5-flash-image",
-            timeoutMs: Math.min(40_000, Math.max(8_000, remaining() - 3_000)),
-          });
-          console.log("[carrossel-generate] image_done_gemini_flash", { i, ok: !!flashUrl, ms: Date.now() - t0 });
-          return flashUrl ?? null;
+        const falUrl = await generateWithFal(prompt, {
+          apiKey: FAL_API_KEY,
+          aspectRatio: "4:5",
+          timeoutMs: Math.min(60_000, Math.max(10_000, remaining() - 3_000)),
+        });
+        if (falUrl) {
+          console.log("[carrossel-generate] image_done_fal", { i, ms: Date.now() - t0 });
+          return falUrl;
         }
+        console.warn("[carrossel-generate] image_failed_fal_no_fallback", { i });
         return null;
       };
 
