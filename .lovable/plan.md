@@ -1,72 +1,46 @@
-## Objetivo
-Fazer o Studio voltar a gerar imagens reais no carrossel, em vez de aceitar respostas “200 OK” que na prática viram fundo preto/vazio.
+## Problema
 
-## Diagnóstico
-O problema atual não é mais o envio do texto do Planner como prompt.
+A interface diz "Nano Banana Pro", mas o backend gera imagens via **FAL/FLUX 1.1 Pro**, não via Google Nano Banana. Isso causa:
 
-Pelo que conferi no fluxo atual:
-- o editor ainda dispara requests para `carrossel-image`;
-- essas requests estão voltando com `200`;
-- os logs da função mostram `done_fal`, ou seja, a engine principal está sendo considerada bem-sucedida;
-- porém a resposta retornada é uma imagem aparentemente inválida/placeholder escuro, compatível com o slide preto que você mostrou.
+1. **Texto nas imagens** — FLUX desenha letras/palavras mesmo com prompt negativo. Nano Banana respeita "no text" bem melhor.
+2. **Imagens pretas/falhando** — safety checker do FAL devolve PNG preto sólido como "sucesso" para conteúdo editorial legítimo. As gambiarras atuais (desligar safety, detectar blank, fallback) tratam o sintoma, não a causa.
 
-Em outras palavras: **a geração está acontecendo, mas o backend está aceitando como “imagem válida” um resultado ruim da engine**, então o fallback não entra e o Studio exibe esse fundo preto.
+Logs confirmam: `[carrossel-image] done_fal` — FAL é o caminho primário.
 
-## Plano de correção
+## Solução
 
-### 1. Validar a imagem retornada antes de aceitá-la como sucesso
-Em `supabase/functions/_shared/fal-image.ts`:
-- adicionar uma verificação do arquivo retornado pela engine antes de converter para data URL;
-- rejeitar respostas suspeitas, por exemplo:
-  - imagem pequena demais para uma foto real;
-  - placeholder muito comprimido / provavelmente sólido;
-  - assinatura compatível com imagem vazia/preta conhecida.
-- quando isso acontecer, retornar `null` e logar algo como `suspect_blank_image`.
+Trocar o provedor primário de imagem para **Google Nano Banana via Lovable AI Gateway** (modelos `google/gemini-3-pro-image-preview` para "pro" e `google/gemini-3.1-flash-image-preview` para versão rápida). Usa `LOVABLE_API_KEY` (já configurado), zero chave nova.
 
-Resultado: a função deixa de tratar “imagem preta” como sucesso.
+## Mudanças
 
-### 2. Ajustar a estratégia de geração no `carrossel-image`
-Em `supabase/functions/carrossel-image/index.ts`:
-- separar melhor o prompt para FLUX/FAL e o prompt para Gemini;
-- encurtar o prompt enviado para FLUX, deixando ele mais natural e menos “travado”;
-- manter a regra de “sem texto”, mas sem repetir instruções negativas demais, porque isso pode estar contribuindo para o resultado degenerado;
-- se a resposta do FAL vier inválida, cair automaticamente para Gemini.
+### 1. `supabase/functions/_shared/lovable-image.ts` (NOVO)
+Nova função `generateWithNanoBanana(prompt, { apiKey, model, aspectRatio })` que:
+- Chama `https://ai.gateway.lovable.dev/v1/chat/completions` com `modalities: ["image","text"]`.
+- Modelo padrão: `google/gemini-3-pro-image-preview`.
+- Extrai `data:image/...;base64,...` de `choices[0].message.images[0].image_url.url`.
+- Reaproveita `isLikelyBlankImage` como guarda extra.
+- Trata 429/402 (rate limit / créditos) com log claro e retorna null para fallback.
 
-Resultado: o Studio volta a receber uma imagem utilizável, não só uma resposta HTTP bem-sucedida.
+### 2. `supabase/functions/carrossel-image/index.ts`
+- Importa `generateWithNanoBanana`.
+- Ordem nova de tentativa:
+  1. Nano Banana (Lovable AI) — primário.
+  2. FAL/FLUX — fallback se Nano Banana falhar (mantém código atual).
+  3. Gemini 2.5 flash-image — último recurso (já existe).
+- Mantém `looksLikeCopyNotImagePrompt` + `fallbackVisualPrompt` + `sanitizeImageNote` (essas validações continuam úteis).
 
-### 3. Aplicar a mesma proteção no fluxo `carrossel-generate`
-Em `supabase/functions/carrossel-generate/index.ts`:
-- usar a mesma validação de imagem retornada;
-- evitar que o fluxo alternativo de geração inline aceite imagem inválida no futuro;
-- manter consistência entre os dois caminhos de geração.
+### 3. `supabase/functions/carrossel-generate/index.ts`
+Mesma troca de ordem (Nano Banana primeiro, FAL fallback).
 
-Resultado: o problema não reaparece em outro ponto do produto.
+### 4. `src/components/studio/CarouselAIWizard.tsx` e `CarouselModeDialog.tsx`
+Texto da UI já diz "Nano Banana Pro" — agora vai ser verdade. Sem mudança de UI necessária.
 
-### 4. Melhorar o feedback do editor
-Em `src/routes/dashboard.studio.carrossel.tsx`:
-- contar quantas imagens realmente foram aplicadas com sucesso;
-- parar de mostrar sempre `Imagens geradas 🎨` quando zero imagens válidas entraram;
-- mostrar feedback mais honesto, por exemplo:
-  - sucesso total;
-  - sucesso parcial;
-  - nenhuma imagem válida gerada.
-
-Resultado: se a engine falhar de novo, o Studio deixa claro o que aconteceu em vez de parecer que tudo deu certo.
-
-## Arquivos que vou ajustar
-- `supabase/functions/_shared/fal-image.ts`
-- `supabase/functions/carrossel-image/index.ts`
-- `supabase/functions/carrossel-generate/index.ts`
-- `src/routes/dashboard.studio.carrossel.tsx`
-
-## Detalhes técnicos
-- Vou preservar a proteção contra texto dentro da imagem.
-- A mudança principal será **não confiar só no status 200 da engine**.
-- O fallback para Gemini continuará existindo, mas passará a ser acionado também quando a imagem vier “tecnicamente pronta” porém claramente inutilizável.
-- Também vou reduzir a chance de o FLUX colapsar para um resultado preto por excesso de prompt negativo.
+### 5. Deploy
+Deploy de `carrossel-image` e `carrossel-generate`.
 
 ## Resultado esperado
-- O carrossel volta a gerar fotos/imagens visuais normais.
-- Fundos pretos/blank não serão mais aceitos como sucesso.
-- Quando a engine principal falhar, o sistema tenta outra rota automaticamente.
-- O Studio mostrará feedback correto sobre quantas imagens realmente foram geradas.
+
+- Imagens **sem texto inventado** (ponto forte do Nano Banana).
+- **Sem mais imagens pretas** do safety checker do FAL.
+- Mesma chave (`LOVABLE_API_KEY`), nada para o usuário configurar.
+- FAL continua disponível como fallback se Nano Banana ficar fora do ar ou rate-limitado.

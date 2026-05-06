@@ -5,6 +5,7 @@ import {
   looksLikeCopyNotImagePrompt,
   sanitizeImageNote,
 } from "../_shared/fal-image.ts";
+import { generateWithNanoBanana } from "../_shared/lovable-image.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -666,7 +667,22 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
         const prompt = buildImagePrompt(s.imagePrompt);
         console.log("[carrossel-generate] image_start", { i, ms: Date.now() - t0 });
 
-        // 1) Tenta fal.ai (FLUX 1.1 [pro]) primeiro
+        // 1) PRIMÁRIO: Nano Banana Pro (Google Gemini via Lovable AI Gateway).
+        // Respeita "no text" muito melhor que FLUX e evita imagens pretas.
+        if (LOVABLE_API_KEY) {
+          const nbUrl = await generateWithNanoBanana(prompt, {
+            apiKey: LOVABLE_API_KEY,
+            model: "google/gemini-3-pro-image-preview",
+            timeoutMs: Math.min(60_000, Math.max(10_000, remaining() - 3_000)),
+          });
+          if (nbUrl) {
+            console.log("[carrossel-generate] image_done_nano_banana", { i, ms: Date.now() - t0 });
+            return nbUrl;
+          }
+          console.warn("[carrossel-generate] nano_banana_failed_fallback_fal", { i });
+        }
+
+        // 2) FALLBACK: fal.ai (FLUX 1.1 [pro])
         const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
         if (FAL_API_KEY) {
           const falUrl = await generateWithFal(prompt, {
@@ -678,33 +694,20 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
             console.log("[carrossel-generate] image_done_fal", { i, ms: Date.now() - t0 });
             return falUrl;
           }
-          console.warn("[carrossel-generate] fal_failed_fallback_gemini", { i });
+          console.warn("[carrossel-generate] fal_failed_fallback_gemini_flash", { i });
         }
 
-        // 2) Fallback Gemini
-        try {
-          const imgResp = await callAI(
-            {
-              model: "google/gemini-3-pro-image-preview",
-              messages: [{ role: "user", content: prompt }],
-              modalities: ["image", "text"],
-            },
-            LOVABLE_API_KEY,
-          );
-          if (!imgResp.ok) {
-            const t = await imgResp.text();
-            console.error("[carrossel-generate] image error", { i, status: imgResp.status, body: t.slice(0, 200) });
-            return null;
-          }
-          const imgData = await imgResp.json();
-          const url = imgData?.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-          const ok = typeof url === "string" && url.startsWith("data:");
-          console.log("[carrossel-generate] image_done_gemini", { i, ok, ms: Date.now() - t0 });
-          return ok ? url : null;
-        } catch (e) {
-          console.error("[carrossel-generate] image exception", { i, err: String(e) });
-          return null;
+        // 3) ÚLTIMO RECURSO: Gemini 2.5 flash-image (mais barato/rápido)
+        if (LOVABLE_API_KEY) {
+          const flashUrl = await generateWithNanoBanana(prompt, {
+            apiKey: LOVABLE_API_KEY,
+            model: "google/gemini-2.5-flash-image",
+            timeoutMs: Math.min(40_000, Math.max(8_000, remaining() - 3_000)),
+          });
+          console.log("[carrossel-generate] image_done_gemini_flash", { i, ok: !!flashUrl, ms: Date.now() - t0 });
+          return flashUrl ?? null;
         }
+        return null;
       };
 
       const perSlideTimeout = Math.max(5_000, remaining() - 2_000);
