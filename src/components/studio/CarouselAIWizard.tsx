@@ -798,9 +798,9 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
               <div className="rounded-lg border bg-muted/30 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
-                    <Label className="text-sm font-medium">Gerar imagens com IA (Midjourney)</Label>
+                    <Label className="text-sm font-medium">Gerar imagens com IA (FLUX.2 [klein])</Label>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Gera imagens automáticas para cada slide usando Midjourney.
+                      Gera imagens automáticas para cada slide usando FLUX.2 [klein].
                     </p>
                   </div>
                   <Switch checked={aiImages} onCheckedChange={setAiImages} disabled={imageMode === "none"} />

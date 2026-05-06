@@ -4,14 +4,16 @@
 
 type AspectRatio = "4:5" | "1:1" | "9:16" | "3:4";
 
-function mapImageSize(ar: AspectRatio | undefined): string {
+// FLUX.2 [klein] aceita enums OU { width, height }. Para 4:5 e 3:4 não há
+// enum exato, então passamos dimensões customizadas.
+function mapImageSize(ar: AspectRatio | undefined): string | { width: number; height: number } {
   switch (ar) {
     case "1:1": return "square_hd";
     case "9:16": return "portrait_16_9";
-    case "3:4":
+    case "3:4": return { width: 1024, height: 1365 };
     case "4:5":
     default:
-      return "portrait_4_3";
+      return { width: 1024, height: 1280 };
   }
 }
 
@@ -119,7 +121,7 @@ export async function generateWithFal(
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const resp = await fetch("https://fal.run/fal-ai/flux-pro/v1.1", {
+    const resp = await fetch("https://fal.run/fal-ai/flux-2/klein/9b", {
       method: "POST",
       headers: {
         Authorization: `Key ${apiKey}`,
@@ -129,13 +131,11 @@ export async function generateWithFal(
         prompt,
         image_size: mapImageSize(aspectRatio),
         num_images: 1,
-        // Desligamos o safety checker do FAL aqui porque ele estava devolvendo
-        // imagens pretas sólidas como "sucesso" para prompts editoriais
-        // perfeitamente legítimos (ex.: yoga, lifestyle). A moderação real é
-        // feita pelo gateway/Lovable AI quando houver fallback.
+        num_inference_steps: 6,
+        // Safety checker desligado: estava devolvendo imagens pretas sólidas
+        // como "sucesso" para prompts editoriais legítimos.
         enable_safety_checker: false,
         output_format: "jpeg",
-        safety_tolerance: "6",
       }),
       signal: controller.signal,
     });
