@@ -997,6 +997,46 @@ function EditorPanel({
         )}
       </div>
 
+      {/* CONTAGEM DE CARACTERES */}
+      {(() => {
+        const t = slide.text.title ?? "";
+        const s = slide.text.subtitle ?? "";
+        const b = slide.text.body ?? "";
+        const hasTitle = t.trim().length > 0;
+        const used = (hasTitle ? t.length : 0) + s.length + b.length;
+        const limit = hasTitle ? 422 : 369;
+        const over = used > limit;
+        return (
+          <Section title="Caracteres do slide">
+            <div className="flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">
+                {hasTitle ? "Com título" : "Sem título"}
+              </span>
+              <span
+                className={cn(
+                  "font-mono font-semibold tabular-nums",
+                  over ? "text-destructive" : "text-foreground",
+                )}
+              >
+                {used} / {limit}
+              </span>
+            </div>
+            <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className={cn(
+                  "h-full transition-all",
+                  over ? "bg-destructive" : "bg-primary",
+                )}
+                style={{ width: `${Math.min(100, (used / limit) * 100)}%` }}
+              />
+            </div>
+            <p className="mt-1.5 text-[10px] text-muted-foreground">
+              Padrão: 369 sem título · 422 com título (espaços e quebras contam).
+            </p>
+          </Section>
+        );
+      })()}
+
       {/* IMAGEM */}
       <Section title="Imagem de fundo">
         <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-md border border-dashed bg-background py-3 text-xs font-medium hover:bg-accent">
