@@ -5,6 +5,7 @@ import {
   looksLikeCopyNotImagePrompt,
   sanitizeImageNote,
 } from "../_shared/fal-image.ts";
+import { generateWithNanoBanana } from "../_shared/lovable-image.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
