@@ -1,61 +1,72 @@
 ## Objetivo
-Fazer o carrossel gerar apenas imagens fotográficas, sem texto dentro da foto, inclusive quando a fonte do conteúdo for o Planner.
+Fazer o Studio voltar a gerar imagens reais no carrossel, em vez de aceitar respostas “200 OK” que na prática viram fundo preto/vazio.
 
-## O que está acontecendo
-Identifiquei o vazamento principal no fluxo atual:
+## Diagnóstico
+O problema atual não é mais o envio do texto do Planner como prompt.
 
-- Em `src/components/studio/CarouselAIWizard.tsx`, os `imageJobs` são criados com `s.imagePrompt || effectiveTopic`.
-- Quando o slide não vem com `imagePrompt` válido, o app usa o `effectiveTopic` inteiro como prompt.
-- No modo Planner, esse `effectiveTopic` é o texto completo do carrossel (`SLIDE 1`, bullets, CTA etc.).
-- A prova está no request capturado para `carrossel-image`: o body estava enviando todo o conteúdo do Planner como `prompt`.
+Pelo que conferi no fluxo atual:
+- o editor ainda dispara requests para `carrossel-image`;
+- essas requests estão voltando com `200`;
+- os logs da função mostram `done_fal`, ou seja, a engine principal está sendo considerada bem-sucedida;
+- porém a resposta retornada é uma imagem aparentemente inválida/placeholder escuro, compatível com o slide preto que você mostrou.
 
-Isso explica por que o modelo continua desenhando letras: ele está recebendo texto demais e, em alguns casos, o próprio copy do carrossel.
+Em outras palavras: **a geração está acontecendo, mas o backend está aceitando como “imagem válida” um resultado ruim da engine**, então o fallback não entra e o Studio exibe esse fundo preto.
 
 ## Plano de correção
 
-### 1. Parar de enviar o texto do Planner como prompt de imagem
-Em `src/components/studio/CarouselAIWizard.tsx`:
-- Remover o fallback `|| effectiveTopic` na criação dos `imageJobs`.
-- Criar jobs apenas para slides que realmente tenham `imagePrompt` visual válido.
-- Respeitar os tipos que não devem ter foto (`M1/M2/M3`, `C2/C4/C5`) e não gerar job para eles.
+### 1. Validar a imagem retornada antes de aceitá-la como sucesso
+Em `supabase/functions/_shared/fal-image.ts`:
+- adicionar uma verificação do arquivo retornado pela engine antes de converter para data URL;
+- rejeitar respostas suspeitas, por exemplo:
+  - imagem pequena demais para uma foto real;
+  - placeholder muito comprimido / provavelmente sólido;
+  - assinatura compatível com imagem vazia/preta conhecida.
+- quando isso acontecer, retornar `null` e logar algo como `suspect_blank_image`.
 
-Resultado: nenhum request de imagem vai mais receber o texto integral do post.
+Resultado: a função deixa de tratar “imagem preta” como sucesso.
 
-### 2. Adicionar uma trava de segurança no backend de imagem
+### 2. Ajustar a estratégia de geração no `carrossel-image`
 Em `supabase/functions/carrossel-image/index.ts`:
-- Detectar prompts claramente errados para imagem, como:
-  - texto longo demais
-  - muitas quebras de linha
-  - presença de `SLIDE`, bullets, CTA, listas, títulos/copys completos
-- Se o prompt estiver contaminado por copy, não enviar isso direto ao modelo de imagem.
-- Em vez disso, converter para uma descrição visual curta e segura, ou cair para um prompt visual genérico coerente com a marca.
+- separar melhor o prompt para FLUX/FAL e o prompt para Gemini;
+- encurtar o prompt enviado para FLUX, deixando ele mais natural e menos “travado”;
+- manter a regra de “sem texto”, mas sem repetir instruções negativas demais, porque isso pode estar contribuindo para o resultado degenerado;
+- se a resposta do FAL vier inválida, cair automaticamente para Gemini.
 
-Isso cria uma segunda camada de proteção mesmo se o front voltar a vazar texto no futuro.
+Resultado: o Studio volta a receber uma imagem utilizável, não só uma resposta HTTP bem-sucedida.
 
-### 3. Reforçar o pipeline do `carrossel-generate`
+### 3. Aplicar a mesma proteção no fluxo `carrossel-generate`
 Em `supabase/functions/carrossel-generate/index.ts`:
-- Garantir que cada slide fotográfico sempre retorne uma `imagePrompt` curta, visual e em inglês.
-- Garantir que slides tipográficos continuem com `imagePrompt` vazio.
-- Endurecer o pós-processamento para truncar/remover prompts muito verbais antes de chegar na fase de imagem.
+- usar a mesma validação de imagem retornada;
+- evitar que o fluxo alternativo de geração inline aceite imagem inválida no futuro;
+- manter consistência entre os dois caminhos de geração.
 
-Resultado: o backend já entrega prompts visuais melhores e mais seguros para o editor.
+Resultado: o problema não reaparece em outro ponto do produto.
 
-### 4. Melhorar observabilidade para validar a correção
-Adicionar logs úteis para depuração:
-- quando um slide for pulado por não ter prompt visual
-- quando um prompt textual for bloqueado/substituído
-- qual tipo de slide recebeu geração de imagem
+### 4. Melhorar o feedback do editor
+Em `src/routes/dashboard.studio.carrossel.tsx`:
+- contar quantas imagens realmente foram aplicadas com sucesso;
+- parar de mostrar sempre `Imagens geradas 🎨` quando zero imagens válidas entraram;
+- mostrar feedback mais honesto, por exemplo:
+  - sucesso total;
+  - sucesso parcial;
+  - nenhuma imagem válida gerada.
 
-Assim eu consigo confirmar rapidamente se o fluxo ficou limpo.
+Resultado: se a engine falhar de novo, o Studio deixa claro o que aconteceu em vez de parecer que tudo deu certo.
 
 ## Arquivos que vou ajustar
-- `src/components/studio/CarouselAIWizard.tsx`
+- `supabase/functions/_shared/fal-image.ts`
 - `supabase/functions/carrossel-image/index.ts`
 - `supabase/functions/carrossel-generate/index.ts`
-- possivelmente `supabase/functions/_shared/fal-image.ts` para centralizar a heurística de bloqueio/sanitização
+- `src/routes/dashboard.studio.carrossel.tsx`
+
+## Detalhes técnicos
+- Vou preservar a proteção contra texto dentro da imagem.
+- A mudança principal será **não confiar só no status 200 da engine**.
+- O fallback para Gemini continuará existindo, mas passará a ser acionado também quando a imagem vier “tecnicamente pronta” porém claramente inutilizável.
+- Também vou reduzir a chance de o FLUX colapsar para um resultado preto por excesso de prompt negativo.
 
 ## Resultado esperado
-- O carrossel vai gerar somente imagens visuais/fotográficas.
-- O texto do Planner não será mais enviado ao gerador de imagem.
-- Slides que deveriam ser apenas tipográficos não vão ganhar fundo com imagem “inventando letras”.
-- A incidência de texto dentro das fotos deve cair drasticamente porque o principal vazamento será removido na origem.
+- O carrossel volta a gerar fotos/imagens visuais normais.
+- Fundos pretos/blank não serão mais aceitos como sucesso.
+- Quando a engine principal falhar, o sistema tenta outra rota automaticamente.
+- O Studio mostrará feedback correto sobre quantas imagens realmente foram geradas.
