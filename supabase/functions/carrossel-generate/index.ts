@@ -603,9 +603,12 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
       };
 
       const buildImagePrompt = (note: string): string => {
-        const { camera, dof } = inferCamera(note);
+        const safeNote = sanitizeImageNote(note);
+        const { camera, dof } = inferCamera(safeNote);
         const parts = [
-          `Photograph: ${note}.`,
+          // Reforço no INÍCIO (FLUX dá mais peso aqui)
+          `Pure photographic image with absolutely no text, no letters, no words, no typography, no captions, no signs, no logos with text, no watermarks anywhere in the frame.`,
+          `Photograph: ${safeNote}.`,
           `Visual style: ${ESTILO_IMAGENS}.`,
           `Lighting: logically motivated natural or ambient light, soft and directional, photographically plausible.`,
           `Camera/lens/angle: ${camera}.`,
@@ -622,6 +625,8 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
           isMinimalist ? `Composition style: editorial minimalist, generous negative space, off-white or linen tones, calm and refined.` : "",
           isCreative ? `Composition style: bold editorial, high contrast, vibrant accent color, dynamic energy, magazine-grade.` : "",
           `Aspect ratio: vertical 4:5.`,
+          // Reforço no FIM (FLUX também pesa muito a última frase)
+          `Final constraint: zero text, zero letters, zero typography in the final image — purely visual, photographic content only. Any book, screen, sign, paper or label visible in the scene must appear blank, closed, powered off, or out of focus.`,
         ].filter(Boolean);
         return parts.join(" ");
       };
