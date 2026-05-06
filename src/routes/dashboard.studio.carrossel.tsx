@@ -392,6 +392,7 @@ function CarrosselEditorPage() {
     const total = jobs.length;
 
     (async () => {
+      let okCount = 0;
       for (let i = 0; i < jobs.length; i++) {
         const job = jobs[i];
         setImageProgress({
@@ -406,6 +407,7 @@ function CarrosselEditorPage() {
           if (error) throw error;
           const url: string | undefined = data?.imageDataUrl;
           if (url) {
+            okCount += 1;
             setSlides((prev) => {
               if (job.slideIndex < 0 || job.slideIndex >= prev.length) return prev;
               return prev.map((s, idx) => {
@@ -418,6 +420,8 @@ function CarrosselEditorPage() {
                 };
               });
             });
+          } else {
+            console.warn("carrossel-image returned no image", job, data);
           }
           setImageProgress({
             current: i + 1,
@@ -429,7 +433,13 @@ function CarrosselEditorPage() {
         }
       }
       setImageProgress(null);
-      toast.success("Imagens geradas 🎨");
+      if (okCount === total && total > 0) {
+        toast.success("Imagens geradas 🎨");
+      } else if (okCount > 0) {
+        toast.success(`Imagens geradas: ${okCount}/${total}. Algumas falharam — você pode regenerar pelo editor.`);
+      } else if (total > 0) {
+        toast.error("Não foi possível gerar as imagens agora. Tente regenerar pelo editor.");
+      }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [slides.length]);
