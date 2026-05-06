@@ -661,10 +661,13 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
           return null;
         }
         // Sem nota visual? não gera para sistemas com tipos.
+        // Sem nota visual? não usa o tópico inteiro (que pode ser o copy do
+        // Planner) — pula a geração para não desenhar texto.
         if (!s.imagePrompt || !s.imagePrompt.trim()) {
-          if (s.sistema === "minimalista" || s.sistema === "criativo") return null;
+          console.log("[carrossel-generate] image_skip_no_prompt", { i });
+          return null;
         }
-        const prompt = buildImagePrompt(s.imagePrompt || topic.trim());
+        const prompt = buildImagePrompt(s.imagePrompt);
         console.log("[carrossel-generate] image_start", { i, ms: Date.now() - t0 });
 
         // 1) Tenta fal.ai (FLUX 1.1 [pro]) primeiro
