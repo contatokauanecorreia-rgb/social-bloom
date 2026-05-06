@@ -1,46 +1,78 @@
-## Problema
+## Objetivo
+Fazer o gerador usar imagens ultrarrealistas do FLUX no carrossel e corrigir a lógica que hoje deixa foto só no primeiro slide em muitos casos.
 
-A interface diz "Nano Banana Pro", mas o backend gera imagens via **FAL/FLUX 1.1 Pro**, não via Google Nano Banana. Isso causa:
+## O que vou mudar
 
-1. **Texto nas imagens** — FLUX desenha letras/palavras mesmo com prompt negativo. Nano Banana respeita "no text" bem melhor.
-2. **Imagens pretas/falhando** — safety checker do FAL devolve PNG preto sólido como "sucesso" para conteúdo editorial legítimo. As gambiarras atuais (desligar safety, detectar blank, fallback) tratam o sintoma, não a causa.
+### 1. Voltar o pipeline de imagem do carrossel para FLUX como provedor principal
+Arquivos:
+- `supabase/functions/carrossel-image/index.ts`
+- `supabase/functions/carrossel-generate/index.ts`
 
-Logs confirmam: `[carrossel-image] done_fal` — FAL é o caminho primário.
+Mudanças:
+- Remover o Nano Banana como caminho principal do carrossel.
+- Colocar `generateWithFal(...)` como primeira escolha para geração.
+- Opcionalmente manter outro provedor só como fallback técnico de emergência, mas sem ser o padrão do fluxo.
+- Ajustar logs para deixar claro quando foi `done_fal` vs fallback.
 
-## Solução
+Resultado esperado:
+- O visual volta a ficar mais fotográfico/ultrarrealista, em vez da estética mais “básica” que você rejeitou.
 
-Trocar o provedor primário de imagem para **Google Nano Banana via Lovable AI Gateway** (modelos `google/gemini-3-pro-image-preview` para "pro" e `google/gemini-3.1-flash-image-preview` para versão rápida). Usa `LOVABLE_API_KEY` (já configurado), zero chave nova.
+### 2. Corrigir por que só o primeiro slide está recebendo imagem
+Arquivos:
+- `src/components/studio/CarouselAIWizard.tsx`
+- `supabase/functions/carrossel-generate/index.ts`
+- `src/routes/dashboard.studio.carrossel.tsx`
 
-## Mudanças
+Diagnóstico confirmado no código:
+- O wizard chama `carrossel-generate` com `textOnly: true`, então o backend não injeta imagens no retorno inicial.
+- Depois disso, o editor cria `imageJobs` em background.
+- Só que esses `imageJobs` hoje filtram os slides pelos tipos visuais (`M4/M5` no minimalista e `C1/C3` no criativo), então os outros slides ficam sem foto por design.
 
-### 1. `supabase/functions/_shared/lovable-image.ts` (NOVO)
-Nova função `generateWithNanoBanana(prompt, { apiKey, model, aspectRatio })` que:
-- Chama `https://ai.gateway.lovable.dev/v1/chat/completions` com `modalities: ["image","text"]`.
-- Modelo padrão: `google/gemini-3-pro-image-preview`.
-- Extrai `data:image/...;base64,...` de `choices[0].message.images[0].image_url.url`.
-- Reaproveita `isLikelyBlankImage` como guarda extra.
-- Trata 429/402 (rate limit / créditos) com log claro e retorna null para fallback.
+Mudanças:
+- Parar de limitar a geração de imagem só a esses tipos quando `aiImages` estiver ligado.
+- Fazer o `imageJobs` incluir todos os slides que precisem de imagem no modo escolhido.
+- Ajustar a função que monta `imagePrompt` para garantir prompt visual válido em todos os slides, sem reaproveitar copy do Planner.
+- No editor, aplicar a imagem recebida sem quebrar o layout dos slides já montados.
 
-### 2. `supabase/functions/carrossel-image/index.ts`
-- Importa `generateWithNanoBanana`.
-- Ordem nova de tentativa:
-  1. Nano Banana (Lovable AI) — primário.
-  2. FAL/FLUX — fallback se Nano Banana falhar (mantém código atual).
-  3. Gemini 2.5 flash-image — último recurso (já existe).
-- Mantém `looksLikeCopyNotImagePrompt` + `fallbackVisualPrompt` + `sanitizeImageNote` (essas validações continuam úteis).
+Resultado esperado:
+- Não ficará mais “só o primeiro slide com imagem”.
+- O carrossel passará a gerar imagem em todos os slides que o modo de imagem pedir.
 
-### 3. `supabase/functions/carrossel-generate/index.ts`
-Mesma troca de ordem (Nano Banana primeiro, FAL fallback).
+### 3. Preservar o controle “sem texto dentro da imagem” usando FLUX
+Arquivos:
+- `supabase/functions/_shared/fal-image.ts`
+- `supabase/functions/carrossel-image/index.ts`
+- `supabase/functions/carrossel-generate/index.ts`
 
-### 4. `src/components/studio/CarouselAIWizard.tsx` e `CarouselModeDialog.tsx`
-Texto da UI já diz "Nano Banana Pro" — agora vai ser verdade. Sem mudança de UI necessária.
+Mudanças:
+- Manter a sanitização de prompts (`sanitizeImageNote`) e o fallback visual quando vier copy em vez de descrição de cena.
+- Refinar o prompt do FLUX para puxar foto editorial realista, textura natural de pele, lente/câmera/luz plausíveis e proibição de texto/logos/captions.
+- Preservar a proteção contra imagem preta/blank que já existe.
 
-### 5. Deploy
-Deploy de `carrossel-image` e `carrossel-generate`.
+Resultado esperado:
+- Imagens mais realistas com FLUX, mas ainda evitando texto inventado e placeholders pretos.
 
-## Resultado esperado
+### 4. Ajustar o comportamento visual no editor para fotos em mais slides
+Arquivo:
+- `src/routes/dashboard.studio.carrossel.tsx`
 
-- Imagens **sem texto inventado** (ponto forte do Nano Banana).
-- **Sem mais imagens pretas** do safety checker do FAL.
-- Mesma chave (`LOVABLE_API_KEY`), nada para o usuário configurar.
-- FAL continua disponível como fallback se Nano Banana ficar fora do ar ou rate-limitado.
+Mudanças:
+- Rever a aplicação automática de overlay/textColor quando uma imagem chega em background.
+- Evitar que a lógica atual “force” um visual pensado só para capa quando outros slides também receberem foto.
+- Manter legibilidade do texto em slides com fundo fotográfico.
+
+Resultado esperado:
+- As imagens entram corretamente em múltiplos slides sem deixar o texto ilegível.
+
+## Detalhes técnicos
+- Hoje o problema não é só o modelo; também existe uma regra estrutural no app que restringe foto a poucos tipos de slide.
+- O request atual do wizard envia `textOnly: true`, então toda a distribuição de imagens depende do loop de `imageJobs` no editor.
+- Esse loop está funcionando, mas recebe uma lista já reduzida pelo filtro de tipos (`M4/M5` ou `C1/C3`), por isso o efeito de “só a primeira imagem”.
+- Vou corrigir isso no ponto de origem, não só no render.
+
+## Entrega esperada
+- FLUX volta a ser o gerador principal do carrossel.
+- O carrossel deixa de gerar só a primeira imagem.
+- As imagens ficam mais ultrarrealistas.
+- Continua havendo proteção contra texto indesejado dentro da imagem e contra imagens pretas.
+- O feedback de progresso/sucesso continua coerente com a quantidade real de imagens geradas.

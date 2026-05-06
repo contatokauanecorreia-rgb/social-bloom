@@ -56,30 +56,12 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
 
-    // 1) PRIMÁRIO: Nano Banana Pro (Google Gemini via Lovable AI Gateway).
-    // Respeita "no text" muito melhor que FLUX e não tem o problema de
-    // imagem-preta-do-safety-checker.
-    if (LOVABLE_API_KEY) {
-      const nbUrl = await generateWithNanoBanana(fullPrompt, {
-        apiKey: LOVABLE_API_KEY,
-        model: "google/gemini-3-pro-image-preview",
-        timeoutMs: 60_000,
-      });
-      if (nbUrl) {
-        console.log("[carrossel-image] done_nano_banana");
-        return new Response(JSON.stringify({ imageDataUrl: nbUrl }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      console.warn("[carrossel-image] nano_banana_failed_fallback_fal");
-    }
-
-    // 2) FALLBACK: fal.ai (FLUX 1.1 [pro])
+    // 1) PRIMÁRIO: FAL/FLUX 1.1 Pro — fotografia ultrarrealista (escolha do usuário).
     if (FAL_API_KEY) {
       const falUrl = await generateWithFal(fullPrompt, {
         apiKey: FAL_API_KEY,
         aspectRatio: "4:5",
-        timeoutMs: 45_000,
+        timeoutMs: 60_000,
       });
       if (falUrl) {
         console.log("[carrossel-image] done_fal");
@@ -87,24 +69,38 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      console.warn("[carrossel-image] fal_failed_fallback_gemini_flash");
+      console.warn("[carrossel-image] fal_failed_fallback_nano_banana");
     }
 
-    // 3) ÚLTIMO RECURSO: Gemini 2.5 flash-image (mais barato/rápido)
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "Nenhuma engine de imagem configurada." }), {
-        status: 500,
+    // 2) FALLBACK técnico: Nano Banana Pro (só quando FLUX falhar).
+    if (LOVABLE_API_KEY) {
+      const nbUrl = await generateWithNanoBanana(fullPrompt, {
+        apiKey: LOVABLE_API_KEY,
+        model: "google/gemini-3-pro-image-preview",
+        timeoutMs: 60_000,
+      });
+      if (nbUrl) {
+        console.log("[carrossel-image] done_nano_banana_fallback");
+        return new Response(JSON.stringify({ imageDataUrl: nbUrl }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      console.warn("[carrossel-image] nano_banana_failed_fallback_gemini_flash");
+
+      // 3) ÚLTIMO RECURSO: Gemini 2.5 flash-image
+      const flashUrl = await generateWithNanoBanana(fullPrompt, {
+        apiKey: LOVABLE_API_KEY,
+        model: "google/gemini-2.5-flash-image",
+        timeoutMs: 45_000,
+      });
+      console.log("[carrossel-image] done_gemini_flash", { ok: !!flashUrl });
+      return new Response(JSON.stringify({ imageDataUrl: flashUrl ?? null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const flashUrl = await generateWithNanoBanana(fullPrompt, {
-      apiKey: LOVABLE_API_KEY,
-      model: "google/gemini-2.5-flash-image",
-      timeoutMs: 45_000,
-    });
-    console.log("[carrossel-image] done_gemini_flash", { ok: !!flashUrl });
-    return new Response(JSON.stringify({ imageDataUrl: flashUrl ?? null }), {
+    return new Response(JSON.stringify({ error: "Nenhuma engine de imagem configurada." }), {
+      status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
