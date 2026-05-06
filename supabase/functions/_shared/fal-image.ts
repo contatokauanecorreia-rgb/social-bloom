@@ -121,7 +121,7 @@ export async function generateWithFal(
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const resp = await fetch("https://fal.run/fal-ai/flux-pro/v1.1", {
+    const resp = await fetch("https://fal.run/fal-ai/flux-2/klein/9b", {
       method: "POST",
       headers: {
         Authorization: `Key ${apiKey}`,
@@ -131,13 +131,11 @@ export async function generateWithFal(
         prompt,
         image_size: mapImageSize(aspectRatio),
         num_images: 1,
-        // Desligamos o safety checker do FAL aqui porque ele estava devolvendo
-        // imagens pretas sólidas como "sucesso" para prompts editoriais
-        // perfeitamente legítimos (ex.: yoga, lifestyle). A moderação real é
-        // feita pelo gateway/Lovable AI quando houver fallback.
+        num_inference_steps: 6,
+        // Safety checker desligado: estava devolvendo imagens pretas sólidas
+        // como "sucesso" para prompts editoriais legítimos.
         enable_safety_checker: false,
         output_format: "jpeg",
-        safety_tolerance: "6",
       }),
       signal: controller.signal,
     });
