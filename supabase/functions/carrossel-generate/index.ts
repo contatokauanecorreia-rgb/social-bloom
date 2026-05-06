@@ -1,5 +1,10 @@
 // deno-lint-ignore-file no-explicit-any
-import { generateWithFal, sanitizeImageNote } from "../_shared/fal-image.ts";
+import {
+  fallbackVisualPrompt,
+  generateWithFal,
+  looksLikeCopyNotImagePrompt,
+  sanitizeImageNote,
+} from "../_shared/fal-image.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -603,7 +608,19 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
       };
 
       const buildImagePrompt = (note: string): string => {
-        const safeNote = sanitizeImageNote(note);
+        let seed = (note ?? "").trim();
+        if (looksLikeCopyNotImagePrompt(seed)) {
+          console.warn("[carrossel-generate] prompt_looked_like_copy", {
+            len: seed.length,
+            preview: seed.slice(0, 120),
+          });
+          seed = fallbackVisualPrompt({
+            archetype: archetypeStr || null,
+            segment: segStr || null,
+            imageStyle: ESTILO_IMAGENS,
+          });
+        }
+        const safeNote = sanitizeImageNote(seed);
         const { camera, dof } = inferCamera(safeNote);
         const parts = [
           // Reforço no INÍCIO (FLUX dá mais peso aqui)
