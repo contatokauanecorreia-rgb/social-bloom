@@ -129,9 +129,13 @@ export async function generateWithFal(
         prompt,
         image_size: mapImageSize(aspectRatio),
         num_images: 1,
-        enable_safety_checker: true,
+        // Desligamos o safety checker do FAL aqui porque ele estava devolvendo
+        // imagens pretas sólidas como "sucesso" para prompts editoriais
+        // perfeitamente legítimos (ex.: yoga, lifestyle). A moderação real é
+        // feita pelo gateway/Lovable AI quando houver fallback.
+        enable_safety_checker: false,
         output_format: "jpeg",
-        safety_tolerance: "2",
+        safety_tolerance: "6",
       }),
       signal: controller.signal,
     });
