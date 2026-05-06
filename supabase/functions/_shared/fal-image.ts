@@ -144,6 +144,11 @@ export async function generateWithFal(
 
     const data: any = await resp.json();
     const url: string | undefined = data?.images?.[0]?.url;
+    const nsfwFlags: any[] = Array.isArray(data?.has_nsfw_concepts) ? data.has_nsfw_concepts : [];
+    if (nsfwFlags.some(Boolean)) {
+      console.warn("[fal-image] nsfw_blocked_by_safety_checker — returning null so caller can fallback");
+      return null;
+    }
     if (!url || typeof url !== "string") {
       console.error("[fal-image] no_url_in_response", { keys: Object.keys(data ?? {}) });
       return null;
@@ -157,6 +162,17 @@ export async function generateWithFal(
     }
     const contentType = imgResp.headers.get("content-type") || "image/jpeg";
     const buf = new Uint8Array(await imgResp.arrayBuffer());
+
+    // Heurística anti-imagem-em-branco: imagens preto-sólido / placeholder
+    // do safety checker do FAL costumam ter byte-payload extremamente uniforme
+    // (sequência longa do mesmo byte). Detectamos isso amostrando o buffer.
+    if (isLikelyBlankImage(buf)) {
+      console.warn("[fal-image] suspect_blank_image — discarding, caller should fallback", {
+        bytes: buf.length,
+        contentType,
+      });
+      return null;
+    }
 
     // Base64 encode
     let binary = "";
