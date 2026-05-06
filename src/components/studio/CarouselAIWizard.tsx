@@ -486,27 +486,31 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
       }>;
 
       // Jobs de imagem (geradas em background no editor).
-      // IMPORTANTE: nunca usar `effectiveTopic` (que pode ser o texto inteiro do
-      // Planner) como prompt de imagem — isso faz o modelo desenhar letras.
-      // Só geramos imagem para slides que tenham uma `imagePrompt` visual real,
-      // e respeitamos os tipos que não devem ter foto (M1/M2/M3, C2/C4/C5).
+      // Geramos imagem para TODOS os slides quando aiImages estiver ligado,
+      // independente do tipo visual. Se o slide não tiver `imagePrompt`
+      // explícita (ex.: tipos M1/M2/M3 do minimalista), derivamos uma
+      // descrição visual neutra a partir do título/body para que a foto
+      // seja gerada mesmo assim — o usuário pediu imagens em todo o carrossel.
       const trimmedStyle = imageStyle.trim() || null;
-      const isPhotoSlide = (s: { sistema?: string; tipo?: string }) => {
-        if (s.sistema === "minimalista") return s.tipo === "M4" || s.tipo === "M5";
-        if (s.sistema === "criativo") return s.tipo === "C1" || s.tipo === "C3";
-        return true; // sem sistema → comportamento legacy
+      const deriveVisualSeed = (s: { title?: string; body?: string; subtitle?: string }) => {
+        const t = (s.title ?? "").trim();
+        const b = (s.body ?? s.subtitle ?? "").trim();
+        const seed = [t, b].filter(Boolean).join(". ").slice(0, 200);
+        return seed
+          ? `editorial lifestyle photograph evoking the mood of: ${seed}`
+          : `editorial lifestyle photograph, calm and emotionally resonant scene`;
       };
       const imageJobs =
         aiImages && imageMode !== "none"
-          ? slidesData
-              .map((s, i) => ({ s, i }))
-              .filter(({ s }) => isPhotoSlide(s))
-              .filter(({ s }) => typeof s.imagePrompt === "string" && s.imagePrompt.trim().length > 0)
-              .map(({ s, i }) => ({
+          ? slidesData.map((s, i) => {
+              const explicit = typeof s.imagePrompt === "string" ? s.imagePrompt.trim() : "";
+              const promptText = explicit.length > 0 ? explicit : deriveVisualSeed(s);
+              return {
                 slideIndex: i,
-                imagePrompt: s.imagePrompt.trim(),
+                imagePrompt: promptText,
                 imageStyle: trimmedStyle,
-              }))
+              };
+            })
           : [];
 
       const bootstrap = {

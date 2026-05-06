@@ -667,38 +667,35 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
         const prompt = buildImagePrompt(s.imagePrompt);
         console.log("[carrossel-generate] image_start", { i, ms: Date.now() - t0 });
 
-        // 1) PRIMÁRIO: Nano Banana Pro (Google Gemini via Lovable AI Gateway).
-        // Respeita "no text" muito melhor que FLUX e evita imagens pretas.
-        if (LOVABLE_API_KEY) {
-          const nbUrl = await generateWithNanoBanana(prompt, {
-            apiKey: LOVABLE_API_KEY,
-            model: "google/gemini-3-pro-image-preview",
-            timeoutMs: Math.min(60_000, Math.max(10_000, remaining() - 3_000)),
-          });
-          if (nbUrl) {
-            console.log("[carrossel-generate] image_done_nano_banana", { i, ms: Date.now() - t0 });
-            return nbUrl;
-          }
-          console.warn("[carrossel-generate] nano_banana_failed_fallback_fal", { i });
-        }
-
-        // 2) FALLBACK: fal.ai (FLUX 1.1 [pro])
+        // 1) PRIMÁRIO: FAL/FLUX 1.1 Pro — fotografia ultrarrealista.
         const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
         if (FAL_API_KEY) {
           const falUrl = await generateWithFal(prompt, {
             apiKey: FAL_API_KEY,
             aspectRatio: "4:5",
-            timeoutMs: Math.min(45_000, Math.max(10_000, remaining() - 3_000)),
+            timeoutMs: Math.min(60_000, Math.max(10_000, remaining() - 3_000)),
           });
           if (falUrl) {
             console.log("[carrossel-generate] image_done_fal", { i, ms: Date.now() - t0 });
             return falUrl;
           }
-          console.warn("[carrossel-generate] fal_failed_fallback_gemini_flash", { i });
+          console.warn("[carrossel-generate] fal_failed_fallback_nano_banana", { i });
         }
 
-        // 3) ÚLTIMO RECURSO: Gemini 2.5 flash-image (mais barato/rápido)
+        // 2) FALLBACK técnico: Nano Banana Pro
         if (LOVABLE_API_KEY) {
+          const nbUrl = await generateWithNanoBanana(prompt, {
+            apiKey: LOVABLE_API_KEY,
+            model: "google/gemini-3-pro-image-preview",
+            timeoutMs: Math.min(45_000, Math.max(10_000, remaining() - 3_000)),
+          });
+          if (nbUrl) {
+            console.log("[carrossel-generate] image_done_nano_banana_fallback", { i, ms: Date.now() - t0 });
+            return nbUrl;
+          }
+          console.warn("[carrossel-generate] nano_banana_failed_fallback_gemini_flash", { i });
+
+          // 3) ÚLTIMO RECURSO: Gemini 2.5 flash-image
           const flashUrl = await generateWithNanoBanana(prompt, {
             apiKey: LOVABLE_API_KEY,
             model: "google/gemini-2.5-flash-image",
