@@ -485,15 +485,28 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         alignment?: "left" | "center" | "right";
       }>;
 
-      // Jobs de imagem (geradas em background no editor)
+      // Jobs de imagem (geradas em background no editor).
+      // IMPORTANTE: nunca usar `effectiveTopic` (que pode ser o texto inteiro do
+      // Planner) como prompt de imagem — isso faz o modelo desenhar letras.
+      // Só geramos imagem para slides que tenham uma `imagePrompt` visual real,
+      // e respeitamos os tipos que não devem ter foto (M1/M2/M3, C2/C4/C5).
       const trimmedStyle = imageStyle.trim() || null;
+      const isPhotoSlide = (s: { sistema?: string; tipo?: string }) => {
+        if (s.sistema === "minimalista") return s.tipo === "M4" || s.tipo === "M5";
+        if (s.sistema === "criativo") return s.tipo === "C1" || s.tipo === "C3";
+        return true; // sem sistema → comportamento legacy
+      };
       const imageJobs =
         aiImages && imageMode !== "none"
-          ? slidesData.map((s, i) => ({
-              slideIndex: i,
-              imagePrompt: s.imagePrompt || effectiveTopic,
-              imageStyle: trimmedStyle,
-            }))
+          ? slidesData
+              .map((s, i) => ({ s, i }))
+              .filter(({ s }) => isPhotoSlide(s))
+              .filter(({ s }) => typeof s.imagePrompt === "string" && s.imagePrompt.trim().length > 0)
+              .map(({ s, i }) => ({
+                slideIndex: i,
+                imagePrompt: s.imagePrompt.trim(),
+                imageStyle: trimmedStyle,
+              }))
           : [];
 
       const bootstrap = {

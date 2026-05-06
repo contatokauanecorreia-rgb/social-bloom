@@ -1,5 +1,10 @@
 // deno-lint-ignore-file no-explicit-any
-import { generateWithFal, sanitizeImageNote } from "../_shared/fal-image.ts";
+import {
+  fallbackVisualPrompt,
+  generateWithFal,
+  looksLikeCopyNotImagePrompt,
+  sanitizeImageNote,
+} from "../_shared/fal-image.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,7 +31,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    const safePrompt = sanitizeImageNote(prompt);
+    // Trava de segurança: se vier copy/texto do Planner em vez de descrição
+    // visual, descartamos e usamos um prompt visual neutro.
+    let visualSeed = prompt.trim();
+    if (looksLikeCopyNotImagePrompt(visualSeed)) {
+      console.warn("[carrossel-image] prompt_looked_like_copy, using fallback", {
+        len: visualSeed.length,
+        preview: visualSeed.slice(0, 120),
+      });
+      visualSeed = fallbackVisualPrompt({ archetype, segment, imageStyle });
+    }
+
+    const safePrompt = sanitizeImageNote(visualSeed);
     const styleStr = imageStyle && imageStyle.trim()
       ? `Visual style: ${imageStyle.trim()}.`
       : (archetype ? `Brand archetype: ${archetype}.` : "");
