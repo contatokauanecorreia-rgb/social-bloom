@@ -297,6 +297,12 @@ REGRAS ABSOLUTAS:
 - Tom obrigatório: ${TOM_VOZ}
 - Fluxo narrativo: Atenção → Conexão → Desejo → Ação (nunca mencione)
 
+LIMITES DE CARACTERES POR SLIDE (regra absoluta — vale para TODOS os tipos M1–M5, C1–C5 e qualquer DNA, contando espaços e quebras de linha):
+- Slide SEM título (titulo = ""): a soma de subtitulo + corpo NÃO pode ultrapassar 369 caracteres.
+- Slide COM título: a soma de titulo + subtitulo + corpo NÃO pode ultrapassar 422 caracteres.
+- Se a ideia não couber, corte adjetivos, advérbios e conectivos — nunca ultrapasse o limite.
+- Prefira frases curtas e diretas. Cada slide é um respiro visual.
+
 ---
 
 ENTREGA: Entregue a saída chamando a função \`build_carousel\`. Mapeie os campos assim:
