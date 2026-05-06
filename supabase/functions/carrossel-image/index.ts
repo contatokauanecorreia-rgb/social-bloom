@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import { generateWithFal } from "../_shared/fal-image.ts";
+import { generateWithFal, sanitizeImageNote } from "../_shared/fal-image.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -26,11 +26,12 @@ Deno.serve(async (req) => {
       });
     }
 
+    const safePrompt = sanitizeImageNote(prompt);
     const styleStr = imageStyle && imageStyle.trim()
       ? `Visual style: ${imageStyle.trim()}.`
       : (archetype ? `Brand archetype: ${archetype}.` : "");
     const segStr = segment ? `Segment: ${segment}.` : "";
-    const fullPrompt = `${prompt}. ${styleStr} ${segStr} Editorial, high quality, soft natural lighting, instagram feed aesthetic, vertical 4:5 composition. Pure photographic/visual content only — absolutely no text, no letters, no typography, no captions, no watermarks, no logos with text, no signs anywhere in the image.`;
+    const fullPrompt = `Pure photographic image with absolutely no text, no letters, no words, no typography, no captions, no signs, no logos with text, no watermarks anywhere in the frame. ${safePrompt}. ${styleStr} ${segStr} Editorial, high quality, soft natural lighting, instagram feed aesthetic, vertical 4:5 composition. Pure photographic/visual content only — absolutely no text, no letters, no typography, no captions, no watermarks, no logos with text, no signs anywhere in the image. Final constraint: zero text, zero letters, zero typography in the final image — any book, screen, sign, paper or label visible must appear blank, closed, powered off, or out of focus.`;
 
     // 1) Tenta fal.ai (FLUX 1.1 [pro]) primeiro
     const FAL_API_KEY = Deno.env.get("FAL_API_KEY");

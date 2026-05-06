@@ -1,105 +1,66 @@
+## Problema
 
-# Integração fal.ai — FLUX 1.1 [pro] para carrosséis
+Mesmo com a regra "no text, no letters" no prompt negativo, o FLUX 1.1 [pro] (e às vezes o Gemini fallback) está **inserindo texto, letras e legendas dentro das fotos** dos carrosséis gerados via planner.
 
-## Objetivo
+Causas reais (confirmadas no código):
 
-Substituir o Gemini como engine padrão de geração de imagem por **FLUX 1.1 [pro]** via **fal.ai**, mantendo Gemini como fallback automático caso a chamada principal falhe (timeout, créditos, erro).
+1. **FLUX 1.1 [pro] ignora negative prompts em prompts longos.** O `buildImagePrompt` atual junta ~10 frases descritivas e enfia o "Negative: no text..." no meio. FLUX trata isso como instrução positiva fraca e frequentemente desenha texto.
+2. **A `nota_visual` gerada pela IA pode pedir texto implicitamente** (ex: "a workspace with a notebook page", "a sign", "a magazine cover", "a book") — termos que o modelo de imagem associa fortemente a letras visíveis.
+3. **Não há um pós-filtro** que remova/reescreva notas visuais arriscadas antes de mandar pro FLUX.
+4. **O prompt enviado para o LLM** que escreve a `nota_visual` diz "NUNCA peça texto", mas não bloqueia objetos que sempre contêm texto (livros, placas, telas, jornais, etiquetas).
 
-Não altera UI, não altera prompts, não altera estrutura de slides. Mudança 100% no backend (edge functions).
+## Solução
 
-## Arquitetura
+Atacar as três camadas: instrução ao LLM, sanitização da nota visual, e prompt do FLUX.
 
-```text
-genOne(slide)
-   ├─ tenta fal.ai (FLUX 1.1 [pro])  ← novo, padrão
-   │      ↓ falhou (4xx/5xx/timeout)
-   └─ fallback Gemini (atual)
-          ↓ falhou
-       null (slide sem imagem)
-```
+### 1. Endurecer a instrução ao LLM que cria a `nota_visual`
 
-A mesma lógica é replicada na edge function `carrossel-image` (regeneração individual no editor).
+Em `supabase/functions/carrossel-generate/index.ts` (linha 301), trocar a regra de uma frase por uma lista explícita:
 
-## Passos de implementação
+> A `nota_visual` NÃO pode conter (nem em inglês nem em português): text, letters, words, typography, captions, signs, signage, books, magazines, newspapers, journals, notebooks with visible writing, screens showing text/UI, posters, billboards, labels with words, packaging with brand names, business cards, documents, papers with writing, tattoos with letters, clothing with logos/text, watermarks, captions. Se o objeto natural da cena geralmente tem texto (ex: livro, jornal, tela), descreva-o como **"closed", "blank", "blurred out of focus" ou substitua** por um equivalente sem texto (ex: livro fechado de capa lisa, tela apagada, papel em branco).
 
-### 1. Configurar API key da fal.ai
+Aplicar a mesma instrução nos appendices `minimalistAppendix` (M4/M5) e `creativeAppendix` (C1/C3).
 
-- O usuário precisa criar conta em https://fal.ai e gerar uma API key em **Dashboard → Keys**.
-- Vou usar `add_secret` para pedir o valor de **`FAL_API_KEY`** e armazenar em Lovable Cloud.
-- Não precisa de connector — fal.ai não tem um listado, então é integração via secret + REST.
+### 2. Sanitizador de nota visual no servidor (camada de segurança)
 
-### 2. Criar helper compartilhado `_shared/fal-image.ts`
+Adicionar função `sanitizeImageNote(note: string): string` em `_shared/fal-image.ts` que:
 
-Novo arquivo `supabase/functions/_shared/fal-image.ts` exportando:
+- Detecta termos de risco em PT/EN: `text|letter|word|caption|sign|signage|book|magazine|newspaper|journal|notebook|screen|monitor|display|poster|billboard|label|tag|business card|document|paper writing|writing|tattoo|logo|watermark|menu|brochure|flyer`.
+- Se encontrar, anexa uma reescrita: substitui esses substantivos por versões neutras OU adiciona ao final `". All books are closed and blank, all screens are off, all papers are blank, no readable text or letters anywhere in the image."`.
+- Loga `[sanitize] note_rewritten` quando agir, pra debug futuro.
 
-```ts
-export async function generateWithFal(prompt: string, opts?: {
-  aspectRatio?: "4:5" | "1:1" | "9:16";
-  apiKey: string;
-}): Promise<string | null>  // retorna data URL base64 ou null
-```
+Chamar isso dentro de `buildImagePrompt` ANTES de montar o prompt final.
 
-Implementação:
-- Endpoint síncrono: `POST https://fal.run/fal-ai/flux-pro/v1.1` com `Authorization: Key ${FAL_API_KEY}`.
-- Body: `{ prompt, image_size: "portrait_4_3", num_images: 1, enable_safety_checker: true, output_format: "jpeg" }` (mapeio 4:5 → `portrait_4_3`, mais próximo suportado pelo FLUX pro; 1:1 → `square_hd`; 9:16 → `portrait_16_9`).
-- Resposta vem como `{ images: [{ url: "https://fal.media/..." }] }` — fal.ai retorna URL pública, não base64.
-- Fetcho a URL e converto para `data:image/jpeg;base64,...` para manter compatibilidade total com o resto do código (que espera data URL).
-- Timeout interno de 45s (FLUX 1.1 pro é rápido, 5–15s típico).
+### 3. Reordenar e reforçar o prompt do FLUX
 
-### 3. Atualizar `carrossel-generate/index.ts`
+FLUX dá muito mais peso ao **início** do prompt e à **última frase**. Atualizar `buildImagePrompt` para:
 
-Em `genOne` (linha 623), trocar a chamada Gemini por:
+- **Primeira frase:** `"Pure photographic image with absolutely no text, no letters, no words, no typography, no captions, no signs, no logos with text, no watermarks anywhere in the frame."`
+- Em seguida: descrição da cena (`Photograph: ${note}`), estilo, luz, câmera, etc.
+- **Última frase:** repetir `"Final constraint: zero text, zero letters, zero typography in the final image — purely visual, photographic content only."`
 
-```ts
-const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
-let url: string | null = null;
+Frase no meio (linha 617) continua, mas as duas pontas é o que o FLUX realmente lê.
 
-if (FAL_API_KEY) {
-  url = await generateWithFal(prompt, { aspectRatio: "4:5", apiKey: FAL_API_KEY });
-  if (url) console.log("[carrossel-generate] image_done_fal", { i });
-}
+### 4. Ajuste mínimo no fal.ai call
 
-if (!url) {
-  // fallback Gemini (código atual)
-  console.log("[carrossel-generate] fallback_gemini", { i });
-  url = await generateWithGemini(prompt, LOVABLE_API_KEY);
-}
+Em `_shared/fal-image.ts`, no body do POST, adicionar parâmetros suportados pelo endpoint `flux-pro/v1.1`:
 
-return url;
-```
+- `safety_tolerance: "2"` (já está)
+- (FLUX pro 1.1 não tem `negative_prompt` nativo no endpoint v1.1, então dependemos do prompt positivo bem construído — daí o item 3.)
 
-Extraio o bloco Gemini atual para uma função `generateWithGemini` no mesmo arquivo (ou no `_shared/`) para clareza.
-
-### 4. Atualizar `carrossel-image/index.ts`
-
-Mesma lógica: tenta fal.ai primeiro, fallback Gemini. Mantém a interface pública intacta (`{ imageDataUrl }`).
-
-### 5. Deploy + teste
-
-- Deploy de `carrossel-generate` e `carrossel-image`.
-- Testar gerando 1 carrossel novo (verifico nos logs se `image_done_fal` aparece).
-- Testar regeneração individual de slide no editor.
-
-## Considerações técnicas
-
-- **Modelo escolhido:** `fal-ai/flux-pro/v1.1` (não a `ultra`). Razão: FLUX 1.1 [pro] entrega ~95% da qualidade da Ultra a metade do preço (~$0.04 vs $0.06) e ~3x mais rápido. Se quiser depois, é só trocar a string do endpoint para `fal-ai/flux-pro/v1.1-ultra`.
-- **Custo estimado:** ~$0.04/imagem. Carrossel de 5 slides com 3 fotos = ~$0.12.
-- **Aspect ratio:** FLUX pro 1.1 não tem 4:5 nativo, então uso `portrait_4_3` (1024×1280) que é visualmente equivalente para Instagram.
-- **Sem texto nas imagens:** mantenho o prompt negativo atual (`no text, no letters...`), que o FLUX respeita melhor que o Gemini.
-- **Fallback automático:** se `FAL_API_KEY` não estiver setada OU a chamada falhar, o sistema cai no Gemini sem erro visível para o usuário. Isso garante que o app continua funcionando mesmo se você não setar a key imediatamente.
-- **Sem mudança no schema** das slides nem no frontend. `imageDataUrl` continua sendo data URL base64, só muda o modelo que gerou.
+Replicar a mesma lógica em `supabase/functions/carrossel-image/index.ts` (regeneração individual no editor) para que a regeneração também sanitize.
 
 ## Arquivos afetados
 
-- **Novo:** `supabase/functions/_shared/fal-image.ts`
-- **Editado:** `supabase/functions/carrossel-generate/index.ts` (função `genOne`)
-- **Editado:** `supabase/functions/carrossel-image/index.ts` (handler principal)
-- **Secret novo:** `FAL_API_KEY` (solicitado via `add_secret` após aprovação)
+- **Editado:** `supabase/functions/carrossel-generate/index.ts` — endurecer instrução do LLM (linha 301 e appendices), reescrever `buildImagePrompt` (linhas 601–623).
+- **Editado:** `supabase/functions/_shared/fal-image.ts` — adicionar e exportar `sanitizeImageNote()`.
+- **Editado:** `supabase/functions/carrossel-image/index.ts` — usar `sanitizeImageNote()` e prompt reforçado igual ao do generate.
 
-## O que NÃO está incluído (pode virar próximo passo)
+## O que NÃO está incluído
 
-- Seletor de engine no wizard (Gemini / FLUX / Ideogram). Hoje é fixo: tenta FLUX, fallback Gemini.
-- Suporte a Ideogram para slides com tipografia integrada.
-- UI mostrando qual engine gerou cada imagem.
+- Trocar de FLUX 1.1 [pro] para outro modelo (ex: Recraft, Ideogram). A causa principal não é o modelo — é o prompt sem reforço nas pontas e a nota visual livre demais. Se mesmo assim aparecer texto depois dessa correção, aí sim avaliamos trocar a engine.
+- Detecção/recusa via OCR pós-geração (regenerar automaticamente quando detectar texto na imagem). Pode ser próximo passo se o problema persistir.
 
-Se quiser qualquer um desses depois, é incremento simples sobre essa base.
+## Resultado esperado
+
+Imagens dos carrosséis (vindo do planner ou de tópico livre) sem texto, letras ou legendas. Quando a cena natural pediria texto (livro, tela, placa), o objeto aparece em branco/desligado/desfocado.

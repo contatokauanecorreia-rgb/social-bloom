@@ -1,5 +1,5 @@
 // deno-lint-ignore-file no-explicit-any
-import { generateWithFal } from "../_shared/fal-image.ts";
+import { generateWithFal, sanitizeImageNote } from "../_shared/fal-image.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -298,7 +298,11 @@ ENTREGA: Entregue a saída chamando a função \`build_carousel\`. Mapeie os cam
 - titulo → title
 - subtitulo → subtitle
 - corpo → body
-- nota_visual → imagePrompt (SEMPRE em inglês, descrevendo apenas conteúdo visual/fotográfico no estilo "${ESTILO_IMAGENS}"; NUNCA peça texto, letras, tipografia, legendas, marca d'água ou logos com texto na imagem)
+- nota_visual → imagePrompt (SEMPRE em inglês, descrevendo apenas conteúdo visual/fotográfico no estilo "${ESTILO_IMAGENS}").
+  REGRAS DURAS para a nota_visual (NÃO QUEBRE):
+  • PROIBIDO mencionar: text, letters, words, typography, captions, signs, signage, billboards, posters, banners, labels, tags, stickers, business cards, menus, brochures, flyers, documents, watermarks, logos with text, tattoos with letters, clothing with text/logos, packaging with brand names, screens/monitors/phones/laptops/TVs showing UI or text, books/magazines/newspapers/journals/notebooks with visible writing or covers with text.
+  • Se a cena pediria naturalmente um desses objetos, descreva-os como: "closed", "blank", "powered off", "out of focus", "plain unbranded", ou substitua por equivalente sem texto (ex: "closed book with a plain blank cover" em vez de "open book").
+  • A imagem final precisa ser puramente visual/fotográfica, ZERO letras visíveis em qualquer lugar do quadro.
 
 Não inclua o campo \`legenda\`. Não escreva nada fora da chamada da função.`;
 
@@ -599,9 +603,12 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
       };
 
       const buildImagePrompt = (note: string): string => {
-        const { camera, dof } = inferCamera(note);
+        const safeNote = sanitizeImageNote(note);
+        const { camera, dof } = inferCamera(safeNote);
         const parts = [
-          `Photograph: ${note}.`,
+          // Reforço no INÍCIO (FLUX dá mais peso aqui)
+          `Pure photographic image with absolutely no text, no letters, no words, no typography, no captions, no signs, no logos with text, no watermarks anywhere in the frame.`,
+          `Photograph: ${safeNote}.`,
           `Visual style: ${ESTILO_IMAGENS}.`,
           `Lighting: logically motivated natural or ambient light, soft and directional, photographically plausible.`,
           `Camera/lens/angle: ${camera}.`,
@@ -618,6 +625,8 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
           isMinimalist ? `Composition style: editorial minimalist, generous negative space, off-white or linen tones, calm and refined.` : "",
           isCreative ? `Composition style: bold editorial, high contrast, vibrant accent color, dynamic energy, magazine-grade.` : "",
           `Aspect ratio: vertical 4:5.`,
+          // Reforço no FIM (FLUX também pesa muito a última frase)
+          `Final constraint: zero text, zero letters, zero typography in the final image — purely visual, photographic content only. Any book, screen, sign, paper or label visible in the scene must appear blank, closed, powered off, or out of focus.`,
         ].filter(Boolean);
         return parts.join(" ");
       };

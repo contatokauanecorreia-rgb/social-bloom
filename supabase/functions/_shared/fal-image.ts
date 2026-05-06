@@ -15,6 +15,63 @@ function mapImageSize(ar: AspectRatio | undefined): string {
   }
 }
 
+/**
+ * Reescreve uma "nota visual" para reduzir a chance de o modelo de imagem
+ * desenhar texto, letras ou tipografia na cena.
+ *
+ * - Substitui objetos que naturalmente carregam texto (livro, jornal, tela, placa…)
+ *   por versões neutras ("blank", "closed", "off").
+ * - Anexa uma instrução final reforçando "no text".
+ */
+export function sanitizeImageNote(note: string): string {
+  if (!note || !note.trim()) return note;
+  let s = note;
+  let touched = false;
+
+  const replacements: Array<[RegExp, string]> = [
+    // EN
+    [/\b(an?\s+)?open\s+book\b/gi, "$1closed book with a plain blank cover"],
+    [/\bbooks?\b/gi, "closed books with plain blank covers"],
+    [/\b(magazines?|newspapers?|journals?|notebooks?|notepads?)\b/gi, "blank-paged $1"],
+    [/\b(screens?|monitors?|displays?|laptops?|phones?|tablets?|tvs?|televisions?)\b/gi, "$1 (powered off, dark screen)"],
+    [/\b(signs?|signage|billboards?|posters?|banners?|placards?)\b/gi, "blank unmarked $1"],
+    [/\b(labels?|tags?|stickers?|business\s+cards?|menus?|brochures?|flyers?|documents?)\b/gi, "blank $1"],
+    [/\b(packaging|boxes?|bottles?|cans?|jars?)\s+(with\s+)?(brand|label|text|logo)[^.,;]*/gi, "plain unbranded $1"],
+    [/\bwriting\s+on\b/gi, "blank surface on"],
+    [/\btattoos?\b/gi, "abstract non-textual tattoos"],
+    [/\b(t-?shirts?|shirts?|hoodies?|caps?|hats?|clothing)\s+(with\s+)?(logo|text|writing|print)[^.,;]*/gi, "plain unbranded $1"],
+    [/\b(text|letters?|words?|captions?|typography|watermarks?|logos?\s+with\s+text)\b/gi, ""],
+    // PT
+    [/\blivros?\s+abertos?\b/gi, "livros fechados de capa lisa em branco"],
+    [/\blivros?\b/gi, "livros fechados de capa lisa em branco"],
+    [/\b(revistas?|jornais?|cadernos?|blocos?\s+de\s+notas?)\b/gi, "$1 com páginas em branco"],
+    [/\b(telas?|monitores?|computadores?|notebooks?|celulares?|tablets?|televis(ões|ao)|tvs?)\b/gi, "$1 desligadas"],
+    [/\b(placas?|cartazes?|outdoors?|banners?|letreiros?)\b/gi, "$1 em branco sem texto"],
+    [/\b(etiquetas?|adesivos?|cart(ões|ao)\s+de\s+visita|menus?|cardápios?|panfletos?|documentos?)\b/gi, "$1 em branco"],
+    [/\b(texto|letras?|palavras?|legendas?|tipografia|marca\s+d['’]?[áa]gua|logos?\s+com\s+texto)\b/gi, ""],
+  ];
+
+  for (const [re, rep] of replacements) {
+    if (re.test(s)) {
+      touched = true;
+      s = s.replace(re, rep);
+    }
+  }
+
+  s = s.replace(/\s{2,}/g, " ").replace(/\s+([.,;:])/g, "$1").trim();
+
+  const guard =
+    " All books are closed with blank covers, all screens are off, all papers and signs are blank, no readable text or letters anywhere in the image.";
+  if (!s.toLowerCase().includes("no readable text")) {
+    s = s + (s.endsWith(".") ? "" : ".") + guard;
+  }
+
+  if (touched) {
+    console.log("[sanitize] note_rewritten", { before: note.slice(0, 120), after: s.slice(0, 160) });
+  }
+  return s;
+}
+
 export async function generateWithFal(
   prompt: string,
   opts: { apiKey: string; aspectRatio?: AspectRatio; timeoutMs?: number },
