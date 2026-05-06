@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
     // Prompt enxuto para FLUX: descrição visual primeiro, restrição de texto
     // mencionada uma única vez no final. Excesso de instrução negativa estava
     // colapsando o resultado para uma imagem preta sólida.
-    const fullPrompt = `${safePrompt}. ${styleStr} ${segStr} Editorial photography, soft natural lighting, instagram feed aesthetic, vertical 4:5 composition, vibrant and well exposed. No text, no letters, no captions, no logos, no watermarks anywhere in the image.`;
+    const fullPrompt = `${safePrompt}. ${styleStr} ${segStr} Ultra-realistic editorial photography, shot on full-frame camera with 50mm prime lens, natural soft directional lighting, shallow depth of field with smooth bokeh, fine skin micro-texture, photographic grain, true-to-life colors, high optical sharpness, instagram feed aesthetic, vertical 4:5 composition, professional 2K quality. No text, no letters, no captions, no logos, no watermarks anywhere in the image.`;
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
