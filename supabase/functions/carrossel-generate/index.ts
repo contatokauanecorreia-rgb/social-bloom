@@ -623,11 +623,9 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
         const safeNote = sanitizeImageNote(seed);
         const { camera, dof } = inferCamera(safeNote);
         const parts = [
-          // Reforço no INÍCIO (FLUX dá mais peso aqui)
-          `Pure photographic image with absolutely no text, no letters, no words, no typography, no captions, no signs, no logos with text, no watermarks anywhere in the frame.`,
           `Photograph: ${safeNote}.`,
           `Visual style: ${ESTILO_IMAGENS}.`,
-          `Lighting: logically motivated natural or ambient light, soft and directional, photographically plausible.`,
+          `Lighting: logically motivated natural or ambient light, soft and directional, photographically plausible, well exposed.`,
           `Camera/lens/angle: ${camera}.`,
           `Depth of field: ${dof}.`,
           paletteStr ? `Color palette: ${paletteStr}.` : "",
@@ -637,13 +635,11 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
             : "",
           segStr ? `Brand segment: ${segStr}.` : "",
           archetypeStr ? `Brand archetype: ${archetypeStr}.` : "",
-          `Quality: high optical sharpness, fine detail rendering, natural skin micro texture, visible pores, realistic photography clarity, professional photography, 2K resolution.`,
-          `Negative: no text, no letters, no typography, no captions, no watermark, no logo, no signage with words, no blurry skin, no plastic skin, no over-smoothed face, no AI skin smoothing, no texture loss, no suggestive or sensual posing.`,
-          isMinimalist ? `Composition style: editorial minimalist, generous negative space, off-white or linen tones, calm and refined.` : "",
-          isCreative ? `Composition style: bold editorial, high contrast, vibrant accent color, dynamic energy, magazine-grade.` : "",
+          `Quality: high optical sharpness, fine detail, natural skin micro texture, realistic photography clarity, professional, 2K resolution.`,
+          isMinimalist ? `Composition: editorial minimalist, generous negative space, off-white or linen tones, calm and refined.` : "",
+          isCreative ? `Composition: bold editorial, high contrast, vibrant accent color, dynamic energy, magazine-grade.` : "",
           `Aspect ratio: vertical 4:5.`,
-          // Reforço no FIM (FLUX também pesa muito a última frase)
-          `Final constraint: zero text, zero letters, zero typography in the final image — purely visual, photographic content only. Any book, screen, sign, paper or label visible in the scene must appear blank, closed, powered off, or out of focus.`,
+          `No text, no letters, no captions, no logos, no watermarks anywhere in the image.`,
         ].filter(Boolean);
         return parts.join(" ");
       };
