@@ -298,7 +298,11 @@ ENTREGA: Entregue a saída chamando a função \`build_carousel\`. Mapeie os cam
 - titulo → title
 - subtitulo → subtitle
 - corpo → body
-- nota_visual → imagePrompt (SEMPRE em inglês, descrevendo apenas conteúdo visual/fotográfico no estilo "${ESTILO_IMAGENS}"; NUNCA peça texto, letras, tipografia, legendas, marca d'água ou logos com texto na imagem)
+- nota_visual → imagePrompt (SEMPRE em inglês, descrevendo apenas conteúdo visual/fotográfico no estilo "${ESTILO_IMAGENS}").
+  REGRAS DURAS para a nota_visual (NÃO QUEBRE):
+  • PROIBIDO mencionar: text, letters, words, typography, captions, signs, signage, billboards, posters, banners, labels, tags, stickers, business cards, menus, brochures, flyers, documents, watermarks, logos with text, tattoos with letters, clothing with text/logos, packaging with brand names, screens/monitors/phones/laptops/TVs showing UI or text, books/magazines/newspapers/journals/notebooks with visible writing or covers with text.
+  • Se a cena pediria naturalmente um desses objetos, descreva-os como: "closed", "blank", "powered off", "out of focus", "plain unbranded", ou substitua por equivalente sem texto (ex: "closed book with a plain blank cover" em vez de "open book").
+  • A imagem final precisa ser puramente visual/fotográfica, ZERO letras visíveis em qualquer lugar do quadro.
 
 Não inclua o campo \`legenda\`. Não escreva nada fora da chamada da função.`;
 
