@@ -5,7 +5,6 @@ import {
   looksLikeCopyNotImagePrompt,
   sanitizeImageNote,
 } from "../_shared/fal-image.ts";
-import { generateWithNanoBanana } from "../_shared/lovable-image.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -48,59 +47,34 @@ Deno.serve(async (req) => {
       ? `Visual style: ${imageStyle.trim()}.`
       : (archetype ? `Brand archetype: ${archetype}.` : "");
     const segStr = segment ? `Segment: ${segment}.` : "";
-    // Prompt enxuto para FLUX: descrição visual primeiro, restrição de texto
-    // mencionada uma única vez no final. Excesso de instrução negativa estava
-    // colapsando o resultado para uma imagem preta sólida.
     const fullPrompt = `${safePrompt}. ${styleStr} ${segStr} Ultra-realistic editorial photography, shot on full-frame camera with 50mm prime lens, natural soft directional lighting, shallow depth of field with smooth bokeh, fine skin micro-texture, photographic grain, true-to-life colors, high optical sharpness, instagram feed aesthetic, vertical 4:5 composition, professional 2K quality. No text, no letters, no captions, no logos, no watermarks anywhere in the image.`;
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const FAL_API_KEY = Deno.env.get("FAL_API_KEY");
 
-    // 1) PRIMÁRIO: FAL/FLUX 1.1 Pro — fotografia ultrarrealista (escolha do usuário).
-    if (FAL_API_KEY) {
-      const falUrl = await generateWithFal(fullPrompt, {
-        apiKey: FAL_API_KEY,
-        aspectRatio: "4:5",
-        timeoutMs: 60_000,
-      });
-      if (falUrl) {
-        console.log("[carrossel-image] done_fal");
-        return new Response(JSON.stringify({ imageDataUrl: falUrl }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      console.warn("[carrossel-image] fal_failed_fallback_nano_banana");
-    }
-
-    // 2) FALLBACK técnico: Nano Banana Pro (só quando FLUX falhar).
-    if (LOVABLE_API_KEY) {
-      const nbUrl = await generateWithNanoBanana(fullPrompt, {
-        apiKey: LOVABLE_API_KEY,
-        model: "google/gemini-3-pro-image-preview",
-        timeoutMs: 60_000,
-      });
-      if (nbUrl) {
-        console.log("[carrossel-image] done_nano_banana_fallback");
-        return new Response(JSON.stringify({ imageDataUrl: nbUrl }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      console.warn("[carrossel-image] nano_banana_failed_fallback_gemini_flash");
-
-      // 3) ÚLTIMO RECURSO: Gemini 2.5 flash-image
-      const flashUrl = await generateWithNanoBanana(fullPrompt, {
-        apiKey: LOVABLE_API_KEY,
-        model: "google/gemini-2.5-flash-image",
-        timeoutMs: 45_000,
-      });
-      console.log("[carrossel-image] done_gemini_flash", { ok: !!flashUrl });
-      return new Response(JSON.stringify({ imageDataUrl: flashUrl ?? null }), {
+    // ÚNICA ENGINE: FAL/FLUX 1.1 Pro — fotografia ultrarrealista.
+    // Sem fallback: se falhar, retornamos null e o cliente pode regenerar.
+    if (!FAL_API_KEY) {
+      return new Response(JSON.stringify({ error: "FAL_API_KEY não configurada." }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ error: "Nenhuma engine de imagem configurada." }), {
-      status: 500,
+    const falUrl = await generateWithFal(fullPrompt, {
+      apiKey: FAL_API_KEY,
+      aspectRatio: "4:5",
+      timeoutMs: 60_000,
+    });
+
+    if (falUrl) {
+      console.log("[carrossel-image] done_fal");
+      return new Response(JSON.stringify({ imageDataUrl: falUrl }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.warn("[carrossel-image] fal_failed_no_fallback");
+    return new Response(JSON.stringify({ imageDataUrl: null }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
