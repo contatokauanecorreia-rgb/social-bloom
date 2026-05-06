@@ -1,66 +1,61 @@
-## Problema
+## Objetivo
+Fazer o carrossel gerar apenas imagens fotográficas, sem texto dentro da foto, inclusive quando a fonte do conteúdo for o Planner.
 
-Mesmo com a regra "no text, no letters" no prompt negativo, o FLUX 1.1 [pro] (e às vezes o Gemini fallback) está **inserindo texto, letras e legendas dentro das fotos** dos carrosséis gerados via planner.
+## O que está acontecendo
+Identifiquei o vazamento principal no fluxo atual:
 
-Causas reais (confirmadas no código):
+- Em `src/components/studio/CarouselAIWizard.tsx`, os `imageJobs` são criados com `s.imagePrompt || effectiveTopic`.
+- Quando o slide não vem com `imagePrompt` válido, o app usa o `effectiveTopic` inteiro como prompt.
+- No modo Planner, esse `effectiveTopic` é o texto completo do carrossel (`SLIDE 1`, bullets, CTA etc.).
+- A prova está no request capturado para `carrossel-image`: o body estava enviando todo o conteúdo do Planner como `prompt`.
 
-1. **FLUX 1.1 [pro] ignora negative prompts em prompts longos.** O `buildImagePrompt` atual junta ~10 frases descritivas e enfia o "Negative: no text..." no meio. FLUX trata isso como instrução positiva fraca e frequentemente desenha texto.
-2. **A `nota_visual` gerada pela IA pode pedir texto implicitamente** (ex: "a workspace with a notebook page", "a sign", "a magazine cover", "a book") — termos que o modelo de imagem associa fortemente a letras visíveis.
-3. **Não há um pós-filtro** que remova/reescreva notas visuais arriscadas antes de mandar pro FLUX.
-4. **O prompt enviado para o LLM** que escreve a `nota_visual` diz "NUNCA peça texto", mas não bloqueia objetos que sempre contêm texto (livros, placas, telas, jornais, etiquetas).
+Isso explica por que o modelo continua desenhando letras: ele está recebendo texto demais e, em alguns casos, o próprio copy do carrossel.
 
-## Solução
+## Plano de correção
 
-Atacar as três camadas: instrução ao LLM, sanitização da nota visual, e prompt do FLUX.
+### 1. Parar de enviar o texto do Planner como prompt de imagem
+Em `src/components/studio/CarouselAIWizard.tsx`:
+- Remover o fallback `|| effectiveTopic` na criação dos `imageJobs`.
+- Criar jobs apenas para slides que realmente tenham `imagePrompt` visual válido.
+- Respeitar os tipos que não devem ter foto (`M1/M2/M3`, `C2/C4/C5`) e não gerar job para eles.
 
-### 1. Endurecer a instrução ao LLM que cria a `nota_visual`
+Resultado: nenhum request de imagem vai mais receber o texto integral do post.
 
-Em `supabase/functions/carrossel-generate/index.ts` (linha 301), trocar a regra de uma frase por uma lista explícita:
+### 2. Adicionar uma trava de segurança no backend de imagem
+Em `supabase/functions/carrossel-image/index.ts`:
+- Detectar prompts claramente errados para imagem, como:
+  - texto longo demais
+  - muitas quebras de linha
+  - presença de `SLIDE`, bullets, CTA, listas, títulos/copys completos
+- Se o prompt estiver contaminado por copy, não enviar isso direto ao modelo de imagem.
+- Em vez disso, converter para uma descrição visual curta e segura, ou cair para um prompt visual genérico coerente com a marca.
 
-> A `nota_visual` NÃO pode conter (nem em inglês nem em português): text, letters, words, typography, captions, signs, signage, books, magazines, newspapers, journals, notebooks with visible writing, screens showing text/UI, posters, billboards, labels with words, packaging with brand names, business cards, documents, papers with writing, tattoos with letters, clothing with logos/text, watermarks, captions. Se o objeto natural da cena geralmente tem texto (ex: livro, jornal, tela), descreva-o como **"closed", "blank", "blurred out of focus" ou substitua** por um equivalente sem texto (ex: livro fechado de capa lisa, tela apagada, papel em branco).
+Isso cria uma segunda camada de proteção mesmo se o front voltar a vazar texto no futuro.
 
-Aplicar a mesma instrução nos appendices `minimalistAppendix` (M4/M5) e `creativeAppendix` (C1/C3).
+### 3. Reforçar o pipeline do `carrossel-generate`
+Em `supabase/functions/carrossel-generate/index.ts`:
+- Garantir que cada slide fotográfico sempre retorne uma `imagePrompt` curta, visual e em inglês.
+- Garantir que slides tipográficos continuem com `imagePrompt` vazio.
+- Endurecer o pós-processamento para truncar/remover prompts muito verbais antes de chegar na fase de imagem.
 
-### 2. Sanitizador de nota visual no servidor (camada de segurança)
+Resultado: o backend já entrega prompts visuais melhores e mais seguros para o editor.
 
-Adicionar função `sanitizeImageNote(note: string): string` em `_shared/fal-image.ts` que:
+### 4. Melhorar observabilidade para validar a correção
+Adicionar logs úteis para depuração:
+- quando um slide for pulado por não ter prompt visual
+- quando um prompt textual for bloqueado/substituído
+- qual tipo de slide recebeu geração de imagem
 
-- Detecta termos de risco em PT/EN: `text|letter|word|caption|sign|signage|book|magazine|newspaper|journal|notebook|screen|monitor|display|poster|billboard|label|tag|business card|document|paper writing|writing|tattoo|logo|watermark|menu|brochure|flyer`.
-- Se encontrar, anexa uma reescrita: substitui esses substantivos por versões neutras OU adiciona ao final `". All books are closed and blank, all screens are off, all papers are blank, no readable text or letters anywhere in the image."`.
-- Loga `[sanitize] note_rewritten` quando agir, pra debug futuro.
+Assim eu consigo confirmar rapidamente se o fluxo ficou limpo.
 
-Chamar isso dentro de `buildImagePrompt` ANTES de montar o prompt final.
-
-### 3. Reordenar e reforçar o prompt do FLUX
-
-FLUX dá muito mais peso ao **início** do prompt e à **última frase**. Atualizar `buildImagePrompt` para:
-
-- **Primeira frase:** `"Pure photographic image with absolutely no text, no letters, no words, no typography, no captions, no signs, no logos with text, no watermarks anywhere in the frame."`
-- Em seguida: descrição da cena (`Photograph: ${note}`), estilo, luz, câmera, etc.
-- **Última frase:** repetir `"Final constraint: zero text, zero letters, zero typography in the final image — purely visual, photographic content only."`
-
-Frase no meio (linha 617) continua, mas as duas pontas é o que o FLUX realmente lê.
-
-### 4. Ajuste mínimo no fal.ai call
-
-Em `_shared/fal-image.ts`, no body do POST, adicionar parâmetros suportados pelo endpoint `flux-pro/v1.1`:
-
-- `safety_tolerance: "2"` (já está)
-- (FLUX pro 1.1 não tem `negative_prompt` nativo no endpoint v1.1, então dependemos do prompt positivo bem construído — daí o item 3.)
-
-Replicar a mesma lógica em `supabase/functions/carrossel-image/index.ts` (regeneração individual no editor) para que a regeneração também sanitize.
-
-## Arquivos afetados
-
-- **Editado:** `supabase/functions/carrossel-generate/index.ts` — endurecer instrução do LLM (linha 301 e appendices), reescrever `buildImagePrompt` (linhas 601–623).
-- **Editado:** `supabase/functions/_shared/fal-image.ts` — adicionar e exportar `sanitizeImageNote()`.
-- **Editado:** `supabase/functions/carrossel-image/index.ts` — usar `sanitizeImageNote()` e prompt reforçado igual ao do generate.
-
-## O que NÃO está incluído
-
-- Trocar de FLUX 1.1 [pro] para outro modelo (ex: Recraft, Ideogram). A causa principal não é o modelo — é o prompt sem reforço nas pontas e a nota visual livre demais. Se mesmo assim aparecer texto depois dessa correção, aí sim avaliamos trocar a engine.
-- Detecção/recusa via OCR pós-geração (regenerar automaticamente quando detectar texto na imagem). Pode ser próximo passo se o problema persistir.
+## Arquivos que vou ajustar
+- `src/components/studio/CarouselAIWizard.tsx`
+- `supabase/functions/carrossel-image/index.ts`
+- `supabase/functions/carrossel-generate/index.ts`
+- possivelmente `supabase/functions/_shared/fal-image.ts` para centralizar a heurística de bloqueio/sanitização
 
 ## Resultado esperado
-
-Imagens dos carrosséis (vindo do planner ou de tópico livre) sem texto, letras ou legendas. Quando a cena natural pediria texto (livro, tela, placa), o objeto aparece em branco/desligado/desfocado.
+- O carrossel vai gerar somente imagens visuais/fotográficas.
+- O texto do Planner não será mais enviado ao gerador de imagem.
+- Slides que deveriam ser apenas tipográficos não vão ganhar fundo com imagem “inventando letras”.
+- A incidência de texto dentro das fotos deve cair drasticamente porque o principal vazamento será removido na origem.

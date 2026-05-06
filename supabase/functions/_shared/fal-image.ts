@@ -16,6 +16,42 @@ function mapImageSize(ar: AspectRatio | undefined): string {
 }
 
 /**
+ * Detecta se o "prompt visual" recebido é, na verdade, copy de carrossel
+ * (texto do Planner, slides, bullets, CTA, etc.). Quando é, devolvemos um
+ * fallback puramente visual em vez de mandar copy para o modelo de imagem.
+ */
+export function looksLikeCopyNotImagePrompt(s: string): boolean {
+  if (!s) return false;
+  const txt = s.trim();
+  if (txt.length > 600) return true;
+  const newlines = (txt.match(/\n/g) || []).length;
+  if (newlines >= 3) return true;
+  if (/\bSLIDE\s*\d/i.test(txt)) return true;
+  if (/(^|\n)\s*[-•·]\s+/.test(txt)) return true;
+  if (/\bCTA\b/i.test(txt)) return true;
+  if (/\bsub:\s/i.test(txt)) return true;
+  // muitas palavras em português é sinal de copy, não de descrição visual
+  const ptHits = (txt.match(/\b(você|seu|sua|para|sobre|porque|então|aqui|agora|hoje)\b/gi) || []).length;
+  if (ptHits >= 4) return true;
+  return false;
+}
+
+/**
+ * Quando o prompt está contaminado por copy, devolve uma descrição visual
+ * curta e segura, sem texto. Mantém pista de marca quando disponível.
+ */
+export function fallbackVisualPrompt(opts: {
+  archetype?: string | null;
+  segment?: string | null;
+  imageStyle?: string | null;
+}): string {
+  const style = opts.imageStyle?.trim() || "editorial photography, instagram feed aesthetic";
+  const seg = opts.segment?.trim() ? `, brand segment: ${opts.segment.trim()}` : "";
+  const arc = opts.archetype?.trim() ? `, brand archetype: ${opts.archetype.trim()}` : "";
+  return `${style}${seg}${arc}, candid lifestyle scene with natural soft lighting, calm atmosphere, neutral color palette, vertical 4:5 composition, purely visual photographic content`;
+}
+
+/**
  * Reescreve uma "nota visual" para reduzir a chance de o modelo de imagem
  * desenhar texto, letras ou tipografia na cena.
  *
