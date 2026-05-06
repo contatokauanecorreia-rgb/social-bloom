@@ -798,9 +798,9 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
               <div className="rounded-lg border bg-muted/30 p-3">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
-                    <Label className="text-sm font-medium">Gerar imagens com IA (Nano Banana Pro)</Label>
+                    <Label className="text-sm font-medium">Gerar imagens com IA (Midjourney)</Label>
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Gera imagens automáticas para cada slide usando Nano Banana Pro.
+                      Gera imagens automáticas para cada slide usando Midjourney.
                     </p>
                   </div>
                   <Switch checked={aiImages} onCheckedChange={setAiImages} disabled={imageMode === "none"} />

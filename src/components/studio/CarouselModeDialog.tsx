@@ -35,7 +35,7 @@ export function CarouselModeDialog({ open, onOpenChange, onPickManual, onPickAI 
           <ModeButton
             icon={<Sparkles className="h-5 w-5" />}
             title="Criar com IA"
-            description="A IA escreve os slides e pode gerar imagens com Nano Banana Pro."
+            description="A IA escreve os slides e pode gerar imagens com Midjourney."
             onClick={onPickAI}
             highlighted
           />
