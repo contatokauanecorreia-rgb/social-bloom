@@ -1816,87 +1816,130 @@ function SlideContent({
           {slide.signature.handle}
         </div>
       )}
-      <div
-        style={{
-          position: "absolute",
-          left: `${slide.textPos.x * 100}%`,
-          top: `${slide.textPos.y * 100}%`,
-          transform: "translate(-50%, -50%)",
-          width: format.w * 0.84,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: blockAlignItems,
-          userSelect: editable ? "text" : "none",
-        }}
-      >
-        {(editable || slide.text.title) && (
-          <h1
-            {...editableHandlers("title")}
-            style={{
-              fontSize: slide.fontSize.title,
-              color: slide.textColor.title,
-              fontWeight: slide.fontWeight.title,
-              lineHeight: 1.1,
-              margin: 0,
-              textAlign: slide.textAlign.title,
-              width: "100%",
-              ...editableStyle,
-            }}
-          >
-            {isMinimal && !editable
-              ? renderItalicized(slide.text.title)
-              : isCreative && !editable
-              ? renderCreativeTitle(slide.text.title)
-              : slide.text.title}
-          </h1>
-        )}
-        {(editable || slide.text.subtitle) && (
-          <h2
-            {...editableHandlers("subtitle")}
-            style={{
-              fontSize: slide.fontSize.subtitle,
-              color: slide.textColor.subtitle,
-              fontWeight: slide.fontWeight.subtitle,
-              lineHeight: 1.2,
-              margin: 0,
-              marginTop: slide.text.title || editable ? TITLE_TO_SUBTITLE : 0,
-              textAlign: slide.textAlign.subtitle,
-              width: "100%",
-              ...editableStyle,
-            }}
-          >
-            {slide.text.subtitle}
-          </h2>
-        )}
-        {(editable || slide.text.body) && (
-          <p
-            {...editableHandlers("body")}
-            style={{
-              fontSize: slide.fontSize.body,
-              color: slide.textColor.body,
-              fontWeight: slide.fontWeight.body,
-              lineHeight: 1.4,
-              margin: 0,
-              marginTop:
-                slide.text.subtitle || editable
-                  ? SUBTITLE_TO_BODY
-                  : slide.text.title
-                  ? TITLE_TO_SUBTITLE
-                  : 0,
-              whiteSpace: "pre-wrap",
-              textAlign: slide.textAlign.body,
-              width: "100%",
-              ...editableStyle,
-            }}
-          >
-            {isMinimal && !editable
-              ? renderItalicized(slide.text.body)
-              : isCreative && slide.slideType === "C5" && !editable
-              ? slide.text.body.toUpperCase()
-              : slide.text.body}
-          </p>
-        )}
-      </div>
+      {(() => {
+        // === LAYOUT-MÃE PADRONIZADO ===
+        // Bloco de texto encostado nas laterais (~7% padding) e ancorado no
+        // bloco inferior do slide, igual à referência. Vale para todos os
+        // DNAs e tipos. Alinhamento muda apenas text-align/align-items.
+        const sidePad = format.w * 0.07;
+        const bottomPad = format.w * 0.08;
+        // Por padrão, ancoramos pelo BOTTOM (referência). Se o usuário moveu
+        // textPos para a metade superior, voltamos ao modo "âncora central".
+        const anchorBottom = (slide.textPos?.y ?? 0.5) >= 0.45;
+        const gapTitleSub = format.w * 0.025;
+        const gapSubBody = format.w * 0.035;
+        const gapPara = format.w * 0.022;
+
+        const renderBody = (txt: string) => {
+          const transformed =
+            isCreative && slide.slideType === "C5" && !editable
+              ? txt.toUpperCase()
+              : txt;
+          const paragraphs = transformed.split(/\n{2,}/);
+          return paragraphs.map((para, i) => (
+            <span
+              key={i}
+              style={{
+                display: "block",
+                marginTop: i === 0 ? 0 : gapPara,
+                whiteSpace: "pre-wrap",
+              }}
+            >
+              {isMinimal && !editable ? renderItalicized(para) : para}
+            </span>
+          ));
+        };
+
+        const containerStyle: React.CSSProperties = anchorBottom
+          ? {
+              position: "absolute",
+              left: sidePad,
+              right: sidePad,
+              bottom: bottomPad,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: blockAlignItems,
+              userSelect: editable ? "text" : "none",
+            }
+          : {
+              position: "absolute",
+              left: sidePad,
+              right: sidePad,
+              top: `${(slide.textPos?.y ?? 0.5) * 100}%`,
+              transform: "translateY(-50%)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: blockAlignItems,
+              userSelect: editable ? "text" : "none",
+            };
+
+        return (
+          <div style={containerStyle}>
+            {(editable || slide.text.title) && (
+              <h1
+                {...editableHandlers("title")}
+                style={{
+                  fontSize: slide.fontSize.title,
+                  color: slide.textColor.title,
+                  fontWeight: slide.fontWeight.title,
+                  lineHeight: 1.05,
+                  margin: 0,
+                  textAlign: slide.textAlign.title,
+                  width: "100%",
+                  ...editableStyle,
+                }}
+              >
+                {isMinimal && !editable
+                  ? renderItalicized(slide.text.title)
+                  : isCreative && !editable
+                  ? renderCreativeTitle(slide.text.title)
+                  : slide.text.title}
+              </h1>
+            )}
+            {(editable || slide.text.subtitle) && (
+              <h2
+                {...editableHandlers("subtitle")}
+                style={{
+                  fontSize: slide.fontSize.subtitle,
+                  color: slide.textColor.subtitle,
+                  fontWeight: slide.fontWeight.subtitle,
+                  lineHeight: 1.2,
+                  margin: 0,
+                  marginTop: slide.text.title || editable ? gapTitleSub : 0,
+                  textAlign: slide.textAlign.subtitle,
+                  width: "100%",
+                  ...editableStyle,
+                }}
+              >
+                {slide.text.subtitle}
+              </h2>
+            )}
+            {(editable || slide.text.body) && (
+              <p
+                {...editableHandlers("body")}
+                style={{
+                  fontSize: slide.fontSize.body,
+                  color: slide.textColor.body,
+                  fontWeight: slide.fontWeight.body,
+                  lineHeight: 1.45,
+                  margin: 0,
+                  marginTop:
+                    slide.text.subtitle || editable
+                      ? gapSubBody
+                      : slide.text.title
+                      ? gapTitleSub
+                      : 0,
+                  textAlign: slide.textAlign.body,
+                  width: "100%",
+                  ...editableStyle,
+                }}
+              >
+                {renderBody(slide.text.body)}
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       {slide.signature.enabled && slide.signature.handle && (
         <div style={sigStyle}>{slide.signature.handle}</div>
