@@ -4,14 +4,16 @@
 
 type AspectRatio = "4:5" | "1:1" | "9:16" | "3:4";
 
-function mapImageSize(ar: AspectRatio | undefined): string {
+// FLUX.2 [klein] aceita enums OU { width, height }. Para 4:5 e 3:4 não há
+// enum exato, então passamos dimensões customizadas.
+function mapImageSize(ar: AspectRatio | undefined): string | { width: number; height: number } {
   switch (ar) {
     case "1:1": return "square_hd";
     case "9:16": return "portrait_16_9";
-    case "3:4":
+    case "3:4": return { width: 1024, height: 1365 };
     case "4:5":
     default:
-      return "portrait_4_3";
+      return { width: 1024, height: 1280 };
   }
 }
 
