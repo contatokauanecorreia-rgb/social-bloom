@@ -826,6 +826,7 @@ REGRAS:
           fallback: textFallback,
           imagesGenerated,
           totalMs,
+          designPrinciples: Array.isArray(designPrinciples) ? designPrinciples : null,
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
