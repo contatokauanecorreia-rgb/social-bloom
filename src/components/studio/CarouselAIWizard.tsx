@@ -284,10 +284,21 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
   const [referenceImageDataUrl, setReferenceImageDataUrl] = useState<string | null>(null);
   const [referenceLoading, setReferenceLoading] = useState(false);
   const [slideCount, setSlideCount] = useState(5);
-  const [gridLayout, setGridLayout] = useState<GridLayoutId>("full-bg");
-  const [gridIndex, setGridIndex] = useState<number>(1);
-  const imageMode: ImageMode = GRID_LAYOUTS.find((g) => g.id === gridLayout)?.mode ?? "bg";
-  const aiImages = gridLayout !== "none";
+  const DEFAULT_PRINCIPLES = ["espaco-branco", "contraste", "hierarquia"];
+  const [selectedPrinciples, setSelectedPrinciples] = useState<string[]>(DEFAULT_PRINCIPLES);
+  const principleScrollRef = useRef<HTMLDivElement | null>(null);
+  const hasImagePrinciple = selectedPrinciples.some(
+    (id) => DESIGN_PRINCIPLES.find((p) => p.id === id)?.hasImage,
+  );
+  const hasTextOnlyPrinciple = selectedPrinciples.some(
+    (id) => !DESIGN_PRINCIPLES.find((p) => p.id === id)?.hasImage,
+  );
+  const aiImages = hasImagePrinciple;
+  const imageMode: ImageMode = !hasImagePrinciple
+    ? "none"
+    : hasTextOnlyPrinciple
+      ? "mixed"
+      : "bg";
   const [imageStyle, setImageStyle] = useState("");
 
   // Step 2 - geral
