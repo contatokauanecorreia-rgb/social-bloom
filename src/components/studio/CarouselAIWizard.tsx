@@ -220,8 +220,10 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
   const [referenceImageDataUrl, setReferenceImageDataUrl] = useState<string | null>(null);
   const [referenceLoading, setReferenceLoading] = useState(false);
   const [slideCount, setSlideCount] = useState(5);
-  const [imageMode, setImageMode] = useState<ImageMode>("bg");
-  const [aiImages, setAiImages] = useState(true);
+  const [gridLayout, setGridLayout] = useState<GridLayoutId>("full-bg");
+  const [gridIndex, setGridIndex] = useState<number>(1);
+  const imageMode: ImageMode = GRID_LAYOUTS.find((g) => g.id === gridLayout)?.mode ?? "bg";
+  const aiImages = gridLayout !== "none";
   const [imageStyle, setImageStyle] = useState("");
 
   // Step 2 - geral
