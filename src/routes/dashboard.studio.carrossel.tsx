@@ -414,6 +414,8 @@ function CarrosselEditorPage() {
               if (job.slideIndex < 0 || job.slideIndex >= prev.length) return prev;
               return prev.map((s, idx) => {
                 if (idx !== job.slideIndex) return s;
+                // Defesa: só aplica foto se o slide foi marcado como bgKind "foto".
+                if (s.bgKind && s.bgKind !== "foto") return s;
                 return {
                   ...s,
                   bgImage: url,
