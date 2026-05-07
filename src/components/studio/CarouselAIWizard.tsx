@@ -287,6 +287,40 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
   const DEFAULT_PRINCIPLES = ["espaco-branco", "contraste", "hierarquia"];
   const [selectedPrinciples, setSelectedPrinciples] = useState<string[]>(DEFAULT_PRINCIPLES);
   const principleScrollRef = useRef<HTMLDivElement | null>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(true);
+  const holdRafRef = useRef<number | null>(null);
+  const stopHoldScroll = () => {
+    if (holdRafRef.current != null) {
+      cancelAnimationFrame(holdRafRef.current);
+      holdRafRef.current = null;
+    }
+  };
+  const startHoldScroll = (dir: 1 | -1) => {
+    stopHoldScroll();
+    const tick = () => {
+      const el = principleScrollRef.current;
+      if (!el) return;
+      el.scrollLeft += dir * 8;
+      holdRafRef.current = requestAnimationFrame(tick);
+    };
+    holdRafRef.current = requestAnimationFrame(tick);
+  };
+  const holdScrollHandlers = (dir: 1 | -1) => ({
+    onMouseDown: () => startHoldScroll(dir),
+    onMouseUp: stopHoldScroll,
+    onMouseLeave: stopHoldScroll,
+    onTouchStart: () => startHoldScroll(dir),
+    onTouchEnd: stopHoldScroll,
+    onClick: () => principleScrollRef.current?.scrollBy({ left: dir * 200, behavior: "smooth" }),
+  });
+  useEffect(() => () => stopHoldScroll(), []);
+  useEffect(() => {
+    const el = principleScrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, [step]);
   const hasImagePrinciple = selectedPrinciples.some(
     (id) => DESIGN_PRINCIPLES.find((p) => p.id === id)?.hasImage,
   );
