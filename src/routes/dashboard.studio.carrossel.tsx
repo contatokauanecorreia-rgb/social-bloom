@@ -1545,7 +1545,7 @@ function SlideContent({
       })()
     : isCreative
     ? (() => {
-        if (slide.bgKind === "foto") return { backgroundColor: "#0A0A0A" };
+        if (slide.bgKind === "foto") return { backgroundColor: (slide.imageFrame ?? "full") === "full" ? "#0A0A0A" : "#F5F0E8" };
         if (slide.bgKind === "branco") return { backgroundColor: "#FFFFFF" };
         // off-white texturizado leve
         return {
