@@ -747,7 +747,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
           ? slidesData
               .map((s, i) => {
                 const explicit = typeof s.imagePrompt === "string" ? s.imagePrompt.trim() : "";
-                const wantsPhoto = s.fundo === "foto" || explicit.length > 0;
+                const wantsPhoto = s.fundo === "foto" || (s.imageFrame ?? null) !== null || explicit.length > 0;
                 if (!wantsPhoto) return null;
                 const promptText = explicit.length > 0 ? explicit : deriveVisualSeed(s);
                 return {
