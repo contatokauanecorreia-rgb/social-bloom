@@ -389,31 +389,24 @@ REGRAS DE ADAPTAÇÃO:
       subtitle: { type: "string" },
       body: { type: "string" },
       imagePrompt: { type: "string" },
-    };
-    if (isMinimalist) {
-      slideItemProperties.sistema = { type: "string" };
-      slideItemProperties.tipo = { type: "string", enum: ["M1", "M2", "M3", "M4", "M5"] };
-      slideItemProperties.fundo = { type: "string", enum: ["off-white", "bege-texturizado", "foto"] };
-      slideItemProperties.label = { type: "string" };
-      slideItemProperties.tags = { type: "array", items: { type: "string" } };
-      slideItemProperties.elemento_decorativo = {
+      // Schema unificado — princípio dita o tipo, mas aceitamos todos.
+      sistema: { type: "string", enum: ["minimalista", "criativo"] },
+      tipo: { type: "string", enum: ["M1", "M2", "M3", "M4", "M5", "C1", "C2", "C3", "C4", "C5"] },
+      fundo: { type: "string", enum: ["off-white", "bege-texturizado", "foto", "branco"] },
+      label: { type: "string" },
+      tags: { type: "array", items: { type: "string" } },
+      elemento_decorativo: {
         type: "string",
         enum: ["seta", "asterisco", "triangulo", "seta-circular", "nenhum"],
-      };
-      slideItemProperties.nota_visual = { type: "string" };
-    }
-    if (isCreative) {
-      slideItemProperties.sistema = { type: "string" };
-      slideItemProperties.tipo = { type: "string", enum: ["C1", "C2", "C3", "C4", "C5"] };
-      slideItemProperties.fundo = { type: "string", enum: ["branco", "off-white", "foto"] };
-      slideItemProperties.palavra_destaque = { type: "string" };
-      slideItemProperties.ticker_texto = { type: "string" };
-      slideItemProperties.elemento_grafico = {
+      },
+      palavra_destaque: { type: "string" },
+      ticker_texto: { type: "string" },
+      elemento_grafico: {
         type: "string",
         enum: ["circulo", "seta-curva", "ticker", "seta-vertical", "toggle"],
-      };
-      slideItemProperties.nota_visual = { type: "string" };
-    }
+      },
+      nota_visual: { type: "string" },
+    };
 
     const tools = [
       {
