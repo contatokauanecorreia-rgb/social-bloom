@@ -25,16 +25,14 @@ function mapImageSize(ar: AspectRatio | undefined): string | { width: number; he
 export function looksLikeCopyNotImagePrompt(s: string): boolean {
   if (!s) return false;
   const txt = s.trim();
-  if (txt.length > 600) return true;
-  const newlines = (txt.match(/\n/g) || []).length;
-  if (newlines >= 3) return true;
+  // Só descartamos quando é claramente copy do slide (asteriscos de destaque,
+  // marcação SLIDE N, bullets, CTA explícito) — não pelo idioma ou tamanho.
+  if (txt.length > 1200) return true;
+  if (/\*[^*\n]+\*/.test(txt)) return true; // marcação de destaque do planner
   if (/\bSLIDE\s*\d/i.test(txt)) return true;
-  if (/(^|\n)\s*[-•·]\s+/.test(txt)) return true;
+  if (/(^|\n)\s*[-•·]\s+.+(\n|$)/.test(txt)) return true;
   if (/\bCTA\b/i.test(txt)) return true;
   if (/\bsub:\s/i.test(txt)) return true;
-  // muitas palavras em português é sinal de copy, não de descrição visual
-  const ptHits = (txt.match(/\b(você|seu|sua|para|sobre|porque|então|aqui|agora|hoje)\b/gi) || []).length;
-  if (ptHits >= 4) return true;
   return false;
 }
 
@@ -46,11 +44,15 @@ export function fallbackVisualPrompt(opts: {
   archetype?: string | null;
   segment?: string | null;
   imageStyle?: string | null;
+  topic?: string | null;
 }): string {
   const style = opts.imageStyle?.trim() || "editorial photography, instagram feed aesthetic";
-  const seg = opts.segment?.trim() ? `, brand segment: ${opts.segment.trim()}` : "";
-  const arc = opts.archetype?.trim() ? `, brand archetype: ${opts.archetype.trim()}` : "";
-  return `${style}${seg}${arc}, candid lifestyle scene with natural soft lighting, calm atmosphere, neutral color palette, vertical 4:5 composition, purely visual photographic content`;
+  const seg = opts.segment?.trim() ? `, brand segment context: ${opts.segment.trim()}` : "";
+  const arc = opts.archetype?.trim() ? `, brand archetype mood: ${opts.archetype.trim()}` : "";
+  const topic = opts.topic?.trim()
+    ? `, scene thematically connected to: ${opts.topic.trim().slice(0, 140)}`
+    : "";
+  return `${style}${seg}${arc}${topic}, candid lifestyle scene with natural soft lighting, calm atmosphere, neutral color palette, anatomically correct hands and faces, natural body proportions, vertical 4:5 composition, purely visual photographic content, no books, no papers, no screens, no signs`;
 }
 
 /**
@@ -121,17 +123,23 @@ export async function generateWithFal(
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const resp = await fetch("https://fal.run/fal-ai/flux-2/klein/9b", {
+    const qualityGuard =
+      " Anatomically correct hands with five fingers, realistic facial features, natural body proportions, no extra limbs, no distorted faces, no melted features, no warped anatomy, professional photography quality.";
+    const finalPrompt = prompt.includes("Anatomically correct")
+      ? prompt
+      : prompt + qualityGuard;
+    const resp = await fetch("https://fal.run/fal-ai/flux-2/pro", {
       method: "POST",
       headers: {
         Authorization: `Key ${apiKey}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        prompt,
+        prompt: finalPrompt,
         image_size: mapImageSize(aspectRatio),
         num_images: 1,
-        num_inference_steps: 6,
+        num_inference_steps: 30,
+        guidance_scale: 3.5,
         // Safety checker desligado: estava devolvendo imagens pretas sólidas
         // como "sucesso" para prompts editoriais legítimos.
         enable_safety_checker: false,
