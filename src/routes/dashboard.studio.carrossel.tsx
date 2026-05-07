@@ -1520,7 +1520,7 @@ function SlideContent({
   const accent = slide.accentColor ?? dna.palette[0];
   const dotBg: React.CSSProperties = isMinimal
     ? (() => {
-        if (slide.bgKind === "foto" || slide.bgImage) return { backgroundColor: "#F5F0E8" };
+        if (slide.bgKind === "foto") return { backgroundColor: "#F5F0E8" };
         if (slide.bgKind === "bege-texturizado") {
           return {
             backgroundColor: "#EDE5D6",
