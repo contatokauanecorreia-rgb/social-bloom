@@ -30,6 +30,7 @@ type Body = {
     posts: { title: string; tags: string[]; notes: string | null }[];
   } | null;
   gridLayout?: string | null;
+  designPrinciples?: string[] | null;
 };
 
 const ARCHETYPE_TONE: Record<string, string> = {
