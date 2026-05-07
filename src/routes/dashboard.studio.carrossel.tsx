@@ -1862,7 +1862,7 @@ function SlideContent({
         // bloco inferior do slide, igual à referência. Vale para todos os
         // DNAs e tipos. Alinhamento muda apenas text-align/align-items.
         const sidePad = format.w * 0.07;
-        const bottomPad = format.w * 0.08;
+        const bottomPad = format.w * 0.13;
         // Por padrão, ancoramos pelo BOTTOM (referência). Se o usuário moveu
         // textPos para a metade superior, voltamos ao modo "âncora central".
         const anchorBottom = (slide.textPos?.y ?? 0.5) >= 0.45;

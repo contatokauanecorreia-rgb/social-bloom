@@ -648,6 +648,7 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
             archetype: archetypeStr || null,
             segment: segStr || null,
             imageStyle: ESTILO_IMAGENS,
+            topic: TEMA,
           });
         }
         const safeNote = sanitizeImageNote(seed);
@@ -665,6 +666,7 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
             : "",
           segStr ? `Brand segment: ${segStr}.` : "",
           archetypeStr ? `Brand archetype: ${archetypeStr}.` : "",
+          `Anatomy: anatomically correct hands with exactly five fingers, realistic facial features, natural body proportions, no extra limbs, no distorted faces, no melted or warped features.`,
           `Quality: high optical sharpness, fine detail, natural skin micro texture, realistic photography clarity, professional, 2K resolution.`,
           isMinimalist ? `Composition: editorial minimalist, generous negative space, off-white or linen tones, calm and refined.` : "",
           isCreative ? `Composition: bold editorial, high contrast, vibrant accent color, dynamic energy, magazine-grade.` : "",
