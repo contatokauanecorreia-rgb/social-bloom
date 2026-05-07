@@ -249,9 +249,13 @@ function CarrosselEditorPage() {
           subtitle: s.subtitle ?? "",
           body: s.body ?? "",
         };
-        // Só aplica bgImage se o princípio pede foto. Princípios com fundo
-        // off-white / bege-texturizado / branco não devem receber imagem.
-        if (s.imageDataUrl && s.fundo === "foto") slide.bgImage = s.imageDataUrl;
+        // Aplica bgImage se o slide tem foto (fundo === "foto") OU
+        // tem um frame definido (top-60, half-left, etc.) — assim a imagem
+        // pode aparecer como zona dentro de um fundo sólido.
+        const frame = (s.imageFrame ?? null) as Slide["imageFrame"];
+        slide.imageFrame = frame;
+        const hasFramedImage = frame !== null;
+        if (s.imageDataUrl && (s.fundo === "foto" || hasFramedImage)) slide.bgImage = s.imageDataUrl;
         if (sigBase) slide.signature = { ...sigBase };
 
         // Alinhamento global escolhido no wizard
@@ -262,6 +266,9 @@ function CarrosselEditorPage() {
           slide.textAlign = { title: align, subtitle: align, body: align };
         }
 
+        // Texto sobre imagem só quando o frame ocupa toda a área (full).
+        const textOverImage = frame === "full";
+
         // Sistema minimalista
         if (s.sistema === "minimalista") {
           slide.system = "minimalista";
@@ -271,9 +278,7 @@ function CarrosselEditorPage() {
           slide.tags = Array.isArray(s.tags) ? s.tags : undefined;
           slide.decor = s.elemento_decorativo;
 
-          // Cores neutras + tipografia para minimalista (M1/M2/M3 sem foto)
-          const isPhoto = s.fundo === "foto";
-          if (isPhoto) {
+          if (textOverImage) {
             slide.textColor = { title: "#FFFFFF", subtitle: "#F5F5F5", body: "#F5F5F5" };
             slide.overlay = { enabled: true, intensity: 30, type: "dark" };
           } else {
@@ -290,23 +295,18 @@ function CarrosselEditorPage() {
           slide.accentColor = palette?.[0] ?? DEFAULT_PALETTE[0];
 
           const accent = slide.accentColor!;
-          const isPhoto = s.fundo === "foto";
-          if (isPhoto) {
-            // C1: sem overlay; C3: overlay leve
+          if (textOverImage) {
             slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
             slide.overlay = s.tipo === "C1"
               ? { enabled: false, intensity: 0, type: "dark" }
               : { enabled: true, intensity: 25, type: "dark" };
           } else if (s.tipo === "C2") {
-            // título na cor de destaque, subtítulo preto
             slide.textColor = { title: accent, subtitle: "#0A0A0A", body: "#1A1A1A" };
             slide.overlay = { enabled: false, intensity: 0, type: "dark" };
           } else if (s.tipo === "C5") {
-            // todo texto na cor de destaque
             slide.textColor = { title: accent, subtitle: accent, body: accent };
             slide.overlay = { enabled: false, intensity: 0, type: "dark" };
           } else {
-            // C4 e fallbacks: preto sobre off-white
             slide.textColor = { title: "#0A0A0A", subtitle: "#1A1A1A", body: "#1A1A1A" };
             slide.overlay = { enabled: false, intensity: 0, type: "dark" };
           }
