@@ -658,7 +658,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
           referenceImageDataUrl: referenceImageDataUrl ?? null,
           alignment,
           plannerSource,
-          gridLayout,
+          designPrinciples: selectedPrinciples,
         },
       });
 
