@@ -124,8 +124,8 @@ export async function generateWithFal(
 
   try {
     const qualityGuard =
-      " Anatomically correct hands with five fingers, realistic facial features, natural body proportions, no extra limbs, no distorted faces, no melted features, no warped anatomy, professional photography quality.";
-    const finalPrompt = prompt.includes("Anatomically correct")
+      " Shot on Sony A7R V with 85mm f/1.4 prime lens, dramatic directional lighting with soft fill and rim light, cinematic color grading inspired by Kodak Portra 400 film stock, rich saturated colors with deep contrast, tack-sharp focus on the eyes with visible catchlight, visible skin pores and natural skin micro-texture with realistic subsurface scattering, fine fabric weave detail, genuine human expression with subtle micro-expressions, ultra-detailed 8K photorealism, high micro-contrast, true-to-life skin tones. Anatomically correct hands with exactly five fingers, realistic facial features, natural body proportions, no extra limbs, no distorted faces, no melted features, no warped anatomy, no plastic skin, no airbrushed look.";
+    const finalPrompt = prompt.includes("Shot on Sony A7R V")
       ? prompt
       : prompt + qualityGuard;
     const resp = await fetch("https://fal.run/fal-ai/flux-2-pro", {
@@ -138,8 +138,8 @@ export async function generateWithFal(
         prompt: finalPrompt,
         image_size: mapImageSize(aspectRatio),
         num_images: 1,
-        num_inference_steps: 30,
-        guidance_scale: 3.5,
+        num_inference_steps: 40,
+        guidance_scale: 4.5,
         // Safety checker desligado: estava devolvendo imagens pretas sólidas
         // como "sucesso" para prompts editoriais legítimos.
         enable_safety_checker: false,
