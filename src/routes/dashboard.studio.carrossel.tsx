@@ -270,8 +270,8 @@ function CarrosselEditorPage() {
           slide.decor = s.elemento_decorativo;
 
           // Cores neutras + tipografia para minimalista (M1/M2/M3 sem foto)
-          const isPhoto = s.tipo === "M4" || s.tipo === "M5";
-          if (isPhoto && s.imageDataUrl) {
+          const isPhoto = s.fundo === "foto";
+          if (isPhoto) {
             slide.textColor = { title: "#FFFFFF", subtitle: "#F5F5F5", body: "#F5F5F5" };
             slide.overlay = { enabled: true, intensity: 30, type: "dark" };
           } else {
