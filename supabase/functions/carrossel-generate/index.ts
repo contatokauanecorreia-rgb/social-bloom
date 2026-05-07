@@ -26,6 +26,10 @@ type Body = {
   textOnly?: boolean;
   referenceImageDataUrl?: string | null;
   alignment?: "left" | "center" | "right";
+  plannerSource?: {
+    posts: { title: string; tags: string[]; notes: string | null }[];
+  } | null;
+  gridLayout?: string | null;
 };
 
 const ARCHETYPE_TONE: Record<string, string> = {
