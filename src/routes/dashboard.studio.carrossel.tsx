@@ -247,7 +247,9 @@ function CarrosselEditorPage() {
           subtitle: s.subtitle ?? "",
           body: s.body ?? "",
         };
-        if (s.imageDataUrl) slide.bgImage = s.imageDataUrl;
+        // Só aplica bgImage se o princípio pede foto. Princípios com fundo
+        // off-white / bege-texturizado / branco não devem receber imagem.
+        if (s.imageDataUrl && s.fundo === "foto") slide.bgImage = s.imageDataUrl;
         if (sigBase) slide.signature = { ...sigBase };
 
         // Alinhamento global escolhido no wizard
