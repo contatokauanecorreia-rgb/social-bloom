@@ -1930,21 +1930,32 @@ function SlideContent({
           ));
         };
 
+        // Ajuste do bloco de texto conforme zona da imagem.
+        const frame = slide.imageFrame ?? null;
+        const frameInsets: { left?: number; right?: number; top?: number; bottom?: number } = {};
+        if (frame === "half-left") frameInsets.left = format.w * 0.52;
+        else if (frame === "half-right") frameInsets.right = format.w * 0.52;
+        else if (frame === "top-60") frameInsets.top = format.h * 0.62;
+        else if (frame === "bottom-third") frameInsets.bottom = format.h * 0.36;
+        else if (frame === "centered-square") frameInsets.top = format.w * 0.92;
+
         const containerStyle: React.CSSProperties = anchorBottom
           ? {
               position: "absolute",
-              left: sidePad,
-              right: sidePad,
-              bottom: bottomPad,
+              left: frameInsets.left ?? sidePad,
+              right: frameInsets.right ?? sidePad,
+              bottom: frameInsets.bottom ?? bottomPad,
+              top: frameInsets.top,
               display: "flex",
               flexDirection: "column",
+              justifyContent: frameInsets.top ? "flex-start" : "flex-end",
               alignItems: blockAlignItems,
               userSelect: editable ? "text" : "none",
             }
           : {
               position: "absolute",
-              left: sidePad,
-              right: sidePad,
+              left: frameInsets.left ?? sidePad,
+              right: frameInsets.right ?? sidePad,
               top: `${(slide.textPos?.y ?? 0.5) * 100}%`,
               transform: "translateY(-50%)",
               display: "flex",
