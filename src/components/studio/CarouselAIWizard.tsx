@@ -50,128 +50,191 @@ export type CarouselAIWizardProps = {
 
 type ImageMode = "none" | "bg" | "grid" | "mixed";
 
-type GridLayoutId =
-  | "none"
-  | "full-bg"
-  | "half-top"
-  | "half-side"
-  | "grid-2x2"
-  | "grid-3-mosaic"
-  | "strip-3"
-  | "polaroid-mix";
+// Cores semânticas das previews:
+// - IMG = imagens (preto)
+// - TITLE = títulos / textos maiores (cinza escuro)
+// - BODY = textos menores (cinza claro)
+const PC = { IMG: "#1A1A1A", TITLE: "#4B5563", BODY: "#D1D5DB" } as const;
 
-const GRID_LAYOUTS: { id: GridLayoutId; label: string; mode: ImageMode; preview: (color: string) => React.ReactNode }[] = [
+type DesignPrinciple = {
+  id: string;
+  label: string;
+  hasImage: boolean;
+  preview: () => React.ReactNode;
+};
+
+const DESIGN_PRINCIPLES: DesignPrinciple[] = [
   {
-    id: "none",
-    label: "Sem imagens",
-    mode: "none",
+    id: "espaco-branco",
+    label: "Espaço em branco",
+    hasImage: false,
     preview: () => (
       <svg viewBox="0 0 80 100" className="h-full w-full">
         <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
-        <rect x="14" y="38" width="52" height="6" rx="1" fill="#1A1A1A" />
-        <rect x="20" y="50" width="40" height="3" rx="1" fill="#9CA3AF" />
-        <rect x="20" y="56" width="40" height="3" rx="1" fill="#9CA3AF" />
+        <rect x="26" y="46" width="28" height="4" rx="1" fill={PC.TITLE} />
+        <rect x="30" y="54" width="20" height="2" rx="1" fill={PC.BODY} />
       </svg>
     ),
   },
   {
-    id: "full-bg",
-    label: "Imagem cheia",
-    mode: "bg",
-    preview: (c) => (
-      <svg viewBox="0 0 80 100" className="h-full w-full">
-        <rect x="2" y="2" width="76" height="96" rx="4" fill={c} />
-        <rect x="14" y="60" width="52" height="6" rx="1" fill="#fff" />
-        <rect x="14" y="70" width="36" height="3" rx="1" fill="#fff" opacity="0.8" />
-      </svg>
-    ),
-  },
-  {
-    id: "half-top",
-    label: "Metade superior",
-    mode: "bg",
-    preview: (c) => (
+    id: "contraste",
+    label: "Contraste",
+    hasImage: true,
+    preview: () => (
       <svg viewBox="0 0 80 100" className="h-full w-full">
         <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
-        <rect x="2" y="2" width="76" height="48" fill={c} />
-        <rect x="14" y="60" width="52" height="6" rx="1" fill="#1A1A1A" />
-        <rect x="14" y="70" width="40" height="3" rx="1" fill="#9CA3AF" />
+        <rect x="2" y="2" width="76" height="60" fill={PC.IMG} />
+        <rect x="10" y="72" width="40" height="6" rx="1" fill={PC.TITLE} />
+        <rect x="10" y="82" width="30" height="3" rx="1" fill={PC.BODY} />
       </svg>
     ),
   },
   {
-    id: "half-side",
-    label: "Lado a lado",
-    mode: "bg",
-    preview: (c) => (
+    id: "proporcao",
+    label: "Proporção",
+    hasImage: false,
+    preview: () => (
       <svg viewBox="0 0 80 100" className="h-full w-full">
         <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
-        <rect x="2" y="2" width="38" height="96" fill={c} />
-        <rect x="44" y="40" width="30" height="5" rx="1" fill="#1A1A1A" />
-        <rect x="44" y="50" width="24" height="3" rx="1" fill="#9CA3AF" />
-        <rect x="44" y="56" width="24" height="3" rx="1" fill="#9CA3AF" />
+        <rect x="10" y="14" width="60" height="14" rx="2" fill={PC.TITLE} />
+        <rect x="10" y="34" width="60" height="14" rx="2" fill={PC.TITLE} />
+        <rect x="10" y="60" width="40" height="3" rx="1" fill={PC.BODY} />
+        <rect x="10" y="68" width="50" height="3" rx="1" fill={PC.BODY} />
       </svg>
     ),
   },
   {
-    id: "grid-2x2",
-    label: "Grade 2×2",
-    mode: "grid",
-    preview: (c) => (
+    id: "hierarquia",
+    label: "Hierarquia",
+    hasImage: false,
+    preview: () => (
       <svg viewBox="0 0 80 100" className="h-full w-full">
         <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
-        <rect x="8" y="8" width="30" height="38" fill={c} />
-        <rect x="42" y="8" width="30" height="38" fill={c} opacity="0.7" />
-        <rect x="8" y="50" width="30" height="38" fill={c} opacity="0.7" />
-        <rect x="42" y="50" width="30" height="38" fill={c} />
+        <rect x="10" y="20" width="60" height="10" rx="1" fill={PC.TITLE} />
+        <rect x="10" y="36" width="44" height="5" rx="1" fill={PC.TITLE} />
+        <rect x="10" y="50" width="60" height="3" rx="1" fill={PC.BODY} />
+        <rect x="10" y="58" width="56" height="3" rx="1" fill={PC.BODY} />
+        <rect x="10" y="66" width="40" height="3" rx="1" fill={PC.BODY} />
       </svg>
     ),
   },
   {
-    id: "grid-3-mosaic",
-    label: "Mosaico 1+2",
-    mode: "grid",
-    preview: (c) => (
+    id: "enfase",
+    label: "Ênfase",
+    hasImage: true,
+    preview: () => (
       <svg viewBox="0 0 80 100" className="h-full w-full">
         <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
-        <rect x="8" y="8" width="42" height="80" fill={c} />
-        <rect x="54" y="8" width="18" height="38" fill={c} opacity="0.7" />
-        <rect x="54" y="50" width="18" height="38" fill={c} opacity="0.7" />
+        <rect x="10" y="20" width="60" height="3" rx="1" fill={PC.BODY} />
+        <rect x="10" y="28" width="60" height="3" rx="1" fill={PC.BODY} />
+        <rect x="18" y="40" width="44" height="20" rx="2" fill={PC.IMG} />
+        <rect x="10" y="68" width="60" height="3" rx="1" fill={PC.BODY} />
+        <rect x="10" y="76" width="50" height="3" rx="1" fill={PC.BODY} />
       </svg>
     ),
   },
   {
-    id: "strip-3",
-    label: "Faixas 3",
-    mode: "grid",
-    preview: (c) => (
+    id: "equilibrio",
+    label: "Equilíbrio",
+    hasImage: true,
+    preview: () => (
       <svg viewBox="0 0 80 100" className="h-full w-full">
         <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
-        <rect x="8" y="8" width="64" height="24" fill={c} />
-        <rect x="8" y="38" width="64" height="24" fill={c} opacity="0.7" />
-        <rect x="8" y="68" width="64" height="22" fill={c} />
+        <rect x="6" y="14" width="32" height="72" fill={PC.IMG} />
+        <rect x="44" y="24" width="30" height="6" rx="1" fill={PC.TITLE} />
+        <rect x="44" y="36" width="26" height="3" rx="1" fill={PC.BODY} />
+        <rect x="44" y="44" width="26" height="3" rx="1" fill={PC.BODY} />
+        <rect x="44" y="52" width="20" height="3" rx="1" fill={PC.BODY} />
       </svg>
     ),
   },
   {
-    id: "polaroid-mix",
-    label: "Polaroids",
-    mode: "mixed",
-    preview: (c) => (
+    id: "alinhamento",
+    label: "Alinhamento",
+    hasImage: false,
+    preview: () => (
       <svg viewBox="0 0 80 100" className="h-full w-full">
-        <rect x="2" y="2" width="76" height="96" rx="4" fill="#F5F0E8" stroke="#E5E7EB" />
-        <g transform="rotate(-8 26 50)">
-          <rect x="14" y="30" width="28" height="34" fill="#fff" stroke="#D1D5DB" />
-          <rect x="16" y="32" width="24" height="24" fill={c} />
-        </g>
-        <g transform="rotate(6 54 56)">
-          <rect x="40" y="38" width="28" height="34" fill="#fff" stroke="#D1D5DB" />
-          <rect x="42" y="40" width="24" height="24" fill={c} opacity="0.8" />
-        </g>
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="10" y="20" width="50" height="6" rx="1" fill={PC.TITLE} />
+        <rect x="10" y="34" width="60" height="3" rx="1" fill={PC.BODY} />
+        <rect x="10" y="42" width="56" height="3" rx="1" fill={PC.BODY} />
+        <rect x="10" y="50" width="48" height="3" rx="1" fill={PC.BODY} />
+        <rect x="10" y="64" width="40" height="5" rx="1" fill={PC.TITLE} />
+      </svg>
+    ),
+  },
+  {
+    id: "harmonia",
+    label: "Harmonia",
+    hasImage: true,
+    preview: () => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill={PC.IMG} />
+        <rect x="14" y="60" width="52" height="22" rx="2" fill="#fff" />
+        <rect x="20" y="66" width="40" height="4" rx="1" fill={PC.TITLE} />
+        <rect x="20" y="74" width="30" height="2" rx="1" fill={PC.BODY} />
+      </svg>
+    ),
+  },
+  {
+    id: "margens",
+    label: "Margens",
+    hasImage: false,
+    preview: () => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="14" y="18" width="52" height="64" rx="2" fill="none" stroke={PC.BODY} strokeWidth="1" />
+        <rect x="22" y="42" width="36" height="6" rx="1" fill={PC.TITLE} />
+        <rect x="26" y="54" width="28" height="3" rx="1" fill={PC.BODY} />
+      </svg>
+    ),
+  },
+  {
+    id: "direcionamento",
+    label: "Direcionamento",
+    hasImage: true,
+    preview: () => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="8" y="12" width="34" height="6" rx="1" fill={PC.TITLE} />
+        <rect x="26" y="38" width="36" height="26" fill={PC.IMG} />
+        <rect x="40" y="78" width="32" height="5" rx="1" fill={PC.TITLE} />
+      </svg>
+    ),
+  },
+  {
+    id: "variedade",
+    label: "Variedade",
+    hasImage: true,
+    preview: () => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="8" y="8" width="40" height="42" fill={PC.IMG} />
+        <rect x="52" y="8" width="20" height="20" rx="1" fill={PC.TITLE} />
+        <rect x="52" y="32" width="20" height="18" rx="1" fill={PC.BODY} />
+        <rect x="8" y="56" width="64" height="6" rx="1" fill={PC.TITLE} />
+        <rect x="8" y="68" width="50" height="3" rx="1" fill={PC.BODY} />
+        <rect x="8" y="76" width="40" height="3" rx="1" fill={PC.BODY} />
+      </svg>
+    ),
+  },
+  {
+    id: "ritmo",
+    label: "Ritmo",
+    hasImage: true,
+    preview: () => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="8" y="8" width="64" height="22" fill={PC.IMG} />
+        <rect x="14" y="38" width="52" height="5" rx="1" fill={PC.TITLE} />
+        <rect x="14" y="48" width="44" height="3" rx="1" fill={PC.BODY} />
+        <rect x="14" y="54" width="44" height="3" rx="1" fill={PC.BODY} />
+        <rect x="8" y="64" width="64" height="26" fill={PC.IMG} />
       </svg>
     ),
   },
 ];
+
 
 const SUGGESTED_PALETTES: { label: string; colors: [string, string, string]; archetypes: string[] }[] = [
   { label: "Sofisticado", colors: ["#1A1714", "#C9A875", "#F5F0E8"], archetypes: ["governante", "sabio", "amante"] },
