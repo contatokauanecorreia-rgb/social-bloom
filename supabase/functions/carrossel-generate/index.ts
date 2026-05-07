@@ -504,12 +504,19 @@ REGRAS DE ADAPTAÇÃO:
       },
     ];
 
+    const plannerBlock = plannerSource && plannerSource.posts?.length
+      ? "\n\nPOSTS DO PLANNER (matéria-prima — adapte com os 12 princípios de design):\n" +
+        plannerSource.posts
+          .map((p, i) => `${i + 1}. Título: ${p.title}${p.tags?.length ? ` | tags: ${p.tags.join(", ")}` : ""}${p.notes ? `\n   Notas: ${p.notes}` : ""}`)
+          .join("\n")
+      : "";
+
     const userContent: any = referenceImageDataUrl
       ? [
-          { type: "text", text: `Tema/contexto: ${topic.trim()}` },
+          { type: "text", text: `Tema/contexto: ${topic.trim()}${plannerBlock}` },
           { type: "image_url", image_url: { url: referenceImageDataUrl } },
         ]
-      : `Tema/contexto: ${topic.trim()}`;
+      : `Tema/contexto: ${topic.trim()}${plannerBlock}`;
 
     const aiResp = await callAI(
       {
