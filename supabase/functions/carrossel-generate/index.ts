@@ -513,6 +513,7 @@ REGRAS DE ADAPTAÇÃO:
         out.sistema = layout.sistema;
         out.tipo = layout.tipo as any;
         out.fundo = layout.fundo as any;
+        out.imageFrame = layout.imageFrame;
 
         if (layout.sistema === "minimalista") {
           if (typeof s.label === "string") out.label = s.label;
