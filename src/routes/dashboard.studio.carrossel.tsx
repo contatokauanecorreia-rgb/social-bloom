@@ -98,6 +98,7 @@ type Slide = {
   tickerText?: string;
   graphic?: "circulo" | "seta-curva" | "ticker" | "seta-vertical" | "toggle";
   accentColor?: string;
+  imageFrame?: "full" | "top-60" | "half-left" | "half-right" | "centered-square" | "bottom-third" | null;
 };
 
 type BriefingDNA = {
