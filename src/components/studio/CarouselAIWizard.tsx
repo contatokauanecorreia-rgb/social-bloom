@@ -392,7 +392,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         setImageStyle("");
         setInstagram("");
         setSelectedPaletteIdx(0);
-        setAlignment("center");
+        
         setProgress(0);
         setSelected(null);
         setCustomPairs([]);
