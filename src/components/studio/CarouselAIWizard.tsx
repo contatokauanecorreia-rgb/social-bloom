@@ -48,6 +48,129 @@ export type CarouselAIWizardProps = {
 
 type ImageMode = "none" | "bg" | "grid" | "mixed";
 
+type GridLayoutId =
+  | "none"
+  | "full-bg"
+  | "half-top"
+  | "half-side"
+  | "grid-2x2"
+  | "grid-3-mosaic"
+  | "strip-3"
+  | "polaroid-mix";
+
+const GRID_LAYOUTS: { id: GridLayoutId; label: string; mode: ImageMode; preview: (color: string) => JSX.Element }[] = [
+  {
+    id: "none",
+    label: "Sem imagens",
+    mode: "none",
+    preview: () => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="14" y="38" width="52" height="6" rx="1" fill="#1A1A1A" />
+        <rect x="20" y="50" width="40" height="3" rx="1" fill="#9CA3AF" />
+        <rect x="20" y="56" width="40" height="3" rx="1" fill="#9CA3AF" />
+      </svg>
+    ),
+  },
+  {
+    id: "full-bg",
+    label: "Imagem cheia",
+    mode: "bg",
+    preview: (c) => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill={c} />
+        <rect x="14" y="60" width="52" height="6" rx="1" fill="#fff" />
+        <rect x="14" y="70" width="36" height="3" rx="1" fill="#fff" opacity="0.8" />
+      </svg>
+    ),
+  },
+  {
+    id: "half-top",
+    label: "Metade superior",
+    mode: "bg",
+    preview: (c) => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="2" y="2" width="76" height="48" fill={c} />
+        <rect x="14" y="60" width="52" height="6" rx="1" fill="#1A1A1A" />
+        <rect x="14" y="70" width="40" height="3" rx="1" fill="#9CA3AF" />
+      </svg>
+    ),
+  },
+  {
+    id: "half-side",
+    label: "Lado a lado",
+    mode: "bg",
+    preview: (c) => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="2" y="2" width="38" height="96" fill={c} />
+        <rect x="44" y="40" width="30" height="5" rx="1" fill="#1A1A1A" />
+        <rect x="44" y="50" width="24" height="3" rx="1" fill="#9CA3AF" />
+        <rect x="44" y="56" width="24" height="3" rx="1" fill="#9CA3AF" />
+      </svg>
+    ),
+  },
+  {
+    id: "grid-2x2",
+    label: "Grade 2×2",
+    mode: "grid",
+    preview: (c) => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="8" y="8" width="30" height="38" fill={c} />
+        <rect x="42" y="8" width="30" height="38" fill={c} opacity="0.7" />
+        <rect x="8" y="50" width="30" height="38" fill={c} opacity="0.7" />
+        <rect x="42" y="50" width="30" height="38" fill={c} />
+      </svg>
+    ),
+  },
+  {
+    id: "grid-3-mosaic",
+    label: "Mosaico 1+2",
+    mode: "grid",
+    preview: (c) => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="8" y="8" width="42" height="80" fill={c} />
+        <rect x="54" y="8" width="18" height="38" fill={c} opacity="0.7" />
+        <rect x="54" y="50" width="18" height="38" fill={c} opacity="0.7" />
+      </svg>
+    ),
+  },
+  {
+    id: "strip-3",
+    label: "Faixas 3",
+    mode: "grid",
+    preview: (c) => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="8" y="8" width="64" height="24" fill={c} />
+        <rect x="8" y="38" width="64" height="24" fill={c} opacity="0.7" />
+        <rect x="8" y="68" width="64" height="22" fill={c} />
+      </svg>
+    ),
+  },
+  {
+    id: "polaroid-mix",
+    label: "Polaroids",
+    mode: "mixed",
+    preview: (c) => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#F5F0E8" stroke="#E5E7EB" />
+        <g transform="rotate(-8 26 50)">
+          <rect x="14" y="30" width="28" height="34" fill="#fff" stroke="#D1D5DB" />
+          <rect x="16" y="32" width="24" height="24" fill={c} />
+        </g>
+        <g transform="rotate(6 54 56)">
+          <rect x="40" y="38" width="28" height="34" fill="#fff" stroke="#D1D5DB" />
+          <rect x="42" y="40" width="24" height="24" fill={c} opacity="0.8" />
+        </g>
+      </svg>
+    ),
+  },
+];
+
 const SUGGESTED_PALETTES: { label: string; colors: [string, string, string]; archetypes: string[] }[] = [
   { label: "Sofisticado", colors: ["#1A1714", "#C9A875", "#F5F0E8"], archetypes: ["governante", "sabio", "amante"] },
   { label: "Cuidador", colors: ["#E8B4B8", "#3D3B40", "#F8F1F1"], archetypes: ["cuidador", "inocente"] },
