@@ -895,42 +895,82 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
 
               <div>
                 <Label className="text-sm font-medium">Imagens no carrossel</Label>
-                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {(
-                    [
-                      ["none", "Sem imagens"],
-                      ["bg", "Só fundo"],
-                      ["grid", "Só grade"],
-                      ["mixed", "Intercalar"],
-                    ] as [ImageMode, string][]
-                  ).map(([k, label]) => (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => setImageMode(k)}
-                      className={cn(
-                        "rounded-lg border bg-background p-3 text-xs font-medium transition",
-                        imageMode === k
-                          ? "border-primary bg-primary/5 text-primary"
-                          : "hover:border-primary/40",
-                      )}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Escolha como as imagens vão aparecer dentro dos slides.
+                </p>
+                <div className="mt-3 flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 rounded-full"
+                    onClick={() => {
+                      const next = (gridIndex - 1 + GRID_LAYOUTS.length) % GRID_LAYOUTS.length;
+                      setGridIndex(next);
+                      setGridLayout(GRID_LAYOUTS[next].id);
+                    }}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex-1 overflow-hidden">
+                    <div
+                      className="flex gap-3 transition-transform duration-300"
+                      style={{ transform: `translateX(calc(50% - ${gridIndex * 116 + 50}px))` }}
                     >
-                      {label}
-                    </button>
+                      {GRID_LAYOUTS.map((g, i) => {
+                        const active = i === gridIndex;
+                        return (
+                          <button
+                            key={g.id}
+                            type="button"
+                            onClick={() => {
+                              setGridIndex(i);
+                              setGridLayout(g.id);
+                            }}
+                            className={cn(
+                              "shrink-0 rounded-lg border-2 bg-background p-1.5 transition",
+                              active
+                                ? "border-primary scale-105 shadow-md"
+                                : "border-border opacity-60 hover:opacity-100",
+                            )}
+                            style={{ width: 100 }}
+                          >
+                            <div className="aspect-[4/5] overflow-hidden rounded">
+                              {g.preview(palette[0])}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 rounded-full"
+                    onClick={() => {
+                      const next = (gridIndex + 1) % GRID_LAYOUTS.length;
+                      setGridIndex(next);
+                      setGridLayout(GRID_LAYOUTS[next].id);
+                    }}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="mt-2 flex items-center justify-center gap-1.5">
+                  {GRID_LAYOUTS.map((_, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        "h-1.5 rounded-full transition-all",
+                        i === gridIndex ? "w-4 bg-primary" : "w-1.5 bg-border",
+                      )}
+                    />
                   ))}
                 </div>
-              </div>
-
-              <div className="rounded-lg border bg-muted/30 p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <Label className="text-sm font-medium">Gerar imagens com IA (FLUX.2 [klein])</Label>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Gera imagens automáticas para cada slide usando FLUX.2 [klein].
-                    </p>
-                  </div>
-                  <Switch checked={aiImages} onCheckedChange={setAiImages} disabled={imageMode === "none"} />
-                </div>
+                <p className="mt-2 text-center text-xs font-medium">
+                  {GRID_LAYOUTS[gridIndex].label}
+                </p>
               </div>
 
               {/* SEÇÃO 4 — Estilo das imagens */}
