@@ -472,6 +472,7 @@ REGRAS DE ADAPTAÇÃO:
       sistema?: "minimalista" | "criativo";
       tipo?: "M1" | "M2" | "M3" | "M4" | "M5" | "C1" | "C2" | "C3" | "C4" | "C5";
       fundo?: "off-white" | "bege-texturizado" | "foto" | "branco";
+      imageFrame?: ImageFrame;
       label?: string;
       tags?: string[];
       elemento_decorativo?: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum";
