@@ -207,34 +207,41 @@ Deno.serve(async (req) => {
       ? body.alignment
       : "center";
 
-    // ---- Detecção automática do Sistema Visual Minimalista ----
-    const archLower = (briefing?.archetype ?? "").toLowerCase();
-    const toneLower = (briefing?.tone_of_voice ?? "").toLowerCase();
-    const segLower = `${segment ?? ""} ${clientName ?? ""}`.toLowerCase();
-    const minimalistArchetypes = ["inocente", "sabio", "cuidador", "sofisticado", "governante", "amante"];
-    const minimalistTone = /elegante|leve|acolhedor|formal|sofisticad/i;
-    const minimalistSegment = /sa[úu]de|beleza|bem.?estar|educa[çc][ãa]o|moda|lifestyle/i;
-    const isMinimalist =
-      minimalistArchetypes.includes(archLower) ||
-      minimalistTone.test(toneLower) ||
-      minimalistSegment.test(segLower);
-    console.log("[carrossel-generate] minimalist?", { isMinimalist, archLower, alignment: ALINHAMENTO });
-
-    // ---- Detecção automática do Sistema Visual Criativo ----
-    const creativeArchetypes = ["criador", "fora-da-lei", "bobo", "heroi", "mago"];
-    const creativeTone = /jovem|irreverente|ousad|disruptiv|vibrante/i;
-    const creativeSegment = /marketing|tecnolog|moda|entretenimento|ag[êe]ncia|neg[óo]cios?\s*digit|digital/i;
-    const isCreative =
-      !isMinimalist && (
-        creativeArchetypes.includes(archLower) ||
-        creativeTone.test(toneLower) ||
-        creativeSegment.test(segLower)
-      );
-    console.log("[carrossel-generate] creative?", { isCreative, archLower });
+    // ---- Princípios de design unificam a geração ----
+    // Não há mais detecção por DNA. Os princípios escolhidos pelo usuário
+    // mapeiam diretamente para um TIPO de slide (M*/C*) que o renderer já
+    // suporta. Sempre ativamos AMBOS os sistemas no schema da tool para que
+    // o modelo possa devolver qualquer combinação por slide.
+    const isMinimalist = true;
+    const isCreative = true;
+    console.log("[carrossel-generate] principles-driven", { alignment: ALINHAMENTO, principles: designPrinciples });
 
     const COR_DESTAQUE = Array.isArray(briefing?.palette) && briefing!.palette.length
       ? briefing!.palette[0]
       : "#FF5A1F";
+
+    // Mapa: princípio → { sistema, tipo, fundo, descrição do layout }.
+    // Cada card mostrado ao usuário no Wizard equivale a UM destes presets.
+    // - preto = imagem; cinza escuro = título; cinza claro = corpo.
+    const PRINCIPLE_TO_LAYOUT: Record<string, { sistema: "minimalista" | "criativo"; tipo: string; fundo: string; hasImage: boolean; layout: string }> = {
+      "espaco-branco":   { sistema: "minimalista", tipo: "M3", fundo: "off-white",        hasImage: false, layout: "fundo limpo, MUITO respiro, título curto centralizado e corpo bem curto. Texto ocupa no máximo 35% do slide." },
+      "contraste":       { sistema: "minimalista", tipo: "M4", fundo: "foto",             hasImage: true,  layout: "foto editorial dominando ~60% do topo (ou todo o slide com overlay), texto branco curto na metade inferior." },
+      "proporcao":       { sistema: "criativo",    tipo: "C2", fundo: "off-white",        hasImage: false, layout: "DOIS títulos enormes empilhados (cada um 1 linha curta), corpo bem pequeno depois. Sem foto." },
+      "hierarquia":      { sistema: "minimalista", tipo: "M2", fundo: "bege-texturizado", hasImage: false, layout: "três níveis claros: título grande, subtítulo médio, corpo pequeno. Tudo empilhado e alinhado à esquerda." },
+      "enfase":          { sistema: "criativo",    tipo: "C4", fundo: "off-white",        hasImage: false, layout: "uma palavra do título recebe destaque (palavra_destaque). Subtítulo curto deslocado, corpo médio. Sem foto." },
+      "equilibrio":      { sistema: "minimalista", tipo: "M4", fundo: "foto",             hasImage: true,  layout: "duas zonas equilibradas: imagem em uma metade, texto na outra (use foto, com overlay 30%)." },
+      "alinhamento":     { sistema: "minimalista", tipo: "M1", fundo: "off-white",        hasImage: false, layout: "tipografia pura. TUDO rigidamente alinhado (esquerda ou centro). Sem foto, sem decoração." },
+      "harmonia":        { sistema: "minimalista", tipo: "M4", fundo: "foto",             hasImage: true,  layout: "foto suave de fundo + caixa de texto pequena coerente com a paleta. Tom calmo." },
+      "margens":         { sistema: "minimalista", tipo: "M3", fundo: "off-white",        hasImage: false, layout: "moldura ampla. Conteúdo concentrado no centro com bastante respiro nas bordas." },
+      "direcionamento":  { sistema: "criativo",    tipo: "C3", fundo: "foto",             hasImage: true,  layout: "leitura em Z/L: foto + faixa ticker horizontal no terço inferior repetindo um texto curto (ticker_texto)." },
+      "variedade":       { sistema: "criativo",    tipo: "C3", fundo: "foto",             hasImage: true,  layout: "mosaico visual: foto + ticker + título dominante. Mistura de elementos." },
+      "ritmo":           { sistema: "criativo",    tipo: "C1", fundo: "foto",             hasImage: true,  layout: "alternância densa/leve. Foto editorial sem overlay, título gigante sobreposto." },
+    };
+
+    const principlesList = Array.isArray(designPrinciples) && designPrinciples.length
+      ? designPrinciples.filter((id) => PRINCIPLE_TO_LAYOUT[id])
+      : ["espaco-branco", "contraste", "hierarquia"];
+    const sequence: string[] = Array.from({ length: slideCount }, (_, i) => principlesList[i % principlesList.length]);
 
     const systemPrompt = `Você é um Consultor Criativo Estratégico e Especialista em Copywriting de Alta Conversão para Instagram.
 
@@ -322,194 +329,84 @@ ENTREGA: Entregue a saída chamando a função \`build_carousel\`. Mapeie os cam
 
 Não inclua o campo \`legenda\`. Não escreva nada fora da chamada da função.`;
 
-    const minimalistAppendix = isMinimalist ? `
+    // ====================================================================
+    // SISTEMA UNIFICADO: PRINCÍPIOS DE DESIGN COMO ÚNICA FONTE DE LAYOUT
+    // ====================================================================
+    const principleAppendix = `
 
 ---
 
-SISTEMA VISUAL MINIMALISTA — ATIVADO AUTOMATICAMENTE PELO DNA DA MARCA
+SISTEMA UNIFICADO DE LAYOUT — PRINCÍPIOS DE DESIGN
 
-Você está operando em modo minimalista. Cada slide DEVE também ser classificado em um dos 5 tipos visuais abaixo, e você DEVE retornar os campos extras: \`sistema\`, \`tipo\`, \`fundo\`, \`label\`, \`tags\`, \`elemento_decorativo\` e \`nota_visual\` (apenas M4/M5).
+O usuário escolheu ${principlesList.length} princípio(s) de design. Cada slide DEVE seguir EXATAMENTE o layout do princípio atribuído a ele (na ordem cíclica abaixo). NÃO existe DNA minimalista ou criativo separado — o princípio é a única fonte do layout.
 
-REGRAS GLOBAIS:
-- Fundo: off-white (#F5F0E8) OU bege linho texturizado OU foto com overlay máximo 30%. NUNCA fundo colorido sólido.
-- Muito espaço negativo: texto ocupa no máximo 60% do slide.
-- Margens internas mínimas de 48px em todas as bordas.
-- Máximo 2 fontes: 1 serif elegante + 1 sans-serif bold.
-- Mix de regular + itálico na mesma linha para ênfase. Marque palavras a destacar entre asteriscos: *palavra*.
+SEQUÊNCIA OBRIGATÓRIA POR SLIDE (não pode trocar a ordem):
+${sequence.map((id, i) => {
+  const p = PRINCIPLE_TO_LAYOUT[id];
+  return `Slide ${i + 1} → PRINCÍPIO "${id.toUpperCase()}" → sistema=${p.sistema}, tipo=${p.tipo}, fundo=${p.fundo}\n  Layout: ${p.layout}\n  ${p.hasImage ? "TEM imagem (preencha nota_visual em inglês)." : "SEM imagem (imagePrompt vazio)."}`;
+}).join("\n")}
+
+REGRAS DE PREENCHIMENTO POR SLIDE:
+- Os campos \`sistema\` e \`tipo\` SÃO OBRIGATÓRIOS e devem ser EXATAMENTE os definidos acima por slide. Nunca mude.
+- O campo \`fundo\` deve ser o definido acima.
+- Densidade do texto deve respeitar o layout: princípios "espaco-branco", "alinhamento", "margens" pedem texto MUITO curto (1 linha de título + 1 de corpo). "proporcao", "ritmo", "variedade" pedem texto médio. "hierarquia", "direcionamento" pedem 3 níveis claros (título, subtítulo, corpo).
+- Para tipos com imagem (M4, C1, C3): preencha \`nota_visual\` em INGLÊS, descrevendo APENAS conteúdo visual/fotográfico no estilo "${ESTILO_IMAGENS}". O renderer usará essa nota como \`imagePrompt\`.
+- Para tipos sem imagem (M1, M2, M3, C2, C4, C5): \`imagePrompt\` vazio.
+- Para C2/C4: preencha \`palavra_destaque\` com UMA palavra do título.
+- Para C3: preencha \`ticker_texto\` com 2-3 palavras curtas em CAPS.
+- Para M2/M3/M4/M5: preencha \`label\` curto em CAPS.
+- Para M4: preencha \`tags\` (2-3 tags curtas).
+- Sempre escolha um \`elemento_decorativo\` (minimalista) ou \`elemento_grafico\` (criativo) coerente.
+- Cor de destaque do criativo: ${COR_DESTAQUE}.
 - Alinhamento dos textos: ${ALINHAMENTO}.
 
-TIPOS DE SLIDE:
-- M1 — Tipografia pura: fundo off-white liso, ZERO imagem, título serif grande no centro, mix regular+itálico, seta → no rodapé esquerdo. Para frases de impacto, declarações, insights.
-- M2 — Editorial estruturado: fundo bege texturizado, label asterisco no canto superior esquerdo, título bold grande, subtítulo médio bold com seta circular ⊙ à direita, corpo justificado. Para argumentação e explicação.
-- M3 — Fundo neutro + objeto/mockup: fundo bege/linho, label cursivo centralizado no topo, título bold gigante centralizado com mix bold+itálico, corpo justificado. Para apresentação de produto/serviço/resultado.
-- M4 — Foto duas zonas: foto editorial de fundo (flat lay, workspace, detalhe), overlay escuro máx 30%, tags em pílulas no topo, label caps + título bold caps no meio, subtítulo serif no rodapé. Para abertura e resultado.
-- M5 — Foto cotidiana íntima: foto cotidiana/íntima de fundo, labels nos cantos superiores, título display grande no meio, notas pequenas caps no rodapé esquerdo. Para gancho emocional.
-
-ALTERNÂNCIA OBRIGATÓRIA (NÃO QUEBRE):
-- Slide 1: SEMPRE M4 ou M5.
-- Slides 2 e 3: M1 ou M2.
-- Slides 4 e 5: M2 ou M3.
-- Último slide: SEMPRE M1 (CTA tipográfico limpo).
-- NUNCA dois slides do mesmo tipo consecutivos.
-
-ELEMENTOS DECORATIVOS PERMITIDOS (e nada mais):
-- Seta simples → (apenas no rodapé)
-- Tags/pílulas com borda fina (apenas M4)
-- Asterisco * como marcador de label
-- Triângulo geométrico mínimo
-- Seta circular ⊙ como navegação
-
-CAMPOS EXTRAS NA TOOL (obrigatórios em modo minimalista):
-- sistema: "minimalista"
-- tipo: "M1" | "M2" | "M3" | "M4" | "M5"
-- fundo: "off-white" | "bege-texturizado" | "foto"
-- label: pequeno texto em CAPS, com asterisco quando fizer sentido (ex: "* CAPÍTULO 01")
-- tags: array de strings curtas (apenas M4; vazio nos demais)
-- elemento_decorativo: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum"
-- nota_visual: descrição em INGLÊS para gerar a foto de fundo (apenas M4 e M5; string vazia em M1/M2/M3)
-
-Para M1/M2/M3, \`imagePrompt\` deve ser string vazia (sem foto). Para M4/M5, \`imagePrompt\` recebe a \`nota_visual\` em inglês.` : "";
-
-    const creativeAppendix = isCreative ? `
-
----
-
-SISTEMA VISUAL CRIATIVO — ATIVADO AUTOMATICAMENTE PELO DNA DA MARCA
-
-Você está operando em modo criativo. Cada slide DEVE também ser classificado em um dos 5 tipos visuais abaixo, e você DEVE retornar os campos extras: \`sistema\`, \`tipo\`, \`fundo\`, \`palavra_destaque\`, \`ticker_texto\` (apenas C3), \`elemento_grafico\` e \`nota_visual\` (apenas C1/C3).
-
-REGRAS GLOBAIS:
-- Contraste visual extremo entre elementos.
-- Títulos gigantes que dominam o slide.
-- Cor de destaque do DNA (${COR_DESTAQUE}) usada com ousadia.
-- Máximo 2 fontes com contraste máximo entre elas.
-- Elementos gráficos criativos como diferencial.
-- Alinhamento dos textos: ${ALINHAMENTO}.
-
-TIPOS DE SLIDE:
-- C1 — Foto + tipografia gigante sobreposta: foto editorial sem overlay, título gigante bold branco diretamente sobre a foto, marca duplicada (canto superior direito + rodapé bold), slogan pequeno no rodapé. Para abertura e impacto visual máximo.
-- C2 — Fundo neutro + tipografia colorida explosiva: fundo off-white, label caps com underline no topo, título gigante em fonte display NA COR DE DESTAQUE (${COR_DESTAQUE}), subtítulo bold preto em contraste, mockup/objeto no centro, corpo pequeno no rodapé. Para declarações de impacto e propostas de valor.
-- C3 — Foto + faixa ticker: foto editorial de pessoa/ambiente, título bold sans-serif no topo, corpo justificado no centro, faixa horizontal no terço inferior com texto repetido NA COR DE DESTAQUE (${COR_DESTAQUE}), marca nos cantos superiores. Para desenvolvimento e engajamento.
-- C4 — Tipografia pura + elemento manuscrito: fundo off-white texturizado, título gigante serif bold + itálico expressivo, palavra-chave destacada com círculo SVG NA COR DE DESTAQUE, seta curva manuscrita SVG NA COR DE DESTAQUE, subtítulo deslocado à direita, rodapé com toggle ⊙→. Para frases provocativas e ganchos emocionais.
-- C5 — Tipografia 100% caps + cor dominante: fundo branco, TODO texto em CAPS LOCK BOLD, COR DE DESTAQUE (${COR_DESTAQUE}) dominante em todo o texto, palavras-chave em bold extra, seta vertical ↓ como separador no centro, rodapé com marca + seta →. Para CTA final e declarações de autoridade.
-
-ALTERNÂNCIA OBRIGATÓRIA (NÃO QUEBRE):
-- Slide 1: SEMPRE C1 ou C4.
-- Slides 2 e 3: C2 ou C3.
-- Slides 4 e 5: C3 ou C4.
-- Último slide: SEMPRE C5 (CTA dominante).
-- NUNCA dois slides do mesmo tipo consecutivos.
-
-ELEMENTOS GRÁFICOS PERMITIDOS POR TIPO (não misturar):
-- C2: underline em palavra do título.
-- C3: faixa/ticker horizontal com \`ticker_texto\` repetido.
-- C4: círculo SVG ao redor da \`palavra_destaque\` + seta curva manuscrita + toggle ⊙→.
-- C5: seta vertical ↓ + seta → no rodapé.
-
-CAMPOS EXTRAS NA TOOL (obrigatórios em modo criativo):
-- sistema: "criativo"
-- tipo: "C1" | "C2" | "C3" | "C4" | "C5"
-- fundo: "branco" | "off-white" | "foto"
-- palavra_destaque: palavra única do título que recebe círculo/underline (string vazia quando não se aplica)
-- ticker_texto: texto curto repetido na faixa (apenas C3; vazio nos demais)
-- elemento_grafico: "circulo" | "seta-curva" | "ticker" | "seta-vertical" | "toggle"
-- nota_visual: descrição em INGLÊS para gerar a foto (apenas C1 e C3; vazio em C2/C4/C5)
-
-Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`imagePrompt\` recebe a \`nota_visual\` em inglês.` : "";
+REGRAS DURAS para a \`nota_visual\` (NÃO QUEBRE):
+• PROIBIDO mencionar: text, letters, words, typography, captions, signs, signage, billboards, posters, banners, labels, tags, stickers, business cards, menus, brochures, flyers, documents, watermarks, logos with text, screens/monitors/phones/laptops/TVs showing UI or text, books/magazines/newspapers/journals/notebooks with visible writing or covers with text.
+• Se a cena pediria naturalmente um desses objetos, descreva-os como "closed", "blank", "powered off", "out of focus", "plain unbranded".
+• Imagem 100% visual, ZERO letras visíveis.
+`;
 
     const plannerAppendix = plannerSource && Array.isArray(plannerSource.posts) && plannerSource.posts.length ? `
 
 ---
 
-ADAPTAÇÃO DO PLANNER COM PRINCÍPIOS DE DESIGN DE CONTEÚDO
+ADAPTAÇÃO DO PLANNER
 
-A fonte do conteúdo são posts JÁ planejados pelo usuário no Planner (listados na mensagem do usuário). Trate-os como BRIEFING BRUTO, não como texto final. Reescreva e reorganize em ${N} slides aplicando os 12 princípios do Design de Conteúdo:
-
-1. ESPAÇO BRANCO — cada slide precisa de respiro; nunca encha o quadro de texto.
-2. CONTRASTE — peso visual entre título e corpo; uma ideia se destaca, as outras servem de suporte.
-3. PROPORÇÃO — um elemento sempre dominante; outros menores.
-4. HIERARQUIA — escolha CLARA de o que se lê primeiro, segundo, último (use tamanhos diferentes via título/subtítulo/corpo).
-5. ÊNFASE — cada slide tem 1 elemento mais relevante (use \`palavra_destaque\` no criativo, asteriscos *palavra* no minimalista).
-6. EQUILÍBRIO — pesos visuais semelhantes não competem; distribua bem.
-7. ALINHAMENTO — sempre à esquerda OU centro, conforme \`alignment\`. Nunca misturar.
-8. HARMONIA — mesma família de tom, label e decoração ao longo do carrossel.
-9. MARGENS — respeite limites; texto nunca encosta nas bordas.
-10. DIRECIONAMENTO — guie a leitura em Z, L ou linha reta. Slide 1 abre, slide N fecha.
-11. VARIEDADE — alterne tipos de slide (M1↔M2↔M4 ou C1↔C2↔C3) para criar interesse.
-12. RITMO — alterne slides DENSOS (mais texto) e LEVES (frase curta). Nunca 3 slides densos seguidos.
+A fonte do conteúdo são posts JÁ planejados pelo usuário no Planner. Trate-os como BRIEFING BRUTO, não como texto final. Reescreva e reorganize em ${N} slides aplicando os princípios de design definidos acima.
 
 REGRAS DE ADAPTAÇÃO:
 - Não copie o título do post como título do slide. Extraia a IDEIA CENTRAL e reescreva.
 - Se vários posts foram selecionados, costure-os em uma narrativa única.
 - Mantenha tom de voz, palavras obrigatórias e proibidas do briefing.
 - Respeite os limites de caracteres (369 sem título, 422 com título).
-- Continue usando o sistema visual já detectado (minimalista/criativo) e seus tipos de slide.
+- Respeite a SEQUÊNCIA de princípios definida acima — cada slide tem seu layout fixo.
 ` : "";
 
-    const PRINCIPLE_GUIDE: Record<string, string> = {
-      "espaco-branco": "muito respiro, pouco texto, título curto e centralizado, fundo limpo (use M3/M5 ou C2)",
-      "contraste": "contraste forte: bloco escuro grande com texto claro destacado (use M2/M4 ou C1 com fundo foto)",
-      "proporcao": "um elemento dominante (título XL ocupando 2/3 do slide); resto pequeno (use M1 ou C4)",
-      "hierarquia": "três níveis claros: título grande, subtítulo médio, corpo pequeno empilhados (M1 ou C5)",
-      "enfase": "destaque uma palavra/frase com palavra_destaque ou *asterisco* (C1/C3 ou M2)",
-      "equilibrio": "duas colunas com peso visual equivalente: imagem de um lado, texto do outro (C1 ou M4)",
-      "alinhamento": "tudo rigidamente alinhado (à esquerda ou centro), sem variação (M5 ou C5)",
-      "harmonia": "imagem de fundo suave + caixa de texto pequena coerente com a paleta (M4/M2 ou C1)",
-      "margens": "moldura ampla, conteúdo concentrado no centro com bastante respiro nas bordas (M3 ou C2)",
-      "direcionamento": "leitura em Z ou L: olho percorre topo-esq → meio → base-dir (use ticker, seta-curva ou seta-vertical)",
-      "variedade": "misture elementos diferentes no mesmo slide (texto + tag + decoração) — mosaico visual (C3 com ticker)",
-      "ritmo": "alternância densa/leve: este slide deve ser densamente preenchido OU muito espaçado, contrastando com vizinhos",
-    };
-
-    const principlesAppendix = Array.isArray(designPrinciples) && designPrinciples.length ? `
-
----
-
-PRINCÍPIOS VISUAIS APLICADOS POR SLIDE
-
-O usuário escolheu ${designPrinciples.length} princípio(s) de design. Aplique UM princípio específico em cada slide, seguindo a ordem cíclica abaixo (slide N usa o princípio N mod ${designPrinciples.length}):
-
-${designPrinciples.map((id, i) => `Slide ${i + 1}: ${id.toUpperCase()} — ${PRINCIPLE_GUIDE[id] ?? "siga a definição clássica do princípio"}`).join("\n")}
-${N > designPrinciples.length ? `(Slides ${designPrinciples.length + 1} a ${N} repetem ciclicamente os princípios acima.)` : ""}
-
-REGRAS:
-- Escolha \`tipo\`, \`fundo\`, \`elemento_grafico\`/\`elemento_decorativo\`, \`palavra_destaque\` e densidade do texto coerentes com o princípio do slide.
-- Respeite o sistema visual já definido (minimalista ou criativo) — apenas use o tipo/fundo apropriado dentro do sistema.
-- Mantenha a narrativa consistente: o princípio é uma DIRETRIZ VISUAL, não uma mudança de tom de voz.
-` : "";
-
-    const finalSystemPrompt = systemPrompt + minimalistAppendix + creativeAppendix + plannerAppendix + principlesAppendix;
+    const finalSystemPrompt = systemPrompt + principleAppendix + plannerAppendix;
 
     const slideItemProperties: any = {
       title: { type: "string" },
       subtitle: { type: "string" },
       body: { type: "string" },
       imagePrompt: { type: "string" },
-    };
-    if (isMinimalist) {
-      slideItemProperties.sistema = { type: "string" };
-      slideItemProperties.tipo = { type: "string", enum: ["M1", "M2", "M3", "M4", "M5"] };
-      slideItemProperties.fundo = { type: "string", enum: ["off-white", "bege-texturizado", "foto"] };
-      slideItemProperties.label = { type: "string" };
-      slideItemProperties.tags = { type: "array", items: { type: "string" } };
-      slideItemProperties.elemento_decorativo = {
+      // Schema unificado — princípio dita o tipo, mas aceitamos todos.
+      sistema: { type: "string", enum: ["minimalista", "criativo"] },
+      tipo: { type: "string", enum: ["M1", "M2", "M3", "M4", "M5", "C1", "C2", "C3", "C4", "C5"] },
+      fundo: { type: "string", enum: ["off-white", "bege-texturizado", "foto", "branco"] },
+      label: { type: "string" },
+      tags: { type: "array", items: { type: "string" } },
+      elemento_decorativo: {
         type: "string",
         enum: ["seta", "asterisco", "triangulo", "seta-circular", "nenhum"],
-      };
-      slideItemProperties.nota_visual = { type: "string" };
-    }
-    if (isCreative) {
-      slideItemProperties.sistema = { type: "string" };
-      slideItemProperties.tipo = { type: "string", enum: ["C1", "C2", "C3", "C4", "C5"] };
-      slideItemProperties.fundo = { type: "string", enum: ["branco", "off-white", "foto"] };
-      slideItemProperties.palavra_destaque = { type: "string" };
-      slideItemProperties.ticker_texto = { type: "string" };
-      slideItemProperties.elemento_grafico = {
+      },
+      palavra_destaque: { type: "string" },
+      ticker_texto: { type: "string" },
+      elemento_grafico: {
         type: "string",
         enum: ["circulo", "seta-curva", "ticker", "seta-vertical", "toggle"],
-      };
-      slideItemProperties.nota_visual = { type: "string" };
-    }
+      },
+      nota_visual: { type: "string" },
+    };
 
     const tools = [
       {
@@ -599,7 +496,10 @@ REGRAS:
         console.error("[carrossel-generate] parse tool call failed", e);
       }
 
-      slides = (parsed.slides ?? []).slice(0, slideCount).map((s: any) => {
+      slides = (parsed.slides ?? []).slice(0, slideCount).map((s: any, idx: number) => {
+        // Princípio dita o layout — sobrescreve qualquer sistema/tipo/fundo do modelo.
+        const principleId = sequence[idx] ?? sequence[sequence.length - 1];
+        const layout = PRINCIPLE_TO_LAYOUT[principleId];
         const out: SlideOut = {
           title: s.title ?? "",
           subtitle: s.subtitle ?? "",
@@ -608,35 +508,27 @@ REGRAS:
           imageDataUrl: null,
           alignment: ALINHAMENTO,
         };
-        if (isMinimalist) {
-          out.sistema = "minimalista";
-          if (s.tipo) out.tipo = s.tipo;
-          if (s.fundo) out.fundo = s.fundo;
+        out.sistema = layout.sistema;
+        out.tipo = layout.tipo as any;
+        out.fundo = layout.fundo as any;
+
+        if (layout.sistema === "minimalista") {
           if (typeof s.label === "string") out.label = s.label;
           if (Array.isArray(s.tags)) out.tags = s.tags.filter((x: any) => typeof x === "string");
           if (s.elemento_decorativo) out.elemento_decorativo = s.elemento_decorativo;
-          // Para M4/M5, garantir que imagePrompt = nota_visual quando vier
-          if ((out.tipo === "M4" || out.tipo === "M5") && typeof s.nota_visual === "string" && s.nota_visual.trim()) {
-            out.imagePrompt = s.nota_visual.trim();
-          }
-          // Para M1/M2/M3, NUNCA gerar foto
-          if (out.tipo === "M1" || out.tipo === "M2" || out.tipo === "M3") {
-            out.imagePrompt = "";
-          }
-        }
-        if (isCreative) {
-          out.sistema = "criativo";
-          if (s.tipo) out.tipo = s.tipo;
-          if (s.fundo) out.fundo = s.fundo;
+        } else {
           if (typeof s.palavra_destaque === "string") out.palavra_destaque = s.palavra_destaque;
           if (typeof s.ticker_texto === "string") out.ticker_texto = s.ticker_texto;
           if (s.elemento_grafico) out.elemento_grafico = s.elemento_grafico;
-          if ((out.tipo === "C1" || out.tipo === "C3") && typeof s.nota_visual === "string" && s.nota_visual.trim()) {
+        }
+
+        // Imagem: presente apenas se o princípio pede.
+        if (layout.hasImage) {
+          if (typeof s.nota_visual === "string" && s.nota_visual.trim()) {
             out.imagePrompt = s.nota_visual.trim();
           }
-          if (out.tipo === "C2" || out.tipo === "C4" || out.tipo === "C5") {
-            out.imagePrompt = "";
-          }
+        } else {
+          out.imagePrompt = "";
         }
         return out;
       });
@@ -741,8 +633,7 @@ REGRAS:
           archetypeStr ? `Brand archetype: ${archetypeStr}.` : "",
           `Anatomy: anatomically correct hands with exactly five fingers, realistic facial features, natural body proportions, no extra limbs, no distorted faces, no melted or warped features.`,
           `Quality: high optical sharpness, fine detail, natural skin micro texture, realistic photography clarity, professional, 2K resolution.`,
-          isMinimalist ? `Composition: editorial minimalist, generous negative space, off-white or linen tones, calm and refined.` : "",
-          isCreative ? `Composition: bold editorial, high contrast, vibrant accent color, dynamic energy, magazine-grade.` : "",
+          `Composition: editorial, balanced, professional magazine-grade.`,
           `Aspect ratio: vertical 4:5.`,
           `No text, no letters, no captions, no logos, no watermarks anywhere in the image.`,
         ].filter(Boolean);
@@ -827,6 +718,7 @@ REGRAS:
           imagesGenerated,
           totalMs,
           designPrinciples: Array.isArray(designPrinciples) ? designPrinciples : null,
+          principlesPerSlide: sequence,
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
