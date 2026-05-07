@@ -58,7 +58,7 @@ type GridLayoutId =
   | "strip-3"
   | "polaroid-mix";
 
-const GRID_LAYOUTS: { id: GridLayoutId; label: string; mode: ImageMode; preview: (color: string) => JSX.Element }[] = [
+const GRID_LAYOUTS: { id: GridLayoutId; label: string; mode: ImageMode; preview: (color: string) => React.ReactNode }[] = [
   {
     id: "none",
     label: "Sem imagens",
