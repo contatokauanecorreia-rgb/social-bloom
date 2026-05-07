@@ -719,7 +719,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         fontPair: fontPairForOutput,
         palette,
         imageMode,
-        gridLayout,
+        designPrinciples: selectedPrinciples,
         signature: instagram.trim()
           ? {
               enabled: true,
