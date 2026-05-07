@@ -561,14 +561,13 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
     try {
       // Monta o "topic" enviado ao backend conforme a fonte de conteúdo
       let effectiveTopic = topic.trim();
+      let plannerSource: { posts: { title: string; tags: string[]; notes: string | null }[] } | null = null;
       if (contentSource === "planner") {
         const picked = plannerPosts.filter((p) => selectedPostIds.includes(p.id));
-        effectiveTopic = [
-          "Posts selecionados do Planner:",
-          ...picked.map(
-            (p, i) => `${i + 1}. ${p.title}${p.notes ? ` — ${p.notes}` : ""}`,
-          ),
-        ].join("\n");
+        plannerSource = {
+          posts: picked.map((p) => ({ title: p.title, tags: p.tags, notes: p.notes })),
+        };
+        effectiveTopic = picked.map((p) => p.title).join(" / ") || "Conteúdo do Planner";
       }
 
       const { data, error } = await supabase.functions.invoke("carrossel-generate", {
@@ -584,6 +583,8 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
           textOnly: true,
           referenceImageDataUrl: referenceImageDataUrl ?? null,
           alignment,
+          plannerSource,
+          gridLayout,
         },
       });
 
