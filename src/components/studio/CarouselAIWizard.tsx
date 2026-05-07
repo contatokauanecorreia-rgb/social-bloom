@@ -738,17 +738,24 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
           ? `editorial lifestyle photograph evoking the mood of: ${seed}`
           : `editorial lifestyle photograph, calm and emotionally resonant scene`;
       };
+      // Só geramos imagem para slides cujo princípio pede foto (fundo === "foto")
+      // ou que tenham um imagePrompt explícito vindo do backend. Princípios sem
+      // imagem (espaco-branco, proporcao, hierarquia, etc.) ficam sem foto.
       const imageJobs =
         aiImages && imageMode !== "none"
-          ? slidesData.map((s, i) => {
-              const explicit = typeof s.imagePrompt === "string" ? s.imagePrompt.trim() : "";
-              const promptText = explicit.length > 0 ? explicit : deriveVisualSeed(s);
-              return {
-                slideIndex: i,
-                imagePrompt: promptText,
-                imageStyle: trimmedStyle,
-              };
-            })
+          ? slidesData
+              .map((s, i) => {
+                const explicit = typeof s.imagePrompt === "string" ? s.imagePrompt.trim() : "";
+                const wantsPhoto = s.fundo === "foto" || explicit.length > 0;
+                if (!wantsPhoto) return null;
+                const promptText = explicit.length > 0 ? explicit : deriveVisualSeed(s);
+                return {
+                  slideIndex: i,
+                  imagePrompt: promptText,
+                  imageStyle: trimmedStyle,
+                };
+              })
+              .filter((j): j is { slideIndex: number; imagePrompt: string; imageStyle: string | null } => j !== null)
           : [];
 
       const bootstrap = {
