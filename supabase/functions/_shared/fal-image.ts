@@ -128,7 +128,7 @@ export async function generateWithFal(
     const finalPrompt = prompt.includes("Anatomically correct")
       ? prompt
       : prompt + qualityGuard;
-    const resp = await fetch("https://fal.run/fal-ai/flux-2/pro", {
+    const resp = await fetch("https://fal.run/fal-ai/flux-2-pro", {
       method: "POST",
       headers: {
         Authorization: `Key ${apiKey}`,

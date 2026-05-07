@@ -1,54 +1,42 @@
-## Diagnóstico
-O erro persiste por 4 motivos já confirmados no código e nos logs:
+Objetivo: corrigir a geração de imagens do carrossel, que hoje falha antes mesmo de chegar na etapa de qualidade/relevância da imagem.
 
-1. **O prompt visual está sendo descartado com frequência.** Os logs mostram `prompt_looked_like_copy, using fallback` em `carrossel-image`, então o sistema entende uma descrição válida como se fosse copy do slide.
-2. **O fallback atual é genérico demais.** Em vez de reconstruir a cena com base no tema e no DNA da marca, ele cai para algo como “candid lifestyle scene...”, o que abre espaço para props aleatórios como livros, mãos e cenas sem relação com o conteúdo.
-3. **A geração ainda está priorizando velocidade, não fidelidade.** O helper compartilhado usa `fal-ai/flux-2/klein/9b` com apenas `6` steps. Essa combinação aumenta bastante a chance de anatomia ruim, mãos deformadas e resultados “estranhos”.
-4. **O bloco de texto continua ancorado baixo.** Em `dashboard.studio.carrossel.tsx`, o layout usa `bottomPad = 0.08 * format.w`, então o conteúdo ainda fica mais para baixo do que sua referência pede.
+Diagnóstico confirmado
+- O problema principal não é o prompt do usuário nem o DNA da marca.
+- A função `carrossel-image` está chamando um endpoint inválido do provedor de imagem.
+- Arquivo afetado: `supabase/functions/_shared/fal-image.ts`
+- Chamada atual encontrada no código: `https://fal.run/fal-ai/flux-2/pro`
+- Pelos logs, esse caminho responde `404` com `{"detail":"Path /pro not found"}`.
+- A documentação pública do provedor indica que o endpoint correto é `https://fal.run/fal-ai/flux-2-pro`.
 
-## Plano
-### 1. Corrigir a origem dos prompts irrelevantes
-- Ajustar `looksLikeCopyNotImagePrompt()` para parar de derrubar descrições visuais legítimas só porque estão longas ou têm traços de português.
-- Trocar o fallback genérico por um **fallback contextual**, montado a partir de:
-  - tema do slide
-  - segmento da marca
-  - arquétipo
-  - tipo visual do slide
-- Fazer o pipeline gerar uma **nota visual curta, objetiva e sempre em inglês**, com foco em cena, sujeito, ambiente, enquadramento e clima — sem reaproveitar copy do conteúdo.
+Evidências
+- O frontend mostra o toast “Não foi possível gerar as imagens agora. Tente regenerar pelo editor.” quando nenhuma imagem retorna com sucesso.
+- Na tela, a rota `dashboard.studio.carrossel.tsx` considera sucesso apenas quando `data?.imageDataUrl` vem preenchido.
+- Nas requisições observadas, a função respondeu `200`, porém com `{ "imageDataUrl": null }`.
+- Nos logs da função `carrossel-image`, todas as tentativas recentes falham com o mesmo erro `404 Path /pro not found`.
+- Isso explica por que nenhuma imagem é gerada agora, inclusive quando o prompt visual faz sentido.
 
-### 2. Parar de gerar pessoas deformadas
-- Atualizar `generateWithFal()` para uma configuração **quality-first** em vez de speed-first.
-- Mudar o carrossel para **FLUX.2 Pro** como padrão de produção para imagens de slide.
-- Aumentar steps e adicionar guidance apropriado para reduzir deformidades.
-- Incluir instruções anti-erro no prompt final, como:
-  - anatomia natural
-  - mãos corretas
-  - rosto sem distorção
-  - proporções reais
-  - sem membros extras
-- Manter a política de **não aceitar imagem ruim como fallback silencioso**: se a geração falhar, o slide fica sem imagem em vez de salvar uma imagem torta.
+Plano de correção
+1. Corrigir o endpoint do provedor de imagem em `supabase/functions/_shared/fal-image.ts` de `fal-ai/flux-2/pro` para `fal-ai/flux-2-pro`.
+2. Revisar os parâmetros enviados para garantir compatibilidade com esse endpoint específico.
+3. Validar a resposta da função para diferenciar claramente:
+   - erro do provedor
+   - bloqueio de segurança
+   - retorno sem URL
+4. Melhorar a mensagem de erro no cliente para não mascarar falha técnica como se fosse problema temporário genérico.
+5. Testar novamente o fluxo de geração no carrossel para confirmar que as imagens voltam a ser produzidas.
+6. Só depois disso, se ainda necessário, ajustar a qualidade/relevância visual dos prompts restantes.
 
-### 3. Subir o conteúdo no layout do slide
-- Reposicionar o bloco textual para ficar **mais alto e mais equilibrado** no canvas.
-- Ajustar o `bottomPad` e, se necessário, a lógica de ancoragem para manter o conteúdo visualmente mais próximo do centro útil.
-- Rebalancear overlays dos slides com foto para preservar legibilidade sem empurrar o texto para baixo.
-- Manter intactos os limites de caracteres já definidos:
-  - sem título: 369
-  - com título: 422
+Resultado esperado
+- A geração volta a funcionar.
+- O editor deixa de retornar `imageDataUrl: null` para todos os slides.
+- A mensagem de erro some quando o endpoint correto responder com URL válida.
 
-### 4. Validar o fluxo completo
-- Testar a geração de um carrossel real com DNA de cliente.
-- Confirmar que:
-  - não aparecem mais logs de fallback indevido
-  - não surgem livros/mãos/cenas sem relação com o tema
-  - a anatomia fica mais consistente
-  - o texto sobe para uma posição mais harmônica
+Detalhes técnicos
+- Arquivos envolvidos:
+  - `supabase/functions/_shared/fal-image.ts`
+  - `supabase/functions/carrossel-image/index.ts`
+  - `src/routes/dashboard.studio.carrossel.tsx`
+- Causa raiz atual: integração quebrada por URL incorreta do modelo, não por layout do slide.
+- Impacto secundário: como todas as imagens falham, o usuário vê apenas o fallback de erro e pode interpretar como problema de prompt ou do editor.
 
-## Arquivos envolvidos
-- `supabase/functions/_shared/fal-image.ts`
-- `supabase/functions/carrossel-image/index.ts`
-- `supabase/functions/carrossel-generate/index.ts`
-- `src/routes/dashboard.studio.carrossel.tsx`
-
-## Observação importante
-Se a exigência for **“imagem exata, sem deformidades”**, manter `FLUX.2 klein` não é a melhor escolha para produção. Eu consigo melhorar bastante o pipeline com ele, mas para esse nível de qualidade o caminho mais consistente é usar a variante **Pro** no carrossel.
+Se você aprovar, eu sigo com essa correção primeiro — ela deve destravar a geração de imagens imediatamente.
