@@ -1646,24 +1646,51 @@ function SlideContent({
         ...dotBg,
       }}
     >
-      {slide.bgImage && (
-        <img
-          src={slide.bgImage}
-          alt=""
-          crossOrigin="anonymous"
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            objectPosition: `${slide.bgPos.x * 100}% ${slide.bgPos.y * 100}%`,
-            transform: `scale(${slide.bgZoom})`,
-            transformOrigin: `${slide.bgPos.x * 100}% ${slide.bgPos.y * 100}%`,
-          }}
-        />
-      )}
-      <div style={{ position: "absolute", inset: 0, background: overlayBg }} />
+      {slide.bgImage && (() => {
+        const frame = slide.imageFrame ?? "full";
+        const frameStyle: React.CSSProperties = (() => {
+          switch (frame) {
+            case "top-60":
+              return { top: 0, left: 0, right: 0, height: "60%" };
+            case "half-left":
+              return { top: 0, left: 0, bottom: 0, width: "50%" };
+            case "half-right":
+              return { top: 0, right: 0, bottom: 0, width: "50%" };
+            case "centered-square": {
+              const m = format.w * 0.08;
+              const size = format.w - m * 2;
+              return { top: m, left: m, width: size, height: size };
+            }
+            case "bottom-third":
+              return { left: 0, right: 0, bottom: 0, height: "33%" };
+            case "full":
+            default:
+              return { inset: 0 };
+          }
+        })();
+        return (
+          <div style={{ position: "absolute", overflow: "hidden", ...frameStyle }}>
+            <img
+              src={slide.bgImage}
+              alt=""
+              crossOrigin="anonymous"
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                objectPosition: `${slide.bgPos.x * 100}% ${slide.bgPos.y * 100}%`,
+                transform: `scale(${slide.bgZoom})`,
+                transformOrigin: `${slide.bgPos.x * 100}% ${slide.bgPos.y * 100}%`,
+              }}
+            />
+            {frame === "full" && (
+              <div style={{ position: "absolute", inset: 0, background: overlayBg }} />
+            )}
+          </div>
+        );
+      })()}
       {slide.grid.enabled && (
         <div
           style={{
