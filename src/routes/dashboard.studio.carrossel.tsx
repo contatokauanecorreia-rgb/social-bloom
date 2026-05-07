@@ -416,13 +416,20 @@ function CarrosselEditorPage() {
               if (job.slideIndex < 0 || job.slideIndex >= prev.length) return prev;
               return prev.map((s, idx) => {
                 if (idx !== job.slideIndex) return s;
-                // Defesa: só aplica foto se o slide foi marcado como bgKind "foto".
-                if (s.bgKind && s.bgKind !== "foto") return s;
+                // Defesa: aplica imagem se o slide tem bgKind "foto" OU
+                // se o slide tem um imageFrame definido (zona dentro do slide).
+                const allowed = s.bgKind === "foto" || (s.imageFrame ?? null) !== null;
+                if (!allowed) return s;
+                const isFull = s.bgKind === "foto" && (s.imageFrame ?? "full") === "full";
                 return {
                   ...s,
                   bgImage: url,
-                  textColor: { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" },
-                  overlay: { ...s.overlay, enabled: true, intensity: 40, type: "dark" },
+                  textColor: isFull
+                    ? { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" }
+                    : s.textColor,
+                  overlay: isFull
+                    ? { ...s.overlay, enabled: true, intensity: 40, type: "dark" }
+                    : s.overlay,
                 };
               });
             });
