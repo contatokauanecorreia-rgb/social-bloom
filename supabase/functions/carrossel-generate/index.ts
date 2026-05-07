@@ -223,19 +223,20 @@ Deno.serve(async (req) => {
     // Mapa: princípio → { sistema, tipo, fundo, descrição do layout }.
     // Cada card mostrado ao usuário no Wizard equivale a UM destes presets.
     // - preto = imagem; cinza escuro = título; cinza claro = corpo.
-    const PRINCIPLE_TO_LAYOUT: Record<string, { sistema: "minimalista" | "criativo"; tipo: string; fundo: string; hasImage: boolean; layout: string }> = {
-      "espaco-branco":   { sistema: "minimalista", tipo: "M3", fundo: "off-white",        hasImage: false, layout: "fundo limpo, MUITO respiro, título curto centralizado e corpo bem curto. Texto ocupa no máximo 35% do slide." },
-      "contraste":       { sistema: "minimalista", tipo: "M4", fundo: "foto",             hasImage: true,  layout: "foto editorial dominando ~60% do topo (ou todo o slide com overlay), texto branco curto na metade inferior." },
-      "proporcao":       { sistema: "criativo",    tipo: "C2", fundo: "off-white",        hasImage: false, layout: "DOIS títulos enormes empilhados (cada um 1 linha curta), corpo bem pequeno depois. Sem foto." },
-      "hierarquia":      { sistema: "minimalista", tipo: "M2", fundo: "bege-texturizado", hasImage: false, layout: "três níveis claros: título grande, subtítulo médio, corpo pequeno. Tudo empilhado e alinhado à esquerda." },
-      "enfase":          { sistema: "criativo",    tipo: "C4", fundo: "off-white",        hasImage: false, layout: "uma palavra do título recebe destaque (palavra_destaque). Subtítulo curto deslocado, corpo médio. Sem foto." },
-      "equilibrio":      { sistema: "minimalista", tipo: "M4", fundo: "foto",             hasImage: true,  layout: "duas zonas equilibradas: imagem em uma metade, texto na outra (use foto, com overlay 30%)." },
-      "alinhamento":     { sistema: "minimalista", tipo: "M1", fundo: "off-white",        hasImage: false, layout: "tipografia pura. TUDO rigidamente alinhado (esquerda ou centro). Sem foto, sem decoração." },
-      "harmonia":        { sistema: "minimalista", tipo: "M4", fundo: "foto",             hasImage: true,  layout: "foto suave de fundo + caixa de texto pequena coerente com a paleta. Tom calmo." },
-      "margens":         { sistema: "minimalista", tipo: "M3", fundo: "off-white",        hasImage: false, layout: "moldura ampla. Conteúdo concentrado no centro com bastante respiro nas bordas." },
-      "direcionamento":  { sistema: "criativo",    tipo: "C3", fundo: "foto",             hasImage: true,  layout: "leitura em Z/L: foto + faixa ticker horizontal no terço inferior repetindo um texto curto (ticker_texto)." },
-      "variedade":       { sistema: "criativo",    tipo: "C3", fundo: "foto",             hasImage: true,  layout: "mosaico visual: foto + ticker + título dominante. Mistura de elementos." },
-      "ritmo":           { sistema: "criativo",    tipo: "C1", fundo: "foto",             hasImage: true,  layout: "alternância densa/leve. Foto editorial sem overlay, título gigante sobreposto." },
+    type ImageFrame = "full" | "top-60" | "half-left" | "half-right" | "centered-square" | "bottom-third" | null;
+    const PRINCIPLE_TO_LAYOUT: Record<string, { sistema: "minimalista" | "criativo"; tipo: string; fundo: string; hasImage: boolean; imageFrame: ImageFrame; layout: string }> = {
+      "espaco-branco":   { sistema: "minimalista", tipo: "M3", fundo: "off-white",        hasImage: false, imageFrame: null,              layout: "fundo limpo, MUITO respiro, título curto centralizado e corpo bem curto. Texto ocupa no máximo 35% do slide." },
+      "contraste":       { sistema: "minimalista", tipo: "M4", fundo: "foto",             hasImage: true,  imageFrame: "top-60",          layout: "foto editorial dominando ~60% do topo, texto curto escuro na metade inferior sobre o fundo claro." },
+      "proporcao":       { sistema: "criativo",    tipo: "C2", fundo: "off-white",        hasImage: false, imageFrame: null,              layout: "DOIS títulos enormes empilhados (cada um 1 linha curta), corpo bem pequeno depois. Sem foto." },
+      "hierarquia":      { sistema: "minimalista", tipo: "M2", fundo: "bege-texturizado", hasImage: false, imageFrame: null,              layout: "três níveis claros: título grande, subtítulo médio, corpo pequeno. Tudo empilhado e alinhado à esquerda." },
+      "enfase":          { sistema: "criativo",    tipo: "C4", fundo: "off-white",        hasImage: false, imageFrame: null,              layout: "uma palavra do título recebe destaque (palavra_destaque). Subtítulo curto deslocado, corpo médio. Sem foto." },
+      "equilibrio":      { sistema: "minimalista", tipo: "M4", fundo: "off-white",        hasImage: true,  imageFrame: "half-left",       layout: "duas zonas equilibradas: imagem na metade esquerda, texto na metade direita sobre fundo claro." },
+      "alinhamento":     { sistema: "minimalista", tipo: "M1", fundo: "off-white",        hasImage: false, imageFrame: null,              layout: "tipografia pura. TUDO rigidamente alinhado (esquerda ou centro). Sem foto, sem decoração." },
+      "harmonia":        { sistema: "minimalista", tipo: "M4", fundo: "bege-texturizado", hasImage: true,  imageFrame: "centered-square", layout: "quadrado fotográfico centralizado com margens generosas mostrando o fundo bege. Texto curto abaixo." },
+      "margens":         { sistema: "minimalista", tipo: "M3", fundo: "off-white",        hasImage: false, imageFrame: null,              layout: "moldura ampla. Conteúdo concentrado no centro com bastante respiro nas bordas." },
+      "direcionamento":  { sistema: "criativo",    tipo: "C3", fundo: "off-white",        hasImage: true,  imageFrame: "bottom-third",    layout: "foto na faixa inferior (~33%) com ticker horizontal sobreposto. Texto no topo." },
+      "variedade":       { sistema: "criativo",    tipo: "C3", fundo: "off-white",        hasImage: true,  imageFrame: "top-60",          layout: "mosaico visual: foto no topo + ticker + título dominante embaixo." },
+      "ritmo":           { sistema: "criativo",    tipo: "C1", fundo: "foto",             hasImage: true,  imageFrame: "full",            layout: "alternância densa/leve. Foto editorial dominando o slide inteiro, título gigante sobreposto." },
     };
 
     const principlesList = Array.isArray(designPrinciples) && designPrinciples.length
