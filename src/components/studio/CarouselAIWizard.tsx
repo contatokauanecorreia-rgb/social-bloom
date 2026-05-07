@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
+  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
