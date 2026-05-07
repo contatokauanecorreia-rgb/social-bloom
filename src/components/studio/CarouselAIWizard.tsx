@@ -970,9 +970,9 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
               </div>
 
               <div>
-                <Label className="text-sm font-medium">Imagens no carrossel</Label>
+                <Label className="text-sm font-medium">Princípios de design</Label>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Escolha como as imagens vão aparecer dentro dos slides.
+                  Selecione de 3 a {Math.min(slideCount, 10)} princípios — cada slide será gerado seguindo um deles.
                 </p>
                 <div className="mt-3 flex items-center gap-2">
                   <Button
@@ -980,72 +980,75 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
                     variant="outline"
                     size="icon"
                     className="shrink-0 rounded-full"
-                    onClick={() => {
-                      const next = (gridIndex - 1 + GRID_LAYOUTS.length) % GRID_LAYOUTS.length;
-                      setGridIndex(next);
-                      setGridLayout(GRID_LAYOUTS[next].id);
-                    }}
+                    onClick={() => principleScrollRef.current?.scrollBy({ left: -240, behavior: "smooth" })}
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  <div className="flex-1 overflow-hidden">
-                    <div
-                      className="flex gap-3 transition-transform duration-300"
-                      style={{ transform: `translateX(calc(50% - ${gridIndex * 116 + 50}px))` }}
-                    >
-                      {GRID_LAYOUTS.map((g, i) => {
-                        const active = i === gridIndex;
-                        return (
-                          <button
-                            key={g.id}
-                            type="button"
-                            onClick={() => {
-                              setGridIndex(i);
-                              setGridLayout(g.id);
-                            }}
-                            className={cn(
-                              "shrink-0 rounded-lg border-2 bg-background p-1.5 transition",
-                              active
-                                ? "border-primary scale-105 shadow-md"
-                                : "border-border opacity-60 hover:opacity-100",
-                            )}
-                            style={{ width: 100 }}
-                          >
-                            <div className="aspect-[4/5] overflow-hidden rounded">
-                              {g.preview(palette[0])}
+                  <div
+                    ref={principleScrollRef}
+                    className="flex flex-1 gap-3 overflow-x-auto scroll-smooth pb-1"
+                    style={{ scrollbarWidth: "none" }}
+                  >
+                    {DESIGN_PRINCIPLES.map((p) => {
+                      const active = selectedPrinciples.includes(p.id);
+                      const max = Math.min(slideCount, 10);
+                      const atCap = !active && selectedPrinciples.length >= max;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          disabled={atCap}
+                          onClick={() => {
+                            setSelectedPrinciples((arr) =>
+                              arr.includes(p.id)
+                                ? arr.filter((x) => x !== p.id)
+                                : arr.length < max
+                                  ? [...arr, p.id]
+                                  : arr,
+                            );
+                          }}
+                          className={cn(
+                            "relative shrink-0 rounded-lg border-2 bg-background p-1.5 transition",
+                            active
+                              ? "border-primary shadow-md"
+                              : "border-border hover:border-primary/50",
+                            atCap && "opacity-40 cursor-not-allowed",
+                          )}
+                          style={{ width: 100 }}
+                        >
+                          <div className="aspect-[4/5] overflow-hidden rounded">
+                            {p.preview()}
+                          </div>
+                          <div className="mt-1.5 truncate text-center text-[10px] font-medium">
+                            {p.label}
+                          </div>
+                          {active && (
+                            <div className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow">
+                              <Check className="h-3 w-3" />
                             </div>
-                          </button>
-                        );
-                      })}
-                    </div>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="icon"
                     className="shrink-0 rounded-full"
-                    onClick={() => {
-                      const next = (gridIndex + 1) % GRID_LAYOUTS.length;
-                      setGridIndex(next);
-                      setGridLayout(GRID_LAYOUTS[next].id);
-                    }}
+                    onClick={() => principleScrollRef.current?.scrollBy({ left: 240, behavior: "smooth" })}
                   >
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
-                <div className="mt-2 flex items-center justify-center gap-1.5">
-                  {GRID_LAYOUTS.map((_, i) => (
-                    <span
-                      key={i}
-                      className={cn(
-                        "h-1.5 rounded-full transition-all",
-                        i === gridIndex ? "w-4 bg-primary" : "w-1.5 bg-border",
-                      )}
-                    />
-                  ))}
-                </div>
-                <p className="mt-2 text-center text-xs font-medium">
-                  {GRID_LAYOUTS[gridIndex].label}
+                <p
+                  className={cn(
+                    "mt-2 text-center text-xs",
+                    selectedPrinciples.length < 3 ? "text-destructive" : "text-muted-foreground",
+                  )}
+                >
+                  {selectedPrinciples.length}/{Math.min(slideCount, 10)} princípios selecionados
+                  {selectedPrinciples.length < 3 && " — mínimo 3"}
                 </p>
               </div>
 
