@@ -446,7 +446,39 @@ REGRAS DE ADAPTAÇÃO:
 - Continue usando o sistema visual já detectado (minimalista/criativo) e seus tipos de slide.
 ` : "";
 
-    const finalSystemPrompt = systemPrompt + minimalistAppendix + creativeAppendix + plannerAppendix;
+    const PRINCIPLE_GUIDE: Record<string, string> = {
+      "espaco-branco": "muito respiro, pouco texto, título curto e centralizado, fundo limpo (use M3/M5 ou C2)",
+      "contraste": "contraste forte: bloco escuro grande com texto claro destacado (use M2/M4 ou C1 com fundo foto)",
+      "proporcao": "um elemento dominante (título XL ocupando 2/3 do slide); resto pequeno (use M1 ou C4)",
+      "hierarquia": "três níveis claros: título grande, subtítulo médio, corpo pequeno empilhados (M1 ou C5)",
+      "enfase": "destaque uma palavra/frase com palavra_destaque ou *asterisco* (C1/C3 ou M2)",
+      "equilibrio": "duas colunas com peso visual equivalente: imagem de um lado, texto do outro (C1 ou M4)",
+      "alinhamento": "tudo rigidamente alinhado (à esquerda ou centro), sem variação (M5 ou C5)",
+      "harmonia": "imagem de fundo suave + caixa de texto pequena coerente com a paleta (M4/M2 ou C1)",
+      "margens": "moldura ampla, conteúdo concentrado no centro com bastante respiro nas bordas (M3 ou C2)",
+      "direcionamento": "leitura em Z ou L: olho percorre topo-esq → meio → base-dir (use ticker, seta-curva ou seta-vertical)",
+      "variedade": "misture elementos diferentes no mesmo slide (texto + tag + decoração) — mosaico visual (C3 com ticker)",
+      "ritmo": "alternância densa/leve: este slide deve ser densamente preenchido OU muito espaçado, contrastando com vizinhos",
+    };
+
+    const principlesAppendix = Array.isArray(designPrinciples) && designPrinciples.length ? `
+
+---
+
+PRINCÍPIOS VISUAIS APLICADOS POR SLIDE
+
+O usuário escolheu ${designPrinciples.length} princípio(s) de design. Aplique UM princípio específico em cada slide, seguindo a ordem cíclica abaixo (slide N usa o princípio N mod ${designPrinciples.length}):
+
+${designPrinciples.map((id, i) => `Slide ${i + 1}: ${id.toUpperCase()} — ${PRINCIPLE_GUIDE[id] ?? "siga a definição clássica do princípio"}`).join("\n")}
+${N > designPrinciples.length ? `(Slides ${designPrinciples.length + 1} a ${N} repetem ciclicamente os princípios acima.)` : ""}
+
+REGRAS:
+- Escolha \`tipo\`, \`fundo\`, \`elemento_grafico\`/\`elemento_decorativo\`, \`palavra_destaque\` e densidade do texto coerentes com o princípio do slide.
+- Respeite o sistema visual já definido (minimalista ou criativo) — apenas use o tipo/fundo apropriado dentro do sistema.
+- Mantenha a narrativa consistente: o princípio é uma DIRETRIZ VISUAL, não uma mudança de tom de voz.
+` : "";
+
+    const finalSystemPrompt = systemPrompt + minimalistAppendix + creativeAppendix + plannerAppendix + principlesAppendix;
 
     const slideItemProperties: any = {
       title: { type: "string" },
