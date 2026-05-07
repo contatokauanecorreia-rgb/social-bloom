@@ -503,7 +503,10 @@ REGRAS DE ADAPTAÇÃO:
         console.error("[carrossel-generate] parse tool call failed", e);
       }
 
-      slides = (parsed.slides ?? []).slice(0, slideCount).map((s: any) => {
+      slides = (parsed.slides ?? []).slice(0, slideCount).map((s: any, idx: number) => {
+        // Princípio dita o layout — sobrescreve qualquer sistema/tipo/fundo do modelo.
+        const principleId = sequence[idx] ?? sequence[sequence.length - 1];
+        const layout = PRINCIPLE_TO_LAYOUT[principleId];
         const out: SlideOut = {
           title: s.title ?? "",
           subtitle: s.subtitle ?? "",
@@ -512,35 +515,27 @@ REGRAS DE ADAPTAÇÃO:
           imageDataUrl: null,
           alignment: ALINHAMENTO,
         };
-        if (isMinimalist) {
-          out.sistema = "minimalista";
-          if (s.tipo) out.tipo = s.tipo;
-          if (s.fundo) out.fundo = s.fundo;
+        out.sistema = layout.sistema;
+        out.tipo = layout.tipo as any;
+        out.fundo = layout.fundo as any;
+
+        if (layout.sistema === "minimalista") {
           if (typeof s.label === "string") out.label = s.label;
           if (Array.isArray(s.tags)) out.tags = s.tags.filter((x: any) => typeof x === "string");
           if (s.elemento_decorativo) out.elemento_decorativo = s.elemento_decorativo;
-          // Para M4/M5, garantir que imagePrompt = nota_visual quando vier
-          if ((out.tipo === "M4" || out.tipo === "M5") && typeof s.nota_visual === "string" && s.nota_visual.trim()) {
-            out.imagePrompt = s.nota_visual.trim();
-          }
-          // Para M1/M2/M3, NUNCA gerar foto
-          if (out.tipo === "M1" || out.tipo === "M2" || out.tipo === "M3") {
-            out.imagePrompt = "";
-          }
-        }
-        if (isCreative) {
-          out.sistema = "criativo";
-          if (s.tipo) out.tipo = s.tipo;
-          if (s.fundo) out.fundo = s.fundo;
+        } else {
           if (typeof s.palavra_destaque === "string") out.palavra_destaque = s.palavra_destaque;
           if (typeof s.ticker_texto === "string") out.ticker_texto = s.ticker_texto;
           if (s.elemento_grafico) out.elemento_grafico = s.elemento_grafico;
-          if ((out.tipo === "C1" || out.tipo === "C3") && typeof s.nota_visual === "string" && s.nota_visual.trim()) {
+        }
+
+        // Imagem: presente apenas se o princípio pede.
+        if (layout.hasImage) {
+          if (typeof s.nota_visual === "string" && s.nota_visual.trim()) {
             out.imagePrompt = s.nota_visual.trim();
           }
-          if (out.tipo === "C2" || out.tipo === "C4" || out.tipo === "C5") {
-            out.imagePrompt = "";
-          }
+        } else {
+          out.imagePrompt = "";
         }
         return out;
       });
