@@ -633,8 +633,7 @@ REGRAS DE ADAPTAÇÃO:
           archetypeStr ? `Brand archetype: ${archetypeStr}.` : "",
           `Anatomy: anatomically correct hands with exactly five fingers, realistic facial features, natural body proportions, no extra limbs, no distorted faces, no melted or warped features.`,
           `Quality: high optical sharpness, fine detail, natural skin micro texture, realistic photography clarity, professional, 2K resolution.`,
-          isMinimalist ? `Composition: editorial minimalist, generous negative space, off-white or linen tones, calm and refined.` : "",
-          isCreative ? `Composition: bold editorial, high contrast, vibrant accent color, dynamic energy, magazine-grade.` : "",
+          `Composition: editorial, balanced, professional magazine-grade.`,
           `Aspect ratio: vertical 4:5.`,
           `No text, no letters, no captions, no logos, no watermarks anywhere in the image.`,
         ].filter(Boolean);
