@@ -718,6 +718,7 @@ REGRAS DE ADAPTAÇÃO:
           imagesGenerated,
           totalMs,
           designPrinciples: Array.isArray(designPrinciples) ? designPrinciples : null,
+          principlesPerSlide: sequence,
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
