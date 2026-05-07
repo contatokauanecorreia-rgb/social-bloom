@@ -1,3 +1,4 @@
+import * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
@@ -48,6 +49,129 @@ export type CarouselAIWizardProps = {
 
 type ImageMode = "none" | "bg" | "grid" | "mixed";
 
+type GridLayoutId =
+  | "none"
+  | "full-bg"
+  | "half-top"
+  | "half-side"
+  | "grid-2x2"
+  | "grid-3-mosaic"
+  | "strip-3"
+  | "polaroid-mix";
+
+const GRID_LAYOUTS: { id: GridLayoutId; label: string; mode: ImageMode; preview: (color: string) => React.ReactNode }[] = [
+  {
+    id: "none",
+    label: "Sem imagens",
+    mode: "none",
+    preview: () => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="14" y="38" width="52" height="6" rx="1" fill="#1A1A1A" />
+        <rect x="20" y="50" width="40" height="3" rx="1" fill="#9CA3AF" />
+        <rect x="20" y="56" width="40" height="3" rx="1" fill="#9CA3AF" />
+      </svg>
+    ),
+  },
+  {
+    id: "full-bg",
+    label: "Imagem cheia",
+    mode: "bg",
+    preview: (c) => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill={c} />
+        <rect x="14" y="60" width="52" height="6" rx="1" fill="#fff" />
+        <rect x="14" y="70" width="36" height="3" rx="1" fill="#fff" opacity="0.8" />
+      </svg>
+    ),
+  },
+  {
+    id: "half-top",
+    label: "Metade superior",
+    mode: "bg",
+    preview: (c) => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="2" y="2" width="76" height="48" fill={c} />
+        <rect x="14" y="60" width="52" height="6" rx="1" fill="#1A1A1A" />
+        <rect x="14" y="70" width="40" height="3" rx="1" fill="#9CA3AF" />
+      </svg>
+    ),
+  },
+  {
+    id: "half-side",
+    label: "Lado a lado",
+    mode: "bg",
+    preview: (c) => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="2" y="2" width="38" height="96" fill={c} />
+        <rect x="44" y="40" width="30" height="5" rx="1" fill="#1A1A1A" />
+        <rect x="44" y="50" width="24" height="3" rx="1" fill="#9CA3AF" />
+        <rect x="44" y="56" width="24" height="3" rx="1" fill="#9CA3AF" />
+      </svg>
+    ),
+  },
+  {
+    id: "grid-2x2",
+    label: "Grade 2×2",
+    mode: "grid",
+    preview: (c) => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="8" y="8" width="30" height="38" fill={c} />
+        <rect x="42" y="8" width="30" height="38" fill={c} opacity="0.7" />
+        <rect x="8" y="50" width="30" height="38" fill={c} opacity="0.7" />
+        <rect x="42" y="50" width="30" height="38" fill={c} />
+      </svg>
+    ),
+  },
+  {
+    id: "grid-3-mosaic",
+    label: "Mosaico 1+2",
+    mode: "grid",
+    preview: (c) => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="8" y="8" width="42" height="80" fill={c} />
+        <rect x="54" y="8" width="18" height="38" fill={c} opacity="0.7" />
+        <rect x="54" y="50" width="18" height="38" fill={c} opacity="0.7" />
+      </svg>
+    ),
+  },
+  {
+    id: "strip-3",
+    label: "Faixas 3",
+    mode: "grid",
+    preview: (c) => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#fff" stroke="#E5E7EB" />
+        <rect x="8" y="8" width="64" height="24" fill={c} />
+        <rect x="8" y="38" width="64" height="24" fill={c} opacity="0.7" />
+        <rect x="8" y="68" width="64" height="22" fill={c} />
+      </svg>
+    ),
+  },
+  {
+    id: "polaroid-mix",
+    label: "Polaroids",
+    mode: "mixed",
+    preview: (c) => (
+      <svg viewBox="0 0 80 100" className="h-full w-full">
+        <rect x="2" y="2" width="76" height="96" rx="4" fill="#F5F0E8" stroke="#E5E7EB" />
+        <g transform="rotate(-8 26 50)">
+          <rect x="14" y="30" width="28" height="34" fill="#fff" stroke="#D1D5DB" />
+          <rect x="16" y="32" width="24" height="24" fill={c} />
+        </g>
+        <g transform="rotate(6 54 56)">
+          <rect x="40" y="38" width="28" height="34" fill="#fff" stroke="#D1D5DB" />
+          <rect x="42" y="40" width="24" height="24" fill={c} opacity="0.8" />
+        </g>
+      </svg>
+    ),
+  },
+];
+
 const SUGGESTED_PALETTES: { label: string; colors: [string, string, string]; archetypes: string[] }[] = [
   { label: "Sofisticado", colors: ["#1A1714", "#C9A875", "#F5F0E8"], archetypes: ["governante", "sabio", "amante"] },
   { label: "Cuidador", colors: ["#E8B4B8", "#3D3B40", "#F8F1F1"], archetypes: ["cuidador", "inocente"] },
@@ -96,8 +220,10 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
   const [referenceImageDataUrl, setReferenceImageDataUrl] = useState<string | null>(null);
   const [referenceLoading, setReferenceLoading] = useState(false);
   const [slideCount, setSlideCount] = useState(5);
-  const [imageMode, setImageMode] = useState<ImageMode>("bg");
-  const [aiImages, setAiImages] = useState(true);
+  const [gridLayout, setGridLayout] = useState<GridLayoutId>("full-bg");
+  const [gridIndex, setGridIndex] = useState<number>(1);
+  const imageMode: ImageMode = GRID_LAYOUTS.find((g) => g.id === gridLayout)?.mode ?? "bg";
+  const aiImages = gridLayout !== "none";
   const [imageStyle, setImageStyle] = useState("");
 
   // Step 2 - geral
@@ -155,8 +281,8 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         setReferenceImageDataUrl(null);
         setReferenceLoading(false);
         setSlideCount(5);
-        setImageMode("bg");
-        setAiImages(true);
+        setGridLayout("full-bg");
+        setGridIndex(1);
         setImageStyle("");
         setInstagram("");
         setSelectedPaletteIdx(0);
@@ -435,14 +561,13 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
     try {
       // Monta o "topic" enviado ao backend conforme a fonte de conteúdo
       let effectiveTopic = topic.trim();
+      let plannerSource: { posts: { title: string; tags: string[]; notes: string | null }[] } | null = null;
       if (contentSource === "planner") {
         const picked = plannerPosts.filter((p) => selectedPostIds.includes(p.id));
-        effectiveTopic = [
-          "Posts selecionados do Planner:",
-          ...picked.map(
-            (p, i) => `${i + 1}. ${p.title}${p.notes ? ` — ${p.notes}` : ""}`,
-          ),
-        ].join("\n");
+        plannerSource = {
+          posts: picked.map((p) => ({ title: p.title, tags: p.tags, notes: p.notes })),
+        };
+        effectiveTopic = picked.map((p) => p.title).join(" / ") || "Conteúdo do Planner";
       }
 
       const { data, error } = await supabase.functions.invoke("carrossel-generate", {
@@ -458,6 +583,8 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
           textOnly: true,
           referenceImageDataUrl: referenceImageDataUrl ?? null,
           alignment,
+          plannerSource,
+          gridLayout,
         },
       });
 
@@ -518,6 +645,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         fontPair: fontPairForOutput,
         palette,
         imageMode,
+        gridLayout,
         signature: instagram.trim()
           ? {
               enabled: true,
@@ -769,42 +897,82 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
 
               <div>
                 <Label className="text-sm font-medium">Imagens no carrossel</Label>
-                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {(
-                    [
-                      ["none", "Sem imagens"],
-                      ["bg", "Só fundo"],
-                      ["grid", "Só grade"],
-                      ["mixed", "Intercalar"],
-                    ] as [ImageMode, string][]
-                  ).map(([k, label]) => (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => setImageMode(k)}
-                      className={cn(
-                        "rounded-lg border bg-background p-3 text-xs font-medium transition",
-                        imageMode === k
-                          ? "border-primary bg-primary/5 text-primary"
-                          : "hover:border-primary/40",
-                      )}
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Escolha como as imagens vão aparecer dentro dos slides.
+                </p>
+                <div className="mt-3 flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 rounded-full"
+                    onClick={() => {
+                      const next = (gridIndex - 1 + GRID_LAYOUTS.length) % GRID_LAYOUTS.length;
+                      setGridIndex(next);
+                      setGridLayout(GRID_LAYOUTS[next].id);
+                    }}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div className="flex-1 overflow-hidden">
+                    <div
+                      className="flex gap-3 transition-transform duration-300"
+                      style={{ transform: `translateX(calc(50% - ${gridIndex * 116 + 50}px))` }}
                     >
-                      {label}
-                    </button>
+                      {GRID_LAYOUTS.map((g, i) => {
+                        const active = i === gridIndex;
+                        return (
+                          <button
+                            key={g.id}
+                            type="button"
+                            onClick={() => {
+                              setGridIndex(i);
+                              setGridLayout(g.id);
+                            }}
+                            className={cn(
+                              "shrink-0 rounded-lg border-2 bg-background p-1.5 transition",
+                              active
+                                ? "border-primary scale-105 shadow-md"
+                                : "border-border opacity-60 hover:opacity-100",
+                            )}
+                            style={{ width: 100 }}
+                          >
+                            <div className="aspect-[4/5] overflow-hidden rounded">
+                              {g.preview(palette[0])}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0 rounded-full"
+                    onClick={() => {
+                      const next = (gridIndex + 1) % GRID_LAYOUTS.length;
+                      setGridIndex(next);
+                      setGridLayout(GRID_LAYOUTS[next].id);
+                    }}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="mt-2 flex items-center justify-center gap-1.5">
+                  {GRID_LAYOUTS.map((_, i) => (
+                    <span
+                      key={i}
+                      className={cn(
+                        "h-1.5 rounded-full transition-all",
+                        i === gridIndex ? "w-4 bg-primary" : "w-1.5 bg-border",
+                      )}
+                    />
                   ))}
                 </div>
-              </div>
-
-              <div className="rounded-lg border bg-muted/30 p-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <Label className="text-sm font-medium">Gerar imagens com IA (FLUX.2 [klein])</Label>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Gera imagens automáticas para cada slide usando FLUX.2 [klein].
-                    </p>
-                  </div>
-                  <Switch checked={aiImages} onCheckedChange={setAiImages} disabled={imageMode === "none"} />
-                </div>
+                <p className="mt-2 text-center text-xs font-medium">
+                  {GRID_LAYOUTS[gridIndex].label}
+                </p>
               </div>
 
               {/* SEÇÃO 4 — Estilo das imagens */}

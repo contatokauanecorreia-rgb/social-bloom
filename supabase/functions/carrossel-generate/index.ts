@@ -26,6 +26,10 @@ type Body = {
   textOnly?: boolean;
   referenceImageDataUrl?: string | null;
   alignment?: "left" | "center" | "right";
+  plannerSource?: {
+    posts: { title: string; tags: string[]; notes: string | null }[];
+  } | null;
+  gridLayout?: string | null;
 };
 
 const ARCHETYPE_TONE: Record<string, string> = {
@@ -125,7 +129,7 @@ Deno.serve(async (req) => {
   let slideCountForFallback = 5;
   try {
     const body = (await req.json()) as Body;
-    const { clientId, topic, imageMode, aiImages, instagram, textOnly, referenceImageDataUrl } = body;
+    const { clientId, topic, imageMode, aiImages, instagram, textOnly, referenceImageDataUrl, plannerSource } = body;
     const slideCount = Math.max(1, Math.min(10, Number(body.slideCount) || 5));
     topicForFallback = topic ?? "";
     slideCountForFallback = slideCount;
@@ -412,7 +416,36 @@ CAMPOS EXTRAS NA TOOL (obrigatórios em modo criativo):
 
 Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`imagePrompt\` recebe a \`nota_visual\` em inglês.` : "";
 
-    const finalSystemPrompt = systemPrompt + minimalistAppendix + creativeAppendix;
+    const plannerAppendix = plannerSource && Array.isArray(plannerSource.posts) && plannerSource.posts.length ? `
+
+---
+
+ADAPTAÇÃO DO PLANNER COM PRINCÍPIOS DE DESIGN DE CONTEÚDO
+
+A fonte do conteúdo são posts JÁ planejados pelo usuário no Planner (listados na mensagem do usuário). Trate-os como BRIEFING BRUTO, não como texto final. Reescreva e reorganize em ${N} slides aplicando os 12 princípios do Design de Conteúdo:
+
+1. ESPAÇO BRANCO — cada slide precisa de respiro; nunca encha o quadro de texto.
+2. CONTRASTE — peso visual entre título e corpo; uma ideia se destaca, as outras servem de suporte.
+3. PROPORÇÃO — um elemento sempre dominante; outros menores.
+4. HIERARQUIA — escolha CLARA de o que se lê primeiro, segundo, último (use tamanhos diferentes via título/subtítulo/corpo).
+5. ÊNFASE — cada slide tem 1 elemento mais relevante (use \`palavra_destaque\` no criativo, asteriscos *palavra* no minimalista).
+6. EQUILÍBRIO — pesos visuais semelhantes não competem; distribua bem.
+7. ALINHAMENTO — sempre à esquerda OU centro, conforme \`alignment\`. Nunca misturar.
+8. HARMONIA — mesma família de tom, label e decoração ao longo do carrossel.
+9. MARGENS — respeite limites; texto nunca encosta nas bordas.
+10. DIRECIONAMENTO — guie a leitura em Z, L ou linha reta. Slide 1 abre, slide N fecha.
+11. VARIEDADE — alterne tipos de slide (M1↔M2↔M4 ou C1↔C2↔C3) para criar interesse.
+12. RITMO — alterne slides DENSOS (mais texto) e LEVES (frase curta). Nunca 3 slides densos seguidos.
+
+REGRAS DE ADAPTAÇÃO:
+- Não copie o título do post como título do slide. Extraia a IDEIA CENTRAL e reescreva.
+- Se vários posts foram selecionados, costure-os em uma narrativa única.
+- Mantenha tom de voz, palavras obrigatórias e proibidas do briefing.
+- Respeite os limites de caracteres (369 sem título, 422 com título).
+- Continue usando o sistema visual já detectado (minimalista/criativo) e seus tipos de slide.
+` : "";
+
+    const finalSystemPrompt = systemPrompt + minimalistAppendix + creativeAppendix + plannerAppendix;
 
     const slideItemProperties: any = {
       title: { type: "string" },
@@ -471,12 +504,19 @@ Para C2/C4/C5, \`imagePrompt\` deve ser string vazia (sem foto). Para C1/C3, \`i
       },
     ];
 
+    const plannerBlock = plannerSource && plannerSource.posts?.length
+      ? "\n\nPOSTS DO PLANNER (matéria-prima — adapte com os 12 princípios de design):\n" +
+        plannerSource.posts
+          .map((p, i) => `${i + 1}. Título: ${p.title}${p.tags?.length ? ` | tags: ${p.tags.join(", ")}` : ""}${p.notes ? `\n   Notas: ${p.notes}` : ""}`)
+          .join("\n")
+      : "";
+
     const userContent: any = referenceImageDataUrl
       ? [
-          { type: "text", text: `Tema/contexto: ${topic.trim()}` },
+          { type: "text", text: `Tema/contexto: ${topic.trim()}${plannerBlock}` },
           { type: "image_url", image_url: { url: referenceImageDataUrl } },
         ]
-      : `Tema/contexto: ${topic.trim()}`;
+      : `Tema/contexto: ${topic.trim()}${plannerBlock}`;
 
     const aiResp = await callAI(
       {
