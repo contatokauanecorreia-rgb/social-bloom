@@ -353,8 +353,6 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
   const [selectedPaletteIdx, setSelectedPaletteIdx] = useState<number>(0);
   const [useDnaPalette, setUseDnaPalette] = useState(true);
 
-  // Alinhamento global dos textos (sistema minimalista usa também)
-  const [alignment, setAlignment] = useState<"left" | "center" | "right">("center");
 
   // Fontes
   const [catalog, setCatalog] = useState<GoogleFontItem[] | null>(null);
@@ -394,7 +392,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         setImageStyle("");
         setInstagram("");
         setSelectedPaletteIdx(0);
-        setAlignment("center");
+        
         setProgress(0);
         setSelected(null);
         setCustomPairs([]);
@@ -697,7 +695,6 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
           instagram: instagram.trim() || null,
           textOnly: true,
           referenceImageDataUrl: referenceImageDataUrl ?? null,
-          alignment,
           plannerSource,
           designPrinciples: selectedPrinciples,
         },
@@ -724,7 +721,6 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         palavra_destaque?: string;
         ticker_texto?: string;
         elemento_grafico?: "circulo" | "seta-curva" | "ticker" | "seta-vertical" | "toggle";
-        alignment?: "left" | "center" | "right";
       }>;
 
       // Jobs de imagem (geradas em background no editor).
@@ -1367,34 +1363,6 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
                   ))}
               </div>
 
-              {/* ALINHAMENTO */}
-              <div>
-                <Label className="text-sm font-medium">Alinhamento dos textos</Label>
-                <div className="mt-2 grid grid-cols-3 gap-2">
-                  {([
-                    { v: "left", label: "Esquerda" },
-                    { v: "center", label: "Centro" },
-                    { v: "right", label: "Direita" },
-                  ] as const).map((opt) => (
-                    <button
-                      key={opt.v}
-                      type="button"
-                      onClick={() => setAlignment(opt.v)}
-                      className={cn(
-                        "rounded-lg border px-3 py-2 text-sm transition",
-                        alignment === opt.v
-                          ? "border-primary bg-primary/5 text-foreground"
-                          : "border-border bg-background text-muted-foreground hover:border-primary/40",
-                      )}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Aplicado a todos os slides. Em marcas com DNA elegante/sofisticado, ativa também o sistema visual minimalista.
-                </p>
-              </div>
             </div>
             </div>
 
