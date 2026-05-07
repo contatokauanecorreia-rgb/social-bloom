@@ -98,6 +98,7 @@ type Slide = {
   tickerText?: string;
   graphic?: "circulo" | "seta-curva" | "ticker" | "seta-vertical" | "toggle";
   accentColor?: string;
+  imageFrame?: "full" | "top-60" | "half-left" | "half-right" | "centered-square" | "bottom-third" | null;
 };
 
 type BriefingDNA = {
@@ -179,6 +180,7 @@ function CarrosselEditorPage() {
       sistema?: "minimalista" | "criativo";
       tipo?: "M1" | "M2" | "M3" | "M4" | "M5" | "C1" | "C2" | "C3" | "C4" | "C5";
       fundo?: "off-white" | "bege-texturizado" | "foto" | "branco";
+      imageFrame?: "full" | "top-60" | "half-left" | "half-right" | "centered-square" | "bottom-third" | null;
       label?: string;
       tags?: string[];
       elemento_decorativo?: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum";
@@ -247,9 +249,13 @@ function CarrosselEditorPage() {
           subtitle: s.subtitle ?? "",
           body: s.body ?? "",
         };
-        // Só aplica bgImage se o princípio pede foto. Princípios com fundo
-        // off-white / bege-texturizado / branco não devem receber imagem.
-        if (s.imageDataUrl && s.fundo === "foto") slide.bgImage = s.imageDataUrl;
+        // Aplica bgImage se o slide tem foto (fundo === "foto") OU
+        // tem um frame definido (top-60, half-left, etc.) — assim a imagem
+        // pode aparecer como zona dentro de um fundo sólido.
+        const frame = (s.imageFrame ?? null) as Slide["imageFrame"];
+        slide.imageFrame = frame;
+        const hasFramedImage = frame !== null;
+        if (s.imageDataUrl && (s.fundo === "foto" || hasFramedImage)) slide.bgImage = s.imageDataUrl;
         if (sigBase) slide.signature = { ...sigBase };
 
         // Alinhamento global escolhido no wizard
@@ -260,6 +266,9 @@ function CarrosselEditorPage() {
           slide.textAlign = { title: align, subtitle: align, body: align };
         }
 
+        // Texto sobre imagem só quando o frame ocupa toda a área (full).
+        const textOverImage = frame === "full";
+
         // Sistema minimalista
         if (s.sistema === "minimalista") {
           slide.system = "minimalista";
@@ -269,9 +278,7 @@ function CarrosselEditorPage() {
           slide.tags = Array.isArray(s.tags) ? s.tags : undefined;
           slide.decor = s.elemento_decorativo;
 
-          // Cores neutras + tipografia para minimalista (M1/M2/M3 sem foto)
-          const isPhoto = s.fundo === "foto";
-          if (isPhoto) {
+          if (textOverImage) {
             slide.textColor = { title: "#FFFFFF", subtitle: "#F5F5F5", body: "#F5F5F5" };
             slide.overlay = { enabled: true, intensity: 30, type: "dark" };
           } else {
@@ -288,23 +295,18 @@ function CarrosselEditorPage() {
           slide.accentColor = palette?.[0] ?? DEFAULT_PALETTE[0];
 
           const accent = slide.accentColor!;
-          const isPhoto = s.fundo === "foto";
-          if (isPhoto) {
-            // C1: sem overlay; C3: overlay leve
+          if (textOverImage) {
             slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
             slide.overlay = s.tipo === "C1"
               ? { enabled: false, intensity: 0, type: "dark" }
               : { enabled: true, intensity: 25, type: "dark" };
           } else if (s.tipo === "C2") {
-            // título na cor de destaque, subtítulo preto
             slide.textColor = { title: accent, subtitle: "#0A0A0A", body: "#1A1A1A" };
             slide.overlay = { enabled: false, intensity: 0, type: "dark" };
           } else if (s.tipo === "C5") {
-            // todo texto na cor de destaque
             slide.textColor = { title: accent, subtitle: accent, body: accent };
             slide.overlay = { enabled: false, intensity: 0, type: "dark" };
           } else {
-            // C4 e fallbacks: preto sobre off-white
             slide.textColor = { title: "#0A0A0A", subtitle: "#1A1A1A", body: "#1A1A1A" };
             slide.overlay = { enabled: false, intensity: 0, type: "dark" };
           }
@@ -414,13 +416,20 @@ function CarrosselEditorPage() {
               if (job.slideIndex < 0 || job.slideIndex >= prev.length) return prev;
               return prev.map((s, idx) => {
                 if (idx !== job.slideIndex) return s;
-                // Defesa: só aplica foto se o slide foi marcado como bgKind "foto".
-                if (s.bgKind && s.bgKind !== "foto") return s;
+                // Defesa: aplica imagem se o slide tem bgKind "foto" OU
+                // se o slide tem um imageFrame definido (zona dentro do slide).
+                const allowed = s.bgKind === "foto" || (s.imageFrame ?? null) !== null;
+                if (!allowed) return s;
+                const isFull = s.bgKind === "foto" && (s.imageFrame ?? "full") === "full";
                 return {
                   ...s,
                   bgImage: url,
-                  textColor: { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" },
-                  overlay: { ...s.overlay, enabled: true, intensity: 40, type: "dark" },
+                  textColor: isFull
+                    ? { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" }
+                    : s.textColor,
+                  overlay: isFull
+                    ? { ...s.overlay, enabled: true, intensity: 40, type: "dark" }
+                    : s.overlay,
                 };
               });
             });
@@ -1536,7 +1545,7 @@ function SlideContent({
       })()
     : isCreative
     ? (() => {
-        if (slide.bgKind === "foto") return { backgroundColor: "#0A0A0A" };
+        if (slide.bgKind === "foto") return { backgroundColor: (slide.imageFrame ?? "full") === "full" ? "#0A0A0A" : "#F5F0E8" };
         if (slide.bgKind === "branco") return { backgroundColor: "#FFFFFF" };
         // off-white texturizado leve
         return {
@@ -1637,24 +1646,51 @@ function SlideContent({
         ...dotBg,
       }}
     >
-      {slide.bgImage && (
-        <img
-          src={slide.bgImage}
-          alt=""
-          crossOrigin="anonymous"
-          style={{
-            position: "absolute",
-            inset: 0,
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            objectPosition: `${slide.bgPos.x * 100}% ${slide.bgPos.y * 100}%`,
-            transform: `scale(${slide.bgZoom})`,
-            transformOrigin: `${slide.bgPos.x * 100}% ${slide.bgPos.y * 100}%`,
-          }}
-        />
-      )}
-      <div style={{ position: "absolute", inset: 0, background: overlayBg }} />
+      {slide.bgImage && (() => {
+        const frame = slide.imageFrame ?? "full";
+        const frameStyle: React.CSSProperties = (() => {
+          switch (frame) {
+            case "top-60":
+              return { top: 0, left: 0, right: 0, height: "60%" };
+            case "half-left":
+              return { top: 0, left: 0, bottom: 0, width: "50%" };
+            case "half-right":
+              return { top: 0, right: 0, bottom: 0, width: "50%" };
+            case "centered-square": {
+              const m = format.w * 0.08;
+              const size = format.w - m * 2;
+              return { top: m, left: m, width: size, height: size };
+            }
+            case "bottom-third":
+              return { left: 0, right: 0, bottom: 0, height: "33%" };
+            case "full":
+            default:
+              return { inset: 0 };
+          }
+        })();
+        return (
+          <div style={{ position: "absolute", overflow: "hidden", ...frameStyle }}>
+            <img
+              src={slide.bgImage}
+              alt=""
+              crossOrigin="anonymous"
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                objectPosition: `${slide.bgPos.x * 100}% ${slide.bgPos.y * 100}%`,
+                transform: `scale(${slide.bgZoom})`,
+                transformOrigin: `${slide.bgPos.x * 100}% ${slide.bgPos.y * 100}%`,
+              }}
+            />
+            {frame === "full" && (
+              <div style={{ position: "absolute", inset: 0, background: overlayBg }} />
+            )}
+          </div>
+        );
+      })()}
       {slide.grid.enabled && (
         <div
           style={{
@@ -1894,21 +1930,32 @@ function SlideContent({
           ));
         };
 
+        // Ajuste do bloco de texto conforme zona da imagem.
+        const frame = slide.imageFrame ?? null;
+        const frameInsets: { left?: number; right?: number; top?: number; bottom?: number } = {};
+        if (frame === "half-left") frameInsets.left = format.w * 0.52;
+        else if (frame === "half-right") frameInsets.right = format.w * 0.52;
+        else if (frame === "top-60") frameInsets.top = format.h * 0.62;
+        else if (frame === "bottom-third") frameInsets.bottom = format.h * 0.36;
+        else if (frame === "centered-square") frameInsets.top = format.w * 0.92;
+
         const containerStyle: React.CSSProperties = anchorBottom
           ? {
               position: "absolute",
-              left: sidePad,
-              right: sidePad,
-              bottom: bottomPad,
+              left: frameInsets.left ?? sidePad,
+              right: frameInsets.right ?? sidePad,
+              bottom: frameInsets.bottom ?? bottomPad,
+              top: frameInsets.top,
               display: "flex",
               flexDirection: "column",
+              justifyContent: frameInsets.top ? "flex-start" : "flex-end",
               alignItems: blockAlignItems,
               userSelect: editable ? "text" : "none",
             }
           : {
               position: "absolute",
-              left: sidePad,
-              right: sidePad,
+              left: frameInsets.left ?? sidePad,
+              right: frameInsets.right ?? sidePad,
               top: `${(slide.textPos?.y ?? 0.5) * 100}%`,
               transform: "translateY(-50%)",
               display: "flex",
