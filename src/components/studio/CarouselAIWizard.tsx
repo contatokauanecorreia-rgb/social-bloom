@@ -580,7 +580,14 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
   };
 
   const canContinueStep1 =
-    contentSource === "ai" ? topic.trim().length > 0 : selectedPostIds.length > 0;
+    (contentSource === "ai" ? topic.trim().length > 0 : selectedPostIds.length > 0) &&
+    selectedPrinciples.length >= 3;
+
+  // Trunca princípios se o usuário reduzir slideCount abaixo do total selecionado.
+  useEffect(() => {
+    const max = Math.min(slideCount, 10);
+    setSelectedPrinciples((arr) => (arr.length > max ? arr.slice(0, max) : arr));
+  }, [slideCount]);
 
   const palette = useMemo<[string, string, string]>(() => {
     if (useDnaPalette && dna.palette) return dna.palette;
