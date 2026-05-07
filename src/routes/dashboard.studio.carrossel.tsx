@@ -247,7 +247,9 @@ function CarrosselEditorPage() {
           subtitle: s.subtitle ?? "",
           body: s.body ?? "",
         };
-        if (s.imageDataUrl) slide.bgImage = s.imageDataUrl;
+        // Só aplica bgImage se o princípio pede foto. Princípios com fundo
+        // off-white / bege-texturizado / branco não devem receber imagem.
+        if (s.imageDataUrl && s.fundo === "foto") slide.bgImage = s.imageDataUrl;
         if (sigBase) slide.signature = { ...sigBase };
 
         // Alinhamento global escolhido no wizard
@@ -268,8 +270,8 @@ function CarrosselEditorPage() {
           slide.decor = s.elemento_decorativo;
 
           // Cores neutras + tipografia para minimalista (M1/M2/M3 sem foto)
-          const isPhoto = s.tipo === "M4" || s.tipo === "M5";
-          if (isPhoto && s.imageDataUrl) {
+          const isPhoto = s.fundo === "foto";
+          if (isPhoto) {
             slide.textColor = { title: "#FFFFFF", subtitle: "#F5F5F5", body: "#F5F5F5" };
             slide.overlay = { enabled: true, intensity: 30, type: "dark" };
           } else {
@@ -286,8 +288,8 @@ function CarrosselEditorPage() {
           slide.accentColor = palette?.[0] ?? DEFAULT_PALETTE[0];
 
           const accent = slide.accentColor!;
-          const isPhoto = s.tipo === "C1" || s.tipo === "C3";
-          if (isPhoto && s.imageDataUrl) {
+          const isPhoto = s.fundo === "foto";
+          if (isPhoto) {
             // C1: sem overlay; C3: overlay leve
             slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
             slide.overlay = s.tipo === "C1"
@@ -412,6 +414,8 @@ function CarrosselEditorPage() {
               if (job.slideIndex < 0 || job.slideIndex >= prev.length) return prev;
               return prev.map((s, idx) => {
                 if (idx !== job.slideIndex) return s;
+                // Defesa: só aplica foto se o slide foi marcado como bgKind "foto".
+                if (s.bgKind && s.bgKind !== "foto") return s;
                 return {
                   ...s,
                   bgImage: url,
@@ -1518,7 +1522,7 @@ function SlideContent({
   const accent = slide.accentColor ?? dna.palette[0];
   const dotBg: React.CSSProperties = isMinimal
     ? (() => {
-        if (slide.bgKind === "foto" || slide.bgImage) return { backgroundColor: "#F5F0E8" };
+        if (slide.bgKind === "foto") return { backgroundColor: "#F5F0E8" };
         if (slide.bgKind === "bege-texturizado") {
           return {
             backgroundColor: "#EDE5D6",
@@ -1532,7 +1536,7 @@ function SlideContent({
       })()
     : isCreative
     ? (() => {
-        if (slide.bgKind === "foto" || slide.bgImage) return { backgroundColor: "#0A0A0A" };
+        if (slide.bgKind === "foto") return { backgroundColor: "#0A0A0A" };
         if (slide.bgKind === "branco") return { backgroundColor: "#FFFFFF" };
         // off-white texturizado leve
         return {
