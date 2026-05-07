@@ -981,20 +981,16 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
                 <p className="mt-1 text-xs text-muted-foreground">
                   Selecione de 3 a {Math.min(slideCount, 10)} princípios — cada slide será gerado seguindo um deles.
                 </p>
-                <div className="mt-3 flex items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="shrink-0 rounded-full"
-                    onClick={() => principleScrollRef.current?.scrollBy({ left: -240, behavior: "smooth" })}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
+                <div className="relative mt-3">
                   <div
                     ref={principleScrollRef}
-                    className="flex flex-1 gap-3 overflow-x-auto scroll-smooth pb-1"
-                    style={{ scrollbarWidth: "none" }}
+                    onScroll={(e) => {
+                      const el = e.currentTarget;
+                      setCanScrollLeft(el.scrollLeft > 4);
+                      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+                    }}
+                    className="flex gap-3 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden"
+                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
                   >
                     {DESIGN_PRINCIPLES.map((p) => {
                       const active = selectedPrinciples.includes(p.id);
@@ -1021,7 +1017,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
                               : "border-border hover:border-primary/50",
                             atCap && "opacity-40 cursor-not-allowed",
                           )}
-                          style={{ width: 100 }}
+                          style={{ width: "calc((100% - 48px) / 5)" }}
                         >
                           <div className="aspect-[4/5] overflow-hidden rounded">
                             {p.preview()}
@@ -1038,15 +1034,26 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
                       );
                     })}
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    className="shrink-0 rounded-full"
-                    onClick={() => principleScrollRef.current?.scrollBy({ left: 240, behavior: "smooth" })}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
+                  {canScrollLeft && (
+                    <button
+                      type="button"
+                      aria-label="Rolar para a esquerda"
+                      {...holdScrollHandlers(-1)}
+                      className="absolute left-1 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/95 shadow-md transition hover:bg-background"
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </button>
+                  )}
+                  {canScrollRight && (
+                    <button
+                      type="button"
+                      aria-label="Rolar para a direita"
+                      {...holdScrollHandlers(1)}
+                      className="absolute right-1 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/95 shadow-md transition hover:bg-background"
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
                 <p
                   className={cn(
