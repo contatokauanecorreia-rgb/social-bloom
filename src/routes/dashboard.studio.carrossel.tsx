@@ -288,8 +288,8 @@ function CarrosselEditorPage() {
           slide.accentColor = palette?.[0] ?? DEFAULT_PALETTE[0];
 
           const accent = slide.accentColor!;
-          const isPhoto = s.tipo === "C1" || s.tipo === "C3";
-          if (isPhoto && s.imageDataUrl) {
+          const isPhoto = s.fundo === "foto";
+          if (isPhoto) {
             // C1: sem overlay; C3: overlay leve
             slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
             slide.overlay = s.tipo === "C1"
