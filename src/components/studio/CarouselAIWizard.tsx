@@ -356,8 +356,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         setReferenceImageDataUrl(null);
         setReferenceLoading(false);
         setSlideCount(5);
-        setGridLayout("full-bg");
-        setGridIndex(1);
+        setSelectedPrinciples(DEFAULT_PRINCIPLES);
         setImageStyle("");
         setInstagram("");
         setSelectedPaletteIdx(0);
