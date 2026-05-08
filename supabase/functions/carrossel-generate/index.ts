@@ -454,7 +454,7 @@ REGRAS DE ADAPTAÇÃO:
     ];
 
     const plannerBlock = plannerSource && plannerSource.posts?.length
-      ? "\n\nPOSTS DO PLANNER (matéria-prima — adapte com os 12 princípios de design):\n" +
+      ? "\n\nPOSTS DO PLANNER (matéria-prima — reescreva e distribua nos slides):\n" +
         plannerSource.posts
           .map((p, i) => `${i + 1}. Título: ${p.title}${p.tags?.length ? ` | tags: ${p.tags.join(", ")}` : ""}${p.notes ? `\n   Notas: ${p.notes}` : ""}`)
           .join("\n")
