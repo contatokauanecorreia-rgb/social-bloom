@@ -205,46 +205,85 @@ Deno.serve(async (req) => {
       ? "imagem de referência anexada na mensagem do usuário — observe paleta, tipografia, layout, densidade de texto e estilo visual"
       : "nenhuma";
     const ESTILO_IMAGENS = "editorial, instagram feed aesthetic, soft natural lighting, vertical 4:5";
-    const ALINHAMENTO = (body.alignment === "left" || body.alignment === "right" || body.alignment === "center")
-      ? body.alignment
-      : "center";
+    const ALINHAMENTO: "left" | "center" =
+      textAlign === "left" || textAlign === "center"
+        ? textAlign
+        : body.alignment === "left"
+          ? "left"
+          : "center";
 
-    // ---- Princípios de design unificam a geração ----
-    // Não há mais detecção por DNA. Os princípios escolhidos pelo usuário
-    // mapeiam diretamente para um TIPO de slide (M*/C*) que o renderer já
-    // suporta. Sempre ativamos AMBOS os sistemas no schema da tool para que
-    // o modelo possa devolver qualquer combinação por slide.
+    // Tipos de fundo escolhidos pelo usuário (sempre pelo menos 1)
+    const validBgKinds: Array<"foto" | "texto"> =
+      Array.isArray(bgKinds) && bgKinds.length
+        ? (bgKinds.filter((k) => k === "foto" || k === "texto") as Array<"foto" | "texto">)
+        : ["texto"];
+    if (validBgKinds.length === 0) validBgKinds.push("texto");
+
+    console.log("[carrossel-generate] simple-mode", { textAlign: ALINHAMENTO, bgKinds: validBgKinds });
+
     const isMinimalist = true;
     const isCreative = true;
-    console.log("[carrossel-generate] principles-driven", { alignment: ALINHAMENTO, principles: designPrinciples });
 
     const COR_DESTAQUE = Array.isArray(briefing?.palette) && briefing!.palette.length
       ? briefing!.palette[0]
       : "#FF5A1F";
 
-    // Mapa: princípio → { sistema, tipo, fundo, descrição do layout }.
-    // Cada card mostrado ao usuário no Wizard equivale a UM destes presets.
-    // - preto = imagem; cinza escuro = título; cinza claro = corpo.
-    type ImageFrame = "full" | "top-60" | "half-left" | "half-right" | "centered-square" | "bottom-third" | null;
-    const PRINCIPLE_TO_LAYOUT: Record<string, { sistema: "minimalista" | "criativo"; tipo: string; fundo: string; hasImage: boolean; imageFrame: ImageFrame; layout: string }> = {
-      "espaco-branco":   { sistema: "minimalista", tipo: "M3", fundo: "off-white",        hasImage: false, imageFrame: null,              layout: "fundo limpo, MUITO respiro, título curto centralizado e corpo bem curto. Texto ocupa no máximo 35% do slide." },
-      "contraste":       { sistema: "minimalista", tipo: "M4", fundo: "foto",             hasImage: true,  imageFrame: "top-60",          layout: "foto editorial dominando ~60% do topo, texto curto escuro na metade inferior sobre o fundo claro." },
-      "proporcao":       { sistema: "criativo",    tipo: "C2", fundo: "off-white",        hasImage: false, imageFrame: null,              layout: "DOIS títulos enormes empilhados (cada um 1 linha curta), corpo bem pequeno depois. Sem foto." },
-      "hierarquia":      { sistema: "minimalista", tipo: "M2", fundo: "bege-texturizado", hasImage: false, imageFrame: null,              layout: "três níveis claros: título grande, subtítulo médio, corpo pequeno. Tudo empilhado e alinhado à esquerda." },
-      "enfase":          { sistema: "criativo",    tipo: "C4", fundo: "off-white",        hasImage: false, imageFrame: null,              layout: "uma palavra do título recebe destaque (palavra_destaque). Subtítulo curto deslocado, corpo médio. Sem foto." },
-      "equilibrio":      { sistema: "minimalista", tipo: "M4", fundo: "off-white",        hasImage: true,  imageFrame: "half-left",       layout: "duas zonas equilibradas: imagem na metade esquerda, texto na metade direita sobre fundo claro." },
-      "alinhamento":     { sistema: "minimalista", tipo: "M1", fundo: "off-white",        hasImage: false, imageFrame: null,              layout: "tipografia pura. TUDO rigidamente alinhado (esquerda ou centro). Sem foto, sem decoração." },
-      "harmonia":        { sistema: "minimalista", tipo: "M4", fundo: "bege-texturizado", hasImage: true,  imageFrame: "centered-square", layout: "quadrado fotográfico centralizado com margens generosas mostrando o fundo bege. Texto curto abaixo." },
-      "margens":         { sistema: "minimalista", tipo: "M3", fundo: "off-white",        hasImage: false, imageFrame: null,              layout: "moldura ampla. Conteúdo concentrado no centro com bastante respiro nas bordas." },
-      "direcionamento":  { sistema: "criativo",    tipo: "C3", fundo: "off-white",        hasImage: true,  imageFrame: "bottom-third",    layout: "foto na faixa inferior (~33%) com ticker horizontal sobreposto. Texto no topo." },
-      "variedade":       { sistema: "criativo",    tipo: "C3", fundo: "off-white",        hasImage: true,  imageFrame: "top-60",          layout: "mosaico visual: foto no topo + ticker + título dominante embaixo." },
-      "ritmo":           { sistema: "criativo",    tipo: "C1", fundo: "foto",             hasImage: true,  imageFrame: "full",            layout: "alternância densa/leve. Foto editorial dominando o slide inteiro, título gigante sobreposto." },
+    type ImageFrame = "full" | null;
+    type LayoutPreset = {
+      sistema: "minimalista" | "criativo";
+      tipo: string;
+      fundo: "off-white" | "bege-texturizado" | "foto" | "branco";
+      hasImage: boolean;
+      imageFrame: ImageFrame;
+      layout: string;
     };
 
-    const principlesList = Array.isArray(designPrinciples) && designPrinciples.length
-      ? designPrinciples.filter((id) => PRINCIPLE_TO_LAYOUT[id])
-      : ["espaco-branco", "contraste", "hierarquia"];
-    const sequence: string[] = Array.from({ length: slideCount }, (_, i) => principlesList[i % principlesList.length]);
+    // Matriz 2x2: textAlign x bgKind
+    const PRESETS: Record<string, LayoutPreset> = {
+      "texto-left": {
+        sistema: "minimalista",
+        tipo: "M2",
+        fundo: "off-white",
+        hasImage: false,
+        imageFrame: null,
+        layout:
+          "tipografia limpa, fundo off-white, TUDO alinhado à esquerda com padding generoso. Hierarquia clara: título grande, subtítulo médio, corpo pequeno. Sem foto.",
+      },
+      "texto-center": {
+        sistema: "minimalista",
+        tipo: "M3",
+        fundo: "off-white",
+        hasImage: false,
+        imageFrame: null,
+        layout:
+          "fundo off-white, tudo centralizado horizontalmente, MUITO respiro nas bordas. Texto curto e direto. Sem foto.",
+      },
+      "foto-left": {
+        sistema: "criativo",
+        tipo: "C1",
+        fundo: "foto",
+        hasImage: true,
+        imageFrame: "full",
+        layout:
+          "foto editorial cobrindo o slide inteiro, texto branco encostado no canto inferior esquerdo, alinhado à esquerda, com overlay escuro suave para contraste.",
+      },
+      "foto-center": {
+        sistema: "criativo",
+        tipo: "C1",
+        fundo: "foto",
+        hasImage: true,
+        imageFrame: "full",
+        layout:
+          "foto editorial cobrindo o slide inteiro, título grande centralizado horizontalmente sobre overlay escuro suave, texto branco.",
+      },
+    };
+
+    // Sequência de presets cobrindo N slides, alternando fundos escolhidos
+    // mas sempre com o alinhamento global escolhido.
+    const sequence: string[] = Array.from({ length: slideCount }, (_, i) => {
+      const kind = validBgKinds[i % validBgKinds.length];
+      return `${kind}-${ALINHAMENTO}`;
+    });
 
     const systemPrompt = `Você é um Consultor Criativo Estratégico e Especialista em Copywriting de Alta Conversão para Instagram.
 
@@ -279,93 +318,70 @@ Etapa 1 — Análise estratégica: Antes de escrever qualquer slide, analise:
 - Qual a dor real e oculta do público ${PUBLICO} sobre esse tema?
 - Qual o gancho mais forte para parar o scroll?
 - Como o arquétipo ${ARQUETIPO} e o tom ${TOM_VOZ} moldam o tratamento do tema?
-- Se há referência visual, como o estilo dela influencia a narrativa?
 Use essa análise para criar conteúdo superior. Nunca a revele.
 
 Etapa 2 — Execução dos slides:
 
-Slide 1 — Hook de retenção extrema: Máximo 7 palavras no título. Deve gerar curiosidade intensa, identificação imediata ou polêmica controlada. Nenhum slide 1 fraco é aceito.
-
-Slides 2 até ${N - 1} — Desenvolvimento estratégico: Siga essa progressão narrativa:
-- Dor real e tensão (o problema que o público vive)
-- Agitação (por que isso é pior do que parece)
-- Padrão de mercado (o que todo mundo faz de errado)
-- Curiosidade e insight (o que poucos sabem)
-- Solução e virada (o caminho real)
-1 ideia central por slide. Texto contínuo — sem bullet points, sem listas, sem emojis, sem hífens.
-
-Slide ${N - 1} — Pré-CTA: Consolide o insight principal. Prepare emocionalmente para a ação.
-
-Slide ${N} — CTA de ativação: CTA clara alinhada ao objetivo ${OBJETIVO}. Natural, sem soar forçado. Deve gerar ação imediata.
+Slide 1 — Hook de retenção extrema: Máximo 7 palavras no título.
+Slides 2 até ${N - 1} — Desenvolvimento estratégico: dor → agitação → padrão de mercado → curiosidade → solução. 1 ideia central por slide. Texto contínuo — sem bullet points, sem listas, sem emojis, sem hífens.
+Slide ${N} — CTA de ativação: CTA clara alinhada ao objetivo ${OBJETIVO}.
 
 ---
 
 REGRAS ABSOLUTAS:
 - 100% em português do Brasil
-- Zero bullet points
-- Zero listas numeradas
-- Zero emojis
-- Zero hífens decorativos
-- Zero conteúdo genérico
+- Zero bullet points / listas numeradas / emojis / hífens decorativos
 - Use naturalmente: ${PALAVRAS_CHAVE}
 - NUNCA use: ${PALAVRAS_PROIBIDAS}
 - Tom obrigatório: ${TOM_VOZ}
-- Fluxo narrativo: Atenção → Conexão → Desejo → Ação (nunca mencione)
 
-LIMITES DE CARACTERES POR SLIDE (regra absoluta — vale para TODOS os tipos M1–M5, C1–C5 e qualquer DNA, contando espaços e quebras de linha):
-- Slide SEM título (titulo = ""): a soma de subtitulo + corpo NÃO pode ultrapassar 369 caracteres.
-- Slide COM título: a soma de titulo + subtitulo + corpo NÃO pode ultrapassar 422 caracteres.
-- Se a ideia não couber, corte adjetivos, advérbios e conectivos — nunca ultrapasse o limite.
-- Prefira frases curtas e diretas. Cada slide é um respiro visual.
+LIMITES DE CARACTERES POR SLIDE (regra absoluta):
+- Slide SEM título: subtitulo + corpo NÃO pode ultrapassar 369 caracteres.
+- Slide COM título: titulo + subtitulo + corpo NÃO pode ultrapassar 422 caracteres.
+- IMPORTANTE: prefira slides CURTOS. Cada slide é um respiro visual. Quebre ideias longas em mais slides em vez de espremer texto.
 
 ---
 
-ENTREGA: Entregue a saída chamando a função \`build_carousel\`. Mapeie os campos assim:
+ENTREGA: Entregue a saída chamando \`build_carousel\`. Mapeie:
 - titulo → title
 - subtitulo → subtitle
 - corpo → body
 - nota_visual → imagePrompt (SEMPRE em inglês, descrevendo apenas conteúdo visual/fotográfico no estilo "${ESTILO_IMAGENS}").
-  REGRAS DURAS para a nota_visual (NÃO QUEBRE):
-  • PROIBIDO mencionar: text, letters, words, typography, captions, signs, signage, billboards, posters, banners, labels, tags, stickers, business cards, menus, brochures, flyers, documents, watermarks, logos with text, tattoos with letters, clothing with text/logos, packaging with brand names, screens/monitors/phones/laptops/TVs showing UI or text, books/magazines/newspapers/journals/notebooks with visible writing or covers with text.
-  • Se a cena pediria naturalmente um desses objetos, descreva-os como: "closed", "blank", "powered off", "out of focus", "plain unbranded", ou substitua por equivalente sem texto (ex: "closed book with a plain blank cover" em vez de "open book").
-  • A imagem final precisa ser puramente visual/fotográfica, ZERO letras visíveis em qualquer lugar do quadro.
+  REGRAS DURAS para nota_visual:
+  • PROIBIDO mencionar text, letters, words, signs, screens, books with visible writing.
+  • Imagem 100% visual, ZERO letras visíveis.
 
-Não inclua o campo \`legenda\`. Não escreva nada fora da chamada da função.`;
+Não inclua \`legenda\`. Não escreva nada fora da chamada da função.`;
 
     // ====================================================================
-    // SISTEMA UNIFICADO: PRINCÍPIOS DE DESIGN COMO ÚNICA FONTE DE LAYOUT
+    // SISTEMA SIMPLIFICADO: ALINHAMENTO + TIPO DE FUNDO
     // ====================================================================
     const principleAppendix = `
 
 ---
 
-SISTEMA UNIFICADO DE LAYOUT — PRINCÍPIOS DE DESIGN
+LAYOUT DOS SLIDES — SIMPLES E CONSISTENTE
 
-O usuário escolheu ${principlesList.length} princípio(s) de design. Cada slide DEVE seguir EXATAMENTE o layout do princípio atribuído a ele (na ordem cíclica abaixo). NÃO existe DNA minimalista ou criativo separado — o princípio é a única fonte do layout.
+O usuário escolheu:
+- Alinhamento do texto: ${ALINHAMENTO === "left" ? "ESQUERDA" : "CENTRALIZADO"} (vale para TODOS os slides).
+- Tipo(s) de fundo: ${validBgKinds.join(" + ")} (a sequência abaixo alterna entre eles).
 
-SEQUÊNCIA OBRIGATÓRIA POR SLIDE (não pode trocar a ordem):
+SEQUÊNCIA OBRIGATÓRIA POR SLIDE (não troque):
 ${sequence.map((id, i) => {
-  const p = PRINCIPLE_TO_LAYOUT[id];
-  return `Slide ${i + 1} → PRINCÍPIO "${id.toUpperCase()}" → sistema=${p.sistema}, tipo=${p.tipo}, fundo=${p.fundo}\n  Layout: ${p.layout}\n  ${p.hasImage ? "TEM imagem (preencha nota_visual em inglês)." : "SEM imagem (imagePrompt vazio)."}`;
+  const p = PRESETS[id];
+  return `Slide ${i + 1} → ${id.toUpperCase()} → sistema=${p.sistema}, tipo=${p.tipo}, fundo=${p.fundo}\n  Layout: ${p.layout}\n  ${p.hasImage ? "TEM imagem (preencha nota_visual em inglês)." : "SEM imagem (imagePrompt vazio)."}`;
 }).join("\n")}
 
-REGRAS DE PREENCHIMENTO POR SLIDE:
-- Os campos \`sistema\` e \`tipo\` SÃO OBRIGATÓRIOS e devem ser EXATAMENTE os definidos acima por slide. Nunca mude.
-- O campo \`fundo\` deve ser o definido acima.
-- Densidade do texto deve respeitar o layout: princípios "espaco-branco", "alinhamento", "margens" pedem texto MUITO curto (1 linha de título + 1 de corpo). "proporcao", "ritmo", "variedade" pedem texto médio. "hierarquia", "direcionamento" pedem 3 níveis claros (título, subtítulo, corpo).
-- Para tipos com imagem (M4, C1, C3): preencha \`nota_visual\` em INGLÊS, descrevendo APENAS conteúdo visual/fotográfico no estilo "${ESTILO_IMAGENS}". O renderer usará essa nota como \`imagePrompt\`.
-- Para tipos sem imagem (M1, M2, M3, C2, C4, C5): \`imagePrompt\` vazio.
-- Para C2/C4: preencha \`palavra_destaque\` com UMA palavra do título.
-- Para C3: preencha \`ticker_texto\` com 2-3 palavras curtas em CAPS.
-- Para M2/M3/M4/M5: preencha \`label\` curto em CAPS.
-- Para M4: preencha \`tags\` (2-3 tags curtas).
-- Sempre escolha um \`elemento_decorativo\` (minimalista) ou \`elemento_grafico\` (criativo) coerente.
-- Cor de destaque do criativo: ${COR_DESTAQUE}.
+REGRAS:
+- Os campos \`sistema\`, \`tipo\` e \`fundo\` SÃO OBRIGATÓRIOS e devem ser EXATAMENTE os definidos acima por slide.
+- Densidade do texto deve respeitar o layout: prefira textos CURTOS para o conteúdo respirar. Se a ideia for longa, distribua em mais slides.
+- Para slides com fundo "foto": preencha \`nota_visual\` em INGLÊS, descrevendo APENAS conteúdo visual no estilo "${ESTILO_IMAGENS}".
+- Para slides sem foto: \`imagePrompt\` vazio.
+- Cor de destaque opcional: ${COR_DESTAQUE}.
 - Alinhamento dos textos: ${ALINHAMENTO}.
 
 REGRAS DURAS para a \`nota_visual\` (NÃO QUEBRE):
-• PROIBIDO mencionar: text, letters, words, typography, captions, signs, signage, billboards, posters, banners, labels, tags, stickers, business cards, menus, brochures, flyers, documents, watermarks, logos with text, screens/monitors/phones/laptops/TVs showing UI or text, books/magazines/newspapers/journals/notebooks with visible writing or covers with text.
-• Se a cena pediria naturalmente um desses objetos, descreva-os como "closed", "blank", "powered off", "out of focus", "plain unbranded".
+• PROIBIDO mencionar: text, letters, words, typography, captions, signs, screens/monitors/phones with text, books with visible writing.
 • Imagem 100% visual, ZERO letras visíveis.
 `;
 
