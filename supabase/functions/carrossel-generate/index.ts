@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
   let slideCountForFallback = 5;
   try {
     const body = (await req.json()) as Body;
-    const { clientId, topic, imageMode, aiImages, instagram, textOnly, referenceImageDataUrl, plannerSource, designPrinciples } = body;
+    const { clientId, topic, imageMode, aiImages, instagram, textOnly, referenceImageDataUrl, plannerSource, designPrinciples, textAlign, bgKinds } = body;
     const slideCount = Math.max(1, Math.min(10, Number(body.slideCount) || 5));
     topicForFallback = topic ?? "";
     slideCountForFallback = slideCount;
