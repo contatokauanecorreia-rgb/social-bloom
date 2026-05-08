@@ -1254,14 +1254,17 @@ function EditorPanel({
         </div>
       </Section>
 
-      {/* ASSINATURA */}
+      {/* ASSINATURA — global (aplica a todos os slides) */}
       <Section title="Assinatura">
+        <p className="text-[11px] text-muted-foreground mb-2">
+          Configuração global aplicada a todos os slides.
+        </p>
         <div className="flex items-center justify-between">
           <span className="text-xs">Ativar assinatura</span>
           <Switch
             checked={slide.signature.enabled}
             onCheckedChange={(v) =>
-              onUpdateActive((s) => ({
+              onApplyToAll((s) => ({
                 ...s,
                 signature: { ...s.signature, enabled: v },
               }))
@@ -1275,7 +1278,7 @@ function EditorPanel({
               <Input
                 value={slide.signature.handle}
                 onChange={(e) =>
-                  onUpdateActive((s) => ({
+                  onApplyToAll((s) => ({
                     ...s,
                     signature: { ...s.signature, handle: e.target.value },
                   }))
@@ -1286,30 +1289,32 @@ function EditorPanel({
             </div>
             <div className="mt-3">
               <Label className="text-[11px] text-muted-foreground">Posição</Label>
-              <div className="mt-1 grid grid-cols-2 gap-1.5">
+              <div className="mt-1 grid grid-cols-3 gap-1.5">
                 {([
-                  ["tl", "Sup. esquerdo"],
-                  ["tr", "Sup. direito"],
-                  ["bl", "Inf. esquerdo"],
-                  ["br", "Inf. direito"],
-                ] as [SignaturePos, string][]).map(([k, label]) => (
+                  ["tl", "↖"],
+                  ["tc", "↑"],
+                  ["tr", "↗"],
+                  ["bl", "↙"],
+                  ["bc", "↓"],
+                  ["br", "↘"],
+                ] as [SignaturePos, string][]).map(([k, icon]) => (
                   <button
                     key={k}
                     type="button"
                     onClick={() =>
-                      onUpdateActive((s) => ({
+                      onApplyToAll((s) => ({
                         ...s,
                         signature: { ...s.signature, position: k },
                       }))
                     }
                     className={cn(
-                      "rounded-md border px-2 py-1.5 text-[11px]",
+                      "rounded-md border px-2 py-2 text-base leading-none",
                       slide.signature.position === k
                         ? "border-primary bg-primary/5 text-primary"
                         : "border-border bg-background",
                     )}
                   >
-                    {label}
+                    {icon}
                   </button>
                 ))}
               </div>
@@ -1322,7 +1327,7 @@ function EditorPanel({
                     key={i}
                     type="button"
                     onClick={() =>
-                      onUpdateActive((s) => ({
+                      onApplyToAll((s) => ({
                         ...s,
                         signature: { ...s.signature, color: c },
                       }))
@@ -1336,19 +1341,6 @@ function EditorPanel({
                 ))}
               </div>
             </div>
-            <label className="mt-3 flex items-center gap-2 text-[11px] text-muted-foreground">
-              <Checkbox
-                checked={applySigAll}
-                onCheckedChange={(v) => {
-                  const checked = !!v;
-                  setApplySigAll(checked);
-                  if (checked) {
-                    onApplyToAll((s, src) => ({ ...s, signature: { ...src.signature } }));
-                  }
-                }}
-              />
-              Aplicar em todos os slides
-            </label>
           </>
         )}
       </Section>
