@@ -518,8 +518,8 @@ REGRAS DE ADAPTAÇÃO:
 
       slides = (parsed.slides ?? []).slice(0, slideCount).map((s: any, idx: number) => {
         // Princípio dita o layout — sobrescreve qualquer sistema/tipo/fundo do modelo.
-        const principleId = sequence[idx] ?? sequence[sequence.length - 1];
-        const layout = PRINCIPLE_TO_LAYOUT[principleId];
+        const presetId = sequence[idx] ?? sequence[sequence.length - 1];
+        const layout = PRESETS[presetId];
         const out: SlideOut = {
           title: s.title ?? "",
           subtitle: s.subtitle ?? "",
