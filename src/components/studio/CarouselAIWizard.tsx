@@ -111,49 +111,14 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
   const [referenceImageDataUrl, setReferenceImageDataUrl] = useState<string | null>(null);
   const [referenceLoading, setReferenceLoading] = useState(false);
   const [slideCount, setSlideCount] = useState(5);
-  const DEFAULT_PRINCIPLES = ["espaco-branco", "contraste", "hierarquia"];
-  const [selectedPrinciples, setSelectedPrinciples] = useState<string[]>(DEFAULT_PRINCIPLES);
-  const principleScrollRef = useRef<HTMLDivElement | null>(null);
-  const [canScrollLeft, setCanScrollLeft] = useState(false);
-  const [canScrollRight, setCanScrollRight] = useState(true);
-  const holdRafRef = useRef<number | null>(null);
-  const stopHoldScroll = () => {
-    if (holdRafRef.current != null) {
-      cancelAnimationFrame(holdRafRef.current);
-      holdRafRef.current = null;
-    }
-  };
-  const startHoldScroll = (dir: 1 | -1) => {
-    stopHoldScroll();
-    const tick = () => {
-      const el = principleScrollRef.current;
-      if (!el) return;
-      el.scrollLeft += dir * 8;
-      holdRafRef.current = requestAnimationFrame(tick);
-    };
-    holdRafRef.current = requestAnimationFrame(tick);
-  };
-  const holdScrollHandlers = (dir: 1 | -1) => ({
-    onMouseDown: () => startHoldScroll(dir),
-    onMouseUp: stopHoldScroll,
-    onMouseLeave: stopHoldScroll,
-    onTouchStart: () => startHoldScroll(dir),
-    onTouchEnd: stopHoldScroll,
-    onClick: () => principleScrollRef.current?.scrollBy({ left: dir * 200, behavior: "smooth" }),
-  });
-  useEffect(() => () => stopHoldScroll(), []);
-  useEffect(() => {
-    const el = principleScrollRef.current;
-    if (!el) return;
-    setCanScrollLeft(el.scrollLeft > 4);
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-  }, [step]);
-  const hasImagePrinciple = selectedPrinciples.some(
-    (id) => DESIGN_PRINCIPLES.find((p) => p.id === id)?.hasImage,
-  );
-  const hasTextOnlyPrinciple = selectedPrinciples.some(
-    (id) => !DESIGN_PRINCIPLES.find((p) => p.id === id)?.hasImage,
-  );
+  const [textAlignChoice, setTextAlignChoice] = useState<TextAlignChoice>("left");
+  const [bgKinds, setBgKinds] = useState<BgKindChoice[]>(["texto", "foto"]);
+  const [signaturePos, setSignaturePos] = useState<SignaturePos6>("br");
+  const [signatureEnabled, setSignatureEnabled] = useState(true);
+  const [longContentDialogOpen, setLongContentDialogOpen] = useState(false);
+  const [recommendedSlides, setRecommendedSlides] = useState<number>(0);
+  const hasImagePrinciple = bgKinds.includes("foto");
+  const hasTextOnlyPrinciple = bgKinds.includes("texto");
   const aiImages = hasImagePrinciple;
   const imageMode: ImageMode = !hasImagePrinciple
     ? "none"
