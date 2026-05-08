@@ -180,7 +180,10 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         setReferenceImageDataUrl(null);
         setReferenceLoading(false);
         setSlideCount(5);
-        setSelectedPrinciples(DEFAULT_PRINCIPLES);
+        setTextAlignChoice("left");
+        setBgKinds(["texto", "foto"]);
+        setSignaturePos("br");
+        setSignatureEnabled(true);
         setImageStyle("");
         setInstagram("");
         setSelectedPaletteIdx(0);
@@ -405,13 +408,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
 
   const canContinueStep1 =
     (contentSource === "ai" ? topic.trim().length > 0 : selectedPostIds.length > 0) &&
-    selectedPrinciples.length >= 3;
-
-  // Trunca princípios se o usuário reduzir slideCount abaixo do total selecionado.
-  useEffect(() => {
-    const max = Math.min(slideCount, 10);
-    setSelectedPrinciples((arr) => (arr.length > max ? arr.slice(0, max) : arr));
-  }, [slideCount]);
+    bgKinds.length >= 1;
 
   const palette = useMemo<[string, string, string]>(() => {
     if (useDnaPalette && dna.palette) return dna.palette;
@@ -488,7 +485,9 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
           textOnly: true,
           referenceImageDataUrl: referenceImageDataUrl ?? null,
           plannerSource,
-          designPrinciples: selectedPrinciples,
+          designPrinciples: null,
+          textAlign: textAlignChoice,
+          bgKinds,
         },
       });
 
