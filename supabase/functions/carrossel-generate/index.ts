@@ -30,7 +30,9 @@ type Body = {
     posts: { title: string; tags: string[]; notes: string | null }[];
   } | null;
   gridLayout?: string | null;
-  designPrinciples?: string[] | null;
+  designPrinciples?: string[] | null; // legado
+  textAlign?: "left" | "center";
+  bgKinds?: Array<"foto" | "texto">;
 };
 
 const ARCHETYPE_TONE: Record<string, string> = {
