@@ -809,91 +809,63 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
               <div>
                 <Label className="text-sm font-medium">Princípios de design</Label>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Selecione de 3 a {Math.min(slideCount, 10)} princípios — cada slide será gerado seguindo um deles.
+                  Escolha o alinhamento do texto e os tipos de fundo. A IA distribui os fundos entre os slides.
                 </p>
-                <div className="relative mt-3">
-                  <div
-                    ref={principleScrollRef}
-                    onScroll={(e) => {
-                      const el = e.currentTarget;
-                      setCanScrollLeft(el.scrollLeft > 4);
-                      setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
-                    }}
-                    className="flex gap-3 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden"
-                    style={{ scrollbarWidth: "none", msOverflowStyle: "none" } as React.CSSProperties}
-                  >
-                    {DESIGN_PRINCIPLES.map((p) => {
-                      const active = selectedPrinciples.includes(p.id);
-                      const max = Math.min(slideCount, 10);
-                      const atCap = !active && selectedPrinciples.length >= max;
-                      return (
-                        <button
-                          key={p.id}
-                          type="button"
-                          disabled={atCap}
-                          onClick={() => {
-                            setSelectedPrinciples((arr) =>
-                              arr.includes(p.id)
-                                ? arr.filter((x) => x !== p.id)
-                                : arr.length < max
-                                  ? [...arr, p.id]
-                                  : arr,
-                            );
-                          }}
-                          className={cn(
-                            "relative shrink-0 rounded-lg border-2 bg-background p-1.5 transition",
-                            active
-                              ? "border-primary shadow-md"
-                              : "border-border hover:border-primary/50",
-                            atCap && "opacity-40 cursor-not-allowed",
-                          )}
-                          style={{ width: "calc((100% - 48px) / 5)" }}
-                        >
-                          <div className="aspect-[4/5] overflow-hidden rounded">
-                            {p.preview()}
-                          </div>
-                          <div className="mt-1.5 truncate text-center text-[10px] font-medium">
-                            {p.label}
-                          </div>
-                          {active && (
-                            <div className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground shadow">
-                              <Check className="h-3 w-3" />
-                            </div>
-                          )}
-                        </button>
-                      );
-                    })}
+
+                <div className="mt-3 space-y-3">
+                  <div>
+                    <div className="text-xs font-medium text-muted-foreground mb-1.5">Alinhamento do texto</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["left", "center"] as TextAlignChoice[]).map((a) => {
+                        const active = textAlignChoice === a;
+                        return (
+                          <button
+                            key={a}
+                            type="button"
+                            onClick={() => setTextAlignChoice(a)}
+                            className={cn(
+                              "flex items-center justify-center gap-2 rounded-lg border-2 bg-background py-2.5 text-xs font-medium transition",
+                              active ? "border-primary shadow-sm" : "border-border hover:border-primary/50",
+                            )}
+                          >
+                            {a === "left" ? <AlignLeft className="h-4 w-4" /> : <AlignCenter className="h-4 w-4" />}
+                            {a === "left" ? "Alinhado à esquerda" : "Centralizado"}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
-                  {canScrollLeft && (
-                    <button
-                      type="button"
-                      aria-label="Rolar para a esquerda"
-                      {...holdScrollHandlers(-1)}
-                      className="absolute left-1 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/95 shadow-md transition hover:bg-background"
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </button>
-                  )}
-                  {canScrollRight && (
-                    <button
-                      type="button"
-                      aria-label="Rolar para a direita"
-                      {...holdScrollHandlers(1)}
-                      className="absolute right-1 top-1/2 -translate-y-1/2 flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background/95 shadow-md transition hover:bg-background"
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </button>
-                  )}
+
+                  <div>
+                    <div className="text-xs font-medium text-muted-foreground mb-1.5">Tipo de fundo (selecione um ou ambos)</div>
+                    <div className="grid grid-cols-2 gap-2">
+                      {(["foto", "texto"] as BgKindChoice[]).map((k) => {
+                        const active = bgKinds.includes(k);
+                        const isLast = active && bgKinds.length === 1;
+                        return (
+                          <button
+                            key={k}
+                            type="button"
+                            disabled={isLast}
+                            onClick={() => {
+                              setBgKinds((arr) =>
+                                arr.includes(k) ? arr.filter((x) => x !== k) : [...arr, k],
+                              );
+                            }}
+                            className={cn(
+                              "flex items-center justify-center gap-2 rounded-lg border-2 bg-background py-2.5 text-xs font-medium transition",
+                              active ? "border-primary shadow-sm" : "border-border hover:border-primary/50",
+                              isLast && "opacity-70 cursor-not-allowed",
+                            )}
+                          >
+                            {k === "foto" ? <ImageIcon className="h-4 w-4" /> : <ImageOff className="h-4 w-4" />}
+                            {k === "foto" ? "Foto cheia" : "Só texto"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
-                <p
-                  className={cn(
-                    "mt-2 text-center text-xs",
-                    selectedPrinciples.length < 3 ? "text-destructive" : "text-muted-foreground",
-                  )}
-                >
-                  {selectedPrinciples.length}/{Math.min(slideCount, 10)} princípios selecionados
-                  {selectedPrinciples.length < 3 && " — mínimo 3"}
-                </p>
               </div>
 
               {/* SEÇÃO 4 — Estilo das imagens */}
