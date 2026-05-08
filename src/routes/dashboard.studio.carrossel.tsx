@@ -71,7 +71,7 @@ type Format = { key: FormatKey; label: string; w: number; h: number };
 type OverlayType = "dark" | "light" | "gradient";
 type TextField = "title" | "subtitle" | "body";
 type TextAlign = "left" | "center" | "right";
-type SignaturePos = "bl" | "br" | "tl" | "tr";
+type SignaturePos = "tl" | "tc" | "tr" | "bl" | "bc" | "br";
 
 type Slide = {
   id: string;
