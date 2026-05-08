@@ -1,114 +1,56 @@
+## Objetivo
 
-# Refator do gerador de carrosséis
+Atualizar o editor `dashboard.studio.carrossel.tsx` para entender a nova configuração que o wizard agora envia: **assinatura global em 6 posições** (top/bottom × esquerda/centro/direita) aplicada igualmente a todos os slides, e os novos presets `texto-left/center` e `foto-left/center` vindos do edge function. Sem isso, o usuário configura tudo no wizard mas o editor ignora ou aplica errado.
 
-5 mudanças encadeadas no wizard, na edge function e no editor.
+## Escopo
 
----
+### 1. Tipo `SignaturePos` estendido para 6 posições
 
-## 1. Princípios de design — 2 eixos independentes
+Hoje o tipo cobre só `tl | tr | bl | br`. Estender para incluir as duas posições centrais novas, mantendo as antigas.
 
-**Wizard (`CarouselAIWizard.tsx`)**
-- Remove a faixa atual de 12 cards (`DESIGN_PRINCIPLES`, `principleScrollRef`, scroll horizontal).
-- Substitui por 2 grupos visuais lado a lado:
-  - **Alinhamento do texto**: 2 cards (mini preview) — `Esquerda` / `Centralizado`. Single-select, obrigatório.
-  - **Tipo de fundo**: 2 cards (mini preview) — `Foto cobrindo o slide` / `Sem imagem (só texto)`. Multi-select (1 ou 2). Se os dois marcados, IA alterna entre eles ao longo dos slides.
-- Estado: `textAlign: "left" | "center"` e `bgKinds: Array<"foto" | "texto">`.
-
-**Edge function (`carrossel-generate/index.ts`)**
-- Substitui `PRINCIPLE_TO_LAYOUT` (12 entradas) por uma matriz 2×2 enxuta:
-  - `foto-left`, `foto-center`, `texto-left`, `texto-center` — cada uma define `tipo`, `fundo`, `imageFrame` (`full` ou `null`), `layout` textual e `align`.
-- Recebe `textAlign` + `bgKinds[]` no payload em vez de `designPrinciples[]`.
-- `sequence[i]` distribui os `bgKinds` ciclicamente, sempre com o mesmo `textAlign`.
-- Reescreve `principleAppendix` para refletir a nova lógica simples (1 alinhamento global, alternância de fundo).
-
-**Compatibilidade**
-- `Slide.bgKind` continua como hoje (`foto | off-white | bege-texturizado | branco`).
-- Mantém `imageFrame` só para o caso `full`; remove os demais frames (`top-60`, `half-left`, `half-right`, `centered-square`, `bottom-third`) — não fazem mais parte da nova proposta.
-
----
-
-## 2. Assinatura do perfil — global, 6 posições
-
-**Wizard (`CarouselAIWizard.tsx`)**
-- Onde hoje há o `instagram` input, vira bloco "Assinatura":
-  - Input do `@handle` (mantém).
-  - Grid 2×3 de cards visuais com 6 posições: `top-left`, `top-center`, `top-right`, `bottom-left`, `bottom-center`, `bottom-right`.
-  - Toggle "Mostrar assinatura" (on por padrão).
-- Propaga no bootstrap: `signaturePosition: "tl" | "tc" | "tr" | "bl" | "bc" | "br"`, `signatureEnabled: boolean`.
-
-**Editor (`dashboard.studio.carrossel.tsx`)**
-- Estende `SignaturePos` para incluir `tc` e `bc` (hoje só `bl|br|tl|tr`).
-- Lê `signaturePosition` global do bootstrap e aplica em **todos** os slides ao montar.
-- Painel direito ganha um único bloco "Assinatura do carrossel" (global, não por slide) com o mesmo grid 2×3 — alterar lá atualiza todos os slides.
-- Renderer da assinatura: posiciona com `top/bottom` + `left:50% transform:translateX(-50%)` para `tc/bc`.
-
----
-
-## 3. Pop-up "conteúdo extenso" antes de gerar
-
-**Wizard (`CarouselAIWizard.tsx`)**
-- Quando o usuário clica "Gerar carrossel" e a fonte é um post do planner:
-  - Calcula caracteres totais do conteúdo selecionado.
-  - Heurística: limite ~180 caracteres por slide. Se `total / slideCount > 180`, abre `<AlertDialog>` antes de chamar a edge function:
-    - Mensagem: "Esse conteúdo é longo para X slides. Recomendamos Y slides para o texto respirar."
-    - `Y = Math.min(10, Math.ceil(total / 180))`.
-    - Botões: "Aumentar para Y slides" (set `slideCount = Y` e prossegue) / "Manter X slides" / "Cancelar".
-- Aplica só quando origem = planner. Geração livre (sem post) não dispara.
-
----
-
-## 4. Edição de texto e drag com guias
-
-**Editor (`dashboard.studio.carrossel.tsx`)**
-
-**Edição inline NÃO** — confirmado: edição continua pelo painel direito (já existe). Garantir que os 3 campos (title/subtitle/body) estejam sempre editáveis no painel para o slide ativo (revisar bloco que renderiza inputs ~linha 1300+ e remover qualquer condição que esconda campos por `slideType`).
-
-**Drag com guias**
-- Texto: já existe `textPos {x, y}` arrastável. Adicionar:
-  - Snap thresholds (~3% do canvas) em centros e bordas: `x ∈ {0, 50, 100}`, `y ∈ {0, 25, 50, 75, 100}`.
-  - Durante o drag, renderizar **guides visuais** (linhas absolutas dashed sobre o canvas) sempre que estiver "snapped":
-    - Vertical no centro X, horizontal no centro Y, linhas das margens (10%/90%).
-  - Guides somem ao soltar (`onPointerUp`).
-- Mesma lógica para arrastar a imagem (`bgPos`) quando ela está em modo full.
-- Implementa via novo componente interno `<DragGuides activeX activeY />` posicionado absolute dentro do `.slide-canvas`.
-
----
-
-## 5. Limpeza
-
-- Remove de `dashboard.studio.carrossel.tsx`: tipos/branches de `imageFrame` que não são `full | null` (top-60, half-*, centered-square, bottom-third) e o componente `<ImageFrame>` correspondente.
-- Remove de `carrossel-generate/index.ts`: o array `DESIGN_PRINCIPLES` antigo, mapas e prompts dos 12 princípios.
-- Remove de `CarouselAIWizard.tsx`: `DESIGN_PRINCIPLES`, `selectedPrinciples`, `principleScrollRef`, `holdScrollHandlers` e botões de scroll.
-- Atualiza `.lovable/plan.md` para refletir a nova arquitetura.
-
----
-
-## Detalhes técnicos
-
-**Arquivos editados**
-- `src/components/studio/CarouselAIWizard.tsx` — UI do wizard, estado, pop-up, bootstrap.
-- `supabase/functions/carrossel-generate/index.ts` — payload, mapa 2×2, prompt.
-- `src/routes/dashboard.studio.carrossel.tsx` — slide type, signature `tc/bc`, painel global de assinatura, drag guides, limpeza de frames.
-
-**Sem mudanças de banco.** Tudo client + edge function.
-
-**Tipos atualizados**
-```ts
-type TextAlignChoice = "left" | "center";
-type BgKindChoice = "foto" | "texto";
-type SignaturePos = "tl" | "tc" | "tr" | "bl" | "bc" | "br";
-
-type Bootstrap = {
-  // ...existente
-  textAlign: TextAlignChoice;
-  bgKinds: BgKindChoice[];
-  signaturePosition: SignaturePos;
-  signatureEnabled: boolean;
-};
+```text
+"tl" | "tc" | "tr" | "bl" | "bc" | "br"
 ```
 
-**Resultado esperado**
-- Wizard fica 60% mais curto e direto.
-- Slides gerados se parecem com os exemplos enviados: alinhamento consistente, foto-cheia OU só texto, assinatura sempre no mesmo canto.
-- Posts longos do planner não geram slides com texto cortado — o pop-up força a decisão.
-- Usuário consegue arrastar texto/imagem com sensação de Canva (snap + linhas guia).
+Atualizar em paralelo:
+- O cálculo de `sigStyle` (posicionamento absoluto da assinatura no canvas) para tratar `tc` e `bc`: `left: 50%, transform: translateX(-50%)` + `top` ou `bottom` no padding padrão.
+- O `sigBase` lido do bootstrap aceita o novo conjunto.
+
+### 2. Bootstrap: ler `signaturePos` + `signatureEnabled` globais
+
+Atualmente o bootstrap já traz `signature: { enabled, handle, position, color }` mas o wizard agora propaga uma **única configuração global**. O editor já clona `sigBase` em todos os slides (linha 259), então o comportamento padrão já fica correto — só precisa garantir que `position` aceite os 6 valores.
+
+### 3. Painel direito: assinatura global em vez de por slide
+
+Substituir o bloco "Assinatura" do painel (hoje em `slide.signature.*` com checkbox "Aplicar em todos") por um painel **sempre global**:
+
+- Toggle "Ativar assinatura"
+- Input `@ da marca`
+- Grid 2×3 de posições com mini-ícones (sup-esq, sup-centro, sup-dir, inf-esq, inf-centro, inf-dir)
+- Seletor de cor (paleta)
+- Remover o checkbox "Aplicar em todos" — toda mudança escreve em **todos os slides** automaticamente via `onApplyToAll`.
+
+Mantém o handler `onUpdateActive` apenas para campos por slide (texto, imagem etc.).
+
+### 4. Compatibilidade com presets `texto-*` / `foto-*`
+
+O edge function já devolve `tipo`, `fundo`, `imageFrame`, `layout`, `align` no formato novo. A função de boot do editor (linhas 245–321) já consome `s.fundo`, `s.imageFrame`, `s.alignment` — deve funcionar sem mudança. Verificação:
+
+- `s.alignment === "left" | "center"` → `slide.textAlign` aplicado (já implementado).
+- `s.fundo === "foto"` → `slide.bgImage` recebe `imageDataUrl` (já implementado).
+- `imageFrame` agora é só `"full"` ou `null` (presets novos não usam frames parciais). Não precisa remover os branches antigos (`top-60`, `half-*`, etc.) — ficam como dead code inofensivo, removo se a ramificação ficar trivial.
+
+### 5. Limpeza
+
+- Remover bloco antigo "Assinatura" por slide e variável `applySigAll` se não tiver mais uso.
+- Atualizar o array de posições no painel para 6 entradas com labels curtos.
+
+## Arquivos afetados
+
+- `src/routes/dashboard.studio.carrossel.tsx` (único arquivo)
+
+## Fora do escopo (próximo plano)
+
+- Drag com guias de alinhamento (Frente 2)
+- Pop-up de conteúdo extenso antes de gerar (Frente 3)
+- Remoção dos branches legados de `imageFrame` parcial — só se ficarem 100% órfãos
