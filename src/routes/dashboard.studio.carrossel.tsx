@@ -1511,18 +1511,18 @@ function SlideContent({
     pointerEvents: "none",
     whiteSpace: "nowrap",
   };
-  if (slide.signature.position === "tl") {
-    sigStyle.top = sigPadding;
+  const sigPos = slide.signature.position;
+  const isTop = sigPos.startsWith("t");
+  if (isTop) sigStyle.top = sigPadding;
+  else sigStyle.bottom = sigPadding;
+  const horiz = sigPos[1]; // "l" | "c" | "r"
+  if (horiz === "l") {
     sigStyle.left = sigPadding;
-  } else if (slide.signature.position === "tr") {
-    sigStyle.top = sigPadding;
+  } else if (horiz === "r") {
     sigStyle.right = sigPadding;
-  } else if (slide.signature.position === "bl") {
-    sigStyle.bottom = sigPadding;
-    sigStyle.left = sigPadding;
   } else {
-    sigStyle.bottom = sigPadding;
-    sigStyle.right = sigPadding;
+    sigStyle.left = "50%";
+    sigStyle.transform = "translateX(-50%)";
   }
 
   // dot grid pattern só quando não há imagem
