@@ -555,12 +555,13 @@ export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWiz
         fontPair: fontPairForOutput,
         palette,
         imageMode,
-        designPrinciples: selectedPrinciples,
-        signature: instagram.trim()
+        textAlign: textAlignChoice,
+        bgKinds,
+        signature: signatureEnabled && instagram.trim()
           ? {
               enabled: true,
               handle: instagram.trim().startsWith("@") ? instagram.trim() : `@${instagram.trim()}`,
-              position: "br",
+              position: signaturePos,
               color: palette[0],
             }
           : null,
