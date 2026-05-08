@@ -1,14 +1,16 @@
 import * as React from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  AlignCenter,
+  AlignLeft,
   ArrowLeft,
   ArrowRight,
-  Check,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
   Image as ImageIcon,
+  ImageOff,
   Link2,
   Loader2,
   Search,
