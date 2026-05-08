@@ -931,7 +931,7 @@ function EditorPanel({
   onApplyPlannerPost: (post: PlannerPost) => void;
 }) {
   const [applyImageAll, setApplyImageAll] = useState(false);
-  const [applySigAll, setApplySigAll] = useState(false);
+  
   const [plannerOpen, setPlannerOpen] = useState(false);
 
 
