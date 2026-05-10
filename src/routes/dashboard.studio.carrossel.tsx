@@ -1970,6 +1970,7 @@ function SlideContent({
               <h1
                 {...editableHandlers("title")}
                 style={{
+                  fontFamily: headingFamily,
                   fontSize: slide.fontSize.title,
                   color: slide.textColor.title,
                   fontWeight: slide.fontWeight.title,
