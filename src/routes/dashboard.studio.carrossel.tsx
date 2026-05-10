@@ -893,7 +893,7 @@ function CarrosselEditorPage() {
                 id={`slide-export-${s.id}`}
                 style={{ width: format.w, height: format.h }}
               >
-                <SlideContent slide={s} format={format} dna={dna} />
+                <SlideContent slide={s} format={format} dna={dna} fontPair={pageFontPair} />
               </div>
             ))}
           </div>
