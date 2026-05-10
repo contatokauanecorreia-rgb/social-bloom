@@ -1,43 +1,46 @@
 ## Objetivo
 
-Aplicar no editor de carrossel o **par de fontes (heading + body)** que o wizard já envia, em vez de usar uma única fonte global. Hoje o wizard salva `pageFontPair` mas o render usa só `brandFontFamily(dna.brandFont)` em todos os textos.
+Aumentar o **tamanho padrão do texto de corpo (body)** nos slides do carrossel. Hoje o body usa 28px (≈2,6% da largura de 1080), o que fica visivelmente pequeno em relação ao título (72px). O subtítulo (36px) também fica próximo demais do body.
 
-## Mudanças
+## Mudança
 
 **Arquivo único:** `src/routes/dashboard.studio.carrossel.tsx`
 
-### 1. `SlideCanvas`: receber e usar par de fontes
+### 1. Defaults de `fontSize` (linha 136)
 
-- Adicionar prop `fontPair?: { heading: string; body: string } | null`.
-- Calcular duas famílias:
-  - `headingFamily` = `fontPair?.heading` → `brandFontFamily` fallback para `dna.brandFont`.
-  - `bodyFamily` = `fontPair?.body` → fallback idem.
-- Remover o `fontFamily: family` do container raiz (linha 1637) — passar família por elemento.
+Antes:
+```
+{ title: 72, subtitle: 36, body: 28 }
+```
 
-### 2. Aplicação por elemento
+Depois:
+```
+{ title: 72, subtitle: 44, body: 40 }
+```
 
-- **Título** (todos os render-paths: minimalista, criativo, padrão, `renderCreativeTitle`): `fontFamily: headingFamily`.
-- **Subtítulo**: `fontFamily: headingFamily` (segue o título; é elemento de destaque).
-- **Body**: `fontFamily: bodyFamily`.
-- **Assinatura** (`sigStyle`, linha 1502): `fontFamily: bodyFamily` — conforme escolha do usuário.
+- **body: 28 → 40** (≈3,7% da largura — mais legível em mobile, próximo do tamanho usado em referências de carrossel premium).
+- **subtitle: 36 → 44** para manter a hierarquia visual (subtítulo > body).
+- title permanece 72.
 
-### 3. Propagar `pageFontPair` até o canvas
+### 2. Constantes de hierarquia (linhas 118–119)
 
-- `pageFontPair` já existe no estado da página (linha 205) e é hidratado pelo wizard (linha 332) e por templates (linha 360–361).
-- Onde `<SlideCanvas .../>` é renderizado (preview principal e thumbnails), passar `fontPair={pageFontPair}`.
-- Garantir `loadGoogleFont(pageFontPair.heading)` e `loadGoogleFont(pageFontPair.body)` no boot — já feito no wizard payload, replicar no carregamento de template se faltar.
+Atualizar para refletir os novos deltas, caso sejam usadas em algum auto-fit futuro:
+```
+const TITLE_TO_SUBTITLE = 28; // 72 - 44
+const SUBTITLE_TO_BODY = 4;   // 44 - 40
+```
 
-### 4. Bootstrap a partir do wizard
-
-- O wizard já envia `fontPair` no payload de navegação para o editor (linha 192). Confirmar que `setPageFontPair(data.fontPair)` é chamado no carregamento (já existe no entorno da linha 332). Sem mudança de schema.
+(Se hoje não estiverem em uso na renderização — checado: aparecem só como constantes — o ajuste é apenas semântico.)
 
 ## Fora do escopo
 
-- Override de fonte por elemento/slide no painel direito (foi descartado nesta rodada).
-- Painel para trocar o par dentro do editor — fica para depois; por enquanto a troca é só pelo wizard.
-- Mudanças no edge function `carrossel-generate` (não envolve fonte).
+- Não alterar o título (já está adequado).
+- Não alterar templates já salvos (eles têm `layout.fontSize` próprio e mantêm o tamanho original).
+- Sem mudança no edge function ou no wizard.
+- Sem novo controle de "tamanho do body" no painel — o slider de ajuste manual já existente continua funcionando.
 
-## Riscos / verificação
+## Verificação
 
-- Conferir que ao usar template salvo (`tpl.font_pair`) o canvas re-renderiza com a nova família — já há `loadGoogleFont` no fluxo de template.
-- Conferir export PNG/PDF: o html2canvas/exporter usa o DOM atual, então pegar as famílias automaticamente.
+- Abrir `/dashboard/studio/carrossel` recém-gerado e conferir que o body fica maior em relação ao título.
+- Verificar slide com body longo (perto do limite de caracteres) — deve continuar cabendo no canvas, sem estouro.
+- Conferir export PNG/PDF: usa o DOM atual, então pega o novo tamanho automaticamente.

@@ -115,8 +115,8 @@ const FORMATS: Format[] = [
 
 const DEFAULT_PALETTE: [string, string, string] = ["#E91E63", "#FFFFFF", "#2D2D2D"];
 
-const TITLE_TO_SUBTITLE = 16;
-const SUBTITLE_TO_BODY = 12;
+const TITLE_TO_SUBTITLE = 28;
+const SUBTITLE_TO_BODY = 4;
 
 const newId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
