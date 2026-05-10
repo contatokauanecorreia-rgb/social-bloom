@@ -1992,6 +1992,7 @@ function SlideContent({
               <h2
                 {...editableHandlers("subtitle")}
                 style={{
+                  fontFamily: headingFamily,
                   fontSize: slide.fontSize.subtitle,
                   color: slide.textColor.subtitle,
                   fontWeight: slide.fontWeight.subtitle,
