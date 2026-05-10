@@ -1460,7 +1460,13 @@ function SlideContent({
     return `linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,${a}) 100%)`;
   })();
 
-  const family = brandFontFamily(dna.brandFont);
+  const fallbackFamily = brandFontFamily(dna.brandFont);
+  const headingFamily = fontPair?.heading
+    ? `"${fontPair.heading}", ${fallbackFamily}`
+    : fallbackFamily;
+  const bodyFamily = fontPair?.body
+    ? `"${fontPair.body}", ${fallbackFamily}`
+    : fallbackFamily;
 
   // alinhamento do bloco como um todo derivado do alinhamento do título
   const blockAlignItems =
