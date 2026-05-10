@@ -1441,6 +1441,7 @@ function SlideContent({
   editable,
   onEditField,
   onSelectField,
+  fontPair,
 }: {
   slide: Slide;
   format: Format;
@@ -1449,6 +1450,7 @@ function SlideContent({
   editable?: boolean;
   onEditField?: (field: TextField, value: string) => void;
   onSelectField?: (f: TextField) => void;
+  fontPair?: { heading: string; body: string } | null;
 }) {
   const overlayBg = (() => {
     if (!slide.overlay.enabled) return "transparent";
