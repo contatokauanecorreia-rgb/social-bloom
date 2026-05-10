@@ -115,8 +115,8 @@ const FORMATS: Format[] = [
 
 const DEFAULT_PALETTE: [string, string, string] = ["#E91E63", "#FFFFFF", "#2D2D2D"];
 
-const TITLE_TO_SUBTITLE = 16;
-const SUBTITLE_TO_BODY = 12;
+const TITLE_TO_SUBTITLE = 28;
+const SUBTITLE_TO_BODY = 4;
 
 const newId = () =>
   typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -133,7 +133,7 @@ const makeSlide = (template?: Slide, paletteColor?: string): Slide => ({
   text: { title: "", subtitle: "", body: "" },
   fontSize: template
     ? { ...template.fontSize }
-    : { title: 72, subtitle: 36, body: 28 },
+    : { title: 72, subtitle: 44, body: 40 },
   textColor: template
     ? { ...template.textColor }
     : { title: "#1A1A1A", subtitle: "#1A1A1A", body: "#333333" },
