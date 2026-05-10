@@ -854,6 +854,7 @@ function CarrosselEditorPage() {
                       index={i}
                       format={format}
                       dna={dna}
+                      fontPair={pageFontPair}
                       active={s.id === activeId}
                       onSelect={() => setActiveId(s.id)}
                       onRemove={() => removeSlide(s.id)}
