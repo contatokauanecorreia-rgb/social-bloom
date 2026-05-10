@@ -2190,6 +2190,7 @@ function SlideCard({
   onRemove,
   onEditField,
   onSelectField,
+  fontPair,
 }: {
   slide: Slide;
   index: number;
@@ -2200,6 +2201,7 @@ function SlideCard({
   onRemove: () => void;
   onEditField?: (field: TextField, value: string) => void;
   onSelectField?: (f: TextField) => void;
+  fontPair?: { heading: string; body: string } | null;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [cardH, setCardH] = useState(420);
