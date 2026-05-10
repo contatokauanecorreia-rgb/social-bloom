@@ -2261,6 +2261,7 @@ function SlideCard({
           editable={active}
           onEditField={onEditField}
           onSelectField={onSelectField}
+          fontPair={fontPair}
         />
       </div>
       <div className="pointer-events-none absolute left-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">
