@@ -133,7 +133,7 @@ const makeSlide = (template?: Slide, paletteColor?: string): Slide => ({
   text: { title: "", subtitle: "", body: "" },
   fontSize: template
     ? { ...template.fontSize }
-    : { title: 72, subtitle: 36, body: 28 },
+    : { title: 72, subtitle: 44, body: 40 },
   textColor: template
     ? { ...template.textColor }
     : { title: "#1A1A1A", subtitle: "#1A1A1A", body: "#333333" },
