@@ -2011,6 +2011,7 @@ function SlideContent({
               <p
                 {...editableHandlers("body")}
                 style={{
+                  fontFamily: bodyFamily,
                   fontSize: slide.fontSize.body,
                   color: slide.textColor.body,
                   fontWeight: slide.fontWeight.body,
