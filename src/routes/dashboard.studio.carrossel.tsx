@@ -854,6 +854,7 @@ function CarrosselEditorPage() {
                       index={i}
                       format={format}
                       dna={dna}
+                      fontPair={pageFontPair}
                       active={s.id === activeId}
                       onSelect={() => setActiveId(s.id)}
                       onRemove={() => removeSlide(s.id)}
@@ -892,7 +893,7 @@ function CarrosselEditorPage() {
                 id={`slide-export-${s.id}`}
                 style={{ width: format.w, height: format.h }}
               >
-                <SlideContent slide={s} format={format} dna={dna} />
+                <SlideContent slide={s} format={format} dna={dna} fontPair={pageFontPair} />
               </div>
             ))}
           </div>
@@ -1441,6 +1442,7 @@ function SlideContent({
   editable,
   onEditField,
   onSelectField,
+  fontPair,
 }: {
   slide: Slide;
   format: Format;
@@ -1449,6 +1451,7 @@ function SlideContent({
   editable?: boolean;
   onEditField?: (field: TextField, value: string) => void;
   onSelectField?: (f: TextField) => void;
+  fontPair?: { heading: string; body: string } | null;
 }) {
   const overlayBg = (() => {
     if (!slide.overlay.enabled) return "transparent";
@@ -1458,7 +1461,13 @@ function SlideContent({
     return `linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,${a}) 100%)`;
   })();
 
-  const family = brandFontFamily(dna.brandFont);
+  const fallbackFamily = brandFontFamily(dna.brandFont);
+  const headingFamily = fontPair?.heading
+    ? `"${fontPair.heading}", ${fallbackFamily}`
+    : fallbackFamily;
+  const bodyFamily = fontPair?.body
+    ? `"${fontPair.body}", ${fallbackFamily}`
+    : fallbackFamily;
 
   // alinhamento do bloco como um todo derivado do alinhamento do título
   const blockAlignItems =
@@ -1499,7 +1508,7 @@ function SlideContent({
     fontSize: format.w * 0.025,
     fontWeight: 600,
     color: slide.signature.color,
-    fontFamily: family,
+    fontFamily: bodyFamily,
     pointerEvents: "none",
     whiteSpace: "nowrap",
   };
@@ -1634,7 +1643,7 @@ function SlideContent({
         height: format.h,
         position: "relative",
         overflow: "hidden",
-        fontFamily: family,
+        fontFamily: bodyFamily,
         ...dotBg,
       }}
     >
@@ -1962,6 +1971,7 @@ function SlideContent({
               <h1
                 {...editableHandlers("title")}
                 style={{
+                  fontFamily: headingFamily,
                   fontSize: slide.fontSize.title,
                   color: slide.textColor.title,
                   fontWeight: slide.fontWeight.title,
@@ -1983,6 +1993,7 @@ function SlideContent({
               <h2
                 {...editableHandlers("subtitle")}
                 style={{
+                  fontFamily: headingFamily,
                   fontSize: slide.fontSize.subtitle,
                   color: slide.textColor.subtitle,
                   fontWeight: slide.fontWeight.subtitle,
@@ -2001,6 +2012,7 @@ function SlideContent({
               <p
                 {...editableHandlers("body")}
                 style={{
+                  fontFamily: bodyFamily,
                   fontSize: slide.fontSize.body,
                   color: slide.textColor.body,
                   fontWeight: slide.fontWeight.body,
@@ -2179,6 +2191,7 @@ function SlideCard({
   onRemove,
   onEditField,
   onSelectField,
+  fontPair,
 }: {
   slide: Slide;
   index: number;
@@ -2189,6 +2202,7 @@ function SlideCard({
   onRemove: () => void;
   onEditField?: (field: TextField, value: string) => void;
   onSelectField?: (f: TextField) => void;
+  fontPair?: { heading: string; body: string } | null;
 }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const [cardH, setCardH] = useState(420);
@@ -2248,6 +2262,7 @@ function SlideCard({
           editable={active}
           onEditField={onEditField}
           onSelectField={onSelectField}
+          fontPair={fontPair}
         />
       </div>
       <div className="pointer-events-none absolute left-2 top-2 rounded bg-black/60 px-1.5 py-0.5 text-[10px] font-bold text-white">
