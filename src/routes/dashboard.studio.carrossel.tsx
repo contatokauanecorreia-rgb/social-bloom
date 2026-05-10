@@ -1507,7 +1507,7 @@ function SlideContent({
     fontSize: format.w * 0.025,
     fontWeight: 600,
     color: slide.signature.color,
-    fontFamily: family,
+    fontFamily: bodyFamily,
     pointerEvents: "none",
     whiteSpace: "nowrap",
   };
