@@ -1642,7 +1642,7 @@ function SlideContent({
         height: format.h,
         position: "relative",
         overflow: "hidden",
-        fontFamily: family,
+        fontFamily: bodyFamily,
         ...dotBg,
       }}
     >
