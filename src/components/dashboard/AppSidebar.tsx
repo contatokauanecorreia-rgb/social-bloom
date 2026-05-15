@@ -16,6 +16,7 @@ import {
   clearPlannerHasDraft,
   usePlannerNotification,
 } from "@/lib/planner-notification";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 type SidebarItem = {
   to:
@@ -145,9 +146,12 @@ export function AppSidebar() {
         </ul>
       </nav>
 
-      {!collapsed && (
-        <div className="border-t p-3 text-[11px] text-muted-foreground/70">Postly · v1</div>
-      )}
+      <div className={cn("border-t p-2 flex items-center", collapsed ? "justify-center" : "justify-between gap-2")}>
+        {!collapsed && (
+          <span className="text-[11px] text-muted-foreground/70">Postly · v1</span>
+        )}
+        <ThemeToggle />
+      </div>
     </aside>
   );
 }
