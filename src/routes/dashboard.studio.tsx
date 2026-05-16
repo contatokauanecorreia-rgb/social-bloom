@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Loader2, FileText, Layers, CalendarDays, Film, Bookmark } from "lucide-react";
+import { Loader2, Layers, Film } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PageContainer, PageHeader } from "@/components/dashboard/PageContainer";
@@ -9,9 +9,7 @@ import { ClientPicker, type ClientOption } from "@/components/studio/ClientPicke
 import { CreditsBadge } from "@/components/studio/CreditsBadge";
 import { CreditsExhaustedBanner } from "@/components/studio/CreditsExhaustedBanner";
 import { ModeCard } from "@/components/studio/ModeCard";
-import { CopyGeneratorDialog } from "@/components/studio/CopyGeneratorDialog";
 import { CarouselAIWizard } from "@/components/studio/CarouselAIWizard";
-import { TemplatesDialog } from "@/components/studio/TemplatesDialog";
 import { fetchCredits, MODE_COST, type CreditsState } from "@/lib/credits";
 import { ACTIVE_CLIENT_STORAGE_KEY } from "@/lib/client-context";
 
@@ -28,9 +26,7 @@ function StudioPage() {
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [clientId, setClientId] = useState<string | null>(null);
   const [credits, setCredits] = useState<CreditsState | null>(null);
-  const [copyOpen, setCopyOpen] = useState(false);
   const [carouselOpen, setCarouselOpen] = useState(false);
-  const [templatesOpen, setTemplatesOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -95,10 +91,6 @@ function StudioPage() {
     }
   };
 
-  const refreshCredits = () => {
-    fetchCredits().then(setCredits).catch(() => {});
-  };
-
   if (isChildRoute) {
     return <Outlet />;
   }
@@ -112,7 +104,6 @@ function StudioPage() {
   }
 
   const exhausted = credits.limit !== Infinity && credits.remaining <= 0;
-  const isStarter = credits.plan === "starter";
 
   return (
     <PageContainer wide>
@@ -123,7 +114,7 @@ function StudioPage() {
           </Badge>
           <PageHeader
             title="Studio"
-            description="Crie copies, carrosséis, pautas e roteiros com a IA da Postly."
+            description="Gere carrosséis e vídeos com a IA da Postly."
           />
         </div>
         <CreditsBadge credits={credits} />
@@ -139,18 +130,10 @@ function StudioPage() {
         <ClientPicker value={clientId} onChange={handleClientChange} clients={clients} />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-        <ModeCard
-          icon={FileText}
-          title="Criar copy"
-          description="Legendas, textos e CTAs prontos para postar."
-          cost={MODE_COST.copy}
-          disabled={exhausted}
-          onClick={() => setCopyOpen(true)}
-        />
+      <div className="grid gap-4 sm:grid-cols-2">
         <ModeCard
           icon={Layers}
-          title="Criar carrossel"
+          title="Gerar carrossel"
           description="Slides completos com design da marca."
           cost={MODE_COST.carrossel}
           disabled={exhausted}
@@ -163,69 +146,18 @@ function StudioPage() {
           }}
         />
         <ModeCard
-          icon={CalendarDays}
-          title="Criar pauta"
-          description="Planejamento de conteúdo para o mês inteiro."
-          cost={MODE_COST.pauta}
-          locked={isStarter}
-          lockedLabel="Disponível no Pro"
-          disabled={exhausted}
-          onClick={() => {
-            if (isStarter) {
-              toast.info("Faça upgrade para o plano Pro para usar pautas.");
-              return;
-            }
-            toast.info("Em breve!");
-          }}
-        />
-        <ModeCard
           icon={Film}
-          title="Criar roteiro"
-          description="Roteiros completos para Reels e vídeos."
+          title="Gerar vídeo"
+          description="Roteiros e conteúdo completos para Reels e vídeos."
           cost={MODE_COST.roteiro}
-          locked={isStarter}
-          lockedLabel="Disponível no Pro"
           disabled={exhausted}
-          onClick={() => {
-            if (isStarter) {
-              toast.info("Faça upgrade para o plano Pro para usar roteiros.");
-              return;
-            }
-            toast.info("Em breve!");
-          }}
-        />
-        <ModeCard
-          icon={Bookmark}
-          title="Templates salvos"
-          description="Use um estilo que você já criou antes."
-          cost={0}
-          freeLabel="Sem custo"
-          onClick={() => {
-            if (!clientId) {
-              toast.error("Selecione um cliente para ver os templates.");
-              return;
-            }
-            setTemplatesOpen(true);
-          }}
+          onClick={() => toast.info("Em breve!")}
         />
       </div>
-
-      <CopyGeneratorDialog
-        open={copyOpen}
-        onOpenChange={setCopyOpen}
-        clientId={clientId}
-        onCreditsChange={refreshCredits}
-      />
 
       <CarouselAIWizard
         open={carouselOpen}
         onOpenChange={setCarouselOpen}
-        clientId={clientId}
-      />
-
-      <TemplatesDialog
-        open={templatesOpen}
-        onOpenChange={setTemplatesOpen}
         clientId={clientId}
       />
     </PageContainer>

@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, X, Loader2, Users } from "lucide-react";
+import { Plus, Search, X, Loader2, Users, Sparkles, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +61,10 @@ function PlanoPage() {
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dragSnapshot, setDragSnapshot] = useState<ContentPost[] | null>(null);
+
+  const [ideas, setIdeas] = useState<{ title: string; description: string }[]>([]);
+  const [ideasLoading, setIdeasLoading] = useState(false);
+  const [ideasClientId, setIdeasClientId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -285,6 +289,68 @@ function PlanoPage() {
     toast.success("Post duplicado");
   };
 
+  const handleGenerateIdeas = async () => {
+    if (!userId || selectedClient === "all") return;
+    setIdeasLoading(true);
+    setIdeas([]);
+    setIdeasClientId(selectedClient);
+    try {
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token ?? "";
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/planner-ideas`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ clientId: selectedClient }),
+        },
+      );
+      const json = await res.json();
+      if (!res.ok || json.error) {
+        toast.error(json.error ?? "Erro ao gerar ideias.");
+        return;
+      }
+      setIdeas(json.ideas ?? []);
+    } catch {
+      toast.error("Erro ao gerar ideias.");
+    } finally {
+      setIdeasLoading(false);
+    }
+  };
+
+  const handleAddIdeaToPlanner = async (idea: { title: string; description: string }) => {
+    if (!userId) return;
+    if (weeks.length === 0) {
+      toast.error("Crie uma semana antes de adicionar posts.");
+      return;
+    }
+    const weekId = weeks[0].id;
+    const position = posts.filter((p) => p.week_id === weekId).length;
+    const { data, error } = await supabase
+      .from("content_posts")
+      .insert({
+        user_id: userId,
+        title: idea.title,
+        week_id: weekId,
+        client_id: ideasClientId,
+        tags: [],
+        notes: idea.description,
+        status: "planned",
+        position,
+      })
+      .select()
+      .single();
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setPosts((prev) => [...prev, data as ContentPost]);
+    toast.success(`Post adicionado em "${weeks[0].name}"`);
+  };
+
   const toggleTag = (t: string) => {
     setActiveTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
   };
@@ -433,26 +499,96 @@ function PlanoPage() {
         }
       />
 
-      <div className="mb-3 flex flex-col gap-1.5 rounded-xl border bg-card/40 p-3 sm:flex-row sm:items-center sm:gap-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground sm:w-44">
-          <Users className="h-4 w-4" />
-          <Label htmlFor="planner-client" className="cursor-pointer text-sm font-medium">
-            Para qual cliente?
-          </Label>
+      <div className="mb-3 flex flex-col gap-3 rounded-xl border bg-card/40 p-3">
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground sm:w-44">
+            <Users className="h-4 w-4" />
+            <Label htmlFor="planner-client" className="cursor-pointer text-sm font-medium">
+              Para qual cliente?
+            </Label>
+          </div>
+          <div className="flex flex-1 items-center gap-2">
+            <Select
+              value={selectedClient}
+              onValueChange={(v) => {
+                setSelectedClient(v);
+                setIdeas([]);
+                setIdeasClientId(null);
+              }}
+            >
+              <SelectTrigger id="planner-client" className="sm:max-w-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os clientes</SelectItem>
+                {clients.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedClient !== "all" && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGenerateIdeas}
+                disabled={ideasLoading}
+                className="shrink-0"
+              >
+                {ideasLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : ideas.length > 0 ? (
+                  <RefreshCw className="h-4 w-4" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {ideas.length > 0 ? "Gerar novamente" : "Gerar ideias com IA"}
+              </Button>
+            )}
+          </div>
         </div>
-        <Select value={selectedClient} onValueChange={setSelectedClient}>
-          <SelectTrigger id="planner-client" className="sm:max-w-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os clientes</SelectItem>
-            {clients.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+
+        {(ideasLoading || ideas.length > 0) && (
+          <div className="border-t pt-3">
+            {ideasLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Gerando ideias com base no DNA da marca…
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  5 ideias geradas com IA — clique para adicionar ao Planner
+                </p>
+                <ul className="flex flex-col gap-2">
+                  {ideas.map((idea, i) => (
+                    <li
+                      key={i}
+                      className="flex items-start justify-between gap-3 rounded-lg border bg-background px-3 py-2.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{idea.title}</p>
+                        <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">
+                          {idea.description}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => handleAddIdeaToPlanner(idea)}
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        Adicionar
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mb-6 flex flex-col gap-3 rounded-xl border bg-card/40 p-3">

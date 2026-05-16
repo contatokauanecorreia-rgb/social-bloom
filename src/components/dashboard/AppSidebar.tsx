@@ -16,6 +16,7 @@ import {
   clearPlannerHasDraft,
   usePlannerNotification,
 } from "@/lib/planner-notification";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 type SidebarItem = {
   to:
@@ -31,38 +32,14 @@ type SidebarItem = {
   exact?: boolean;
 };
 
-type SidebarSection = {
-  label: string;
-  items: SidebarItem[];
-};
-
-const sections: SidebarSection[] = [
-  {
-    label: "Início",
-    items: [{ to: "/dashboard", label: "Dashboard", icon: Home, exact: true }],
-  },
-  {
-    label: "Criar",
-    items: [
-      { to: "/dashboard/studio", label: "Studio", icon: Sparkles },
-      { to: "/dashboard/planner", label: "Planner de conteúdo", icon: ClipboardList },
-    ],
-  },
-  {
-    label: "Clientes",
-    items: [{ to: "/dashboard/clientes", label: "Hub de clientes", icon: Users }],
-  },
-  {
-    label: "Negócio",
-    items: [{ to: "/dashboard/precificacao", label: "Precificação", icon: Calculator }],
-  },
-  {
-    label: "Conta",
-    items: [
-      { to: "/dashboard/plano", label: "Plano", icon: CreditCard },
-      { to: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
-    ],
-  },
+const navItems: SidebarItem[] = [
+  { to: "/dashboard", label: "Dashboard", icon: Home, exact: true },
+  { to: "/dashboard/studio", label: "Studio", icon: Sparkles },
+  { to: "/dashboard/planner", label: "Planner de conteúdo", icon: ClipboardList },
+  { to: "/dashboard/clientes", label: "Hub de clientes", icon: Users },
+  { to: "/dashboard/precificacao", label: "Precificação", icon: Calculator },
+  { to: "/dashboard/plano", label: "Plano", icon: CreditCard },
+  { to: "/dashboard/configuracoes", label: "Configurações", icon: Settings },
 ];
 
 export function AppSidebar() {
@@ -99,55 +76,47 @@ export function AppSidebar() {
       </div>
 
       <nav className="flex-1 overflow-y-auto p-2">
-        <ul className="flex flex-col gap-3">
-          {sections.map((section) => (
-            <li key={section.label}>
-              {!collapsed && (
-                <div className="px-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                  {section.label}
-                </div>
-              )}
-              <ul className="flex flex-col gap-0.5">
-                {section.items.map((item) => {
-                  const active = item.exact
-                    ? pathname === item.to
-                    : pathname === item.to || pathname.startsWith(item.to + "/");
-                  const Icon = item.icon;
-                  const showDot = item.to === "/dashboard/planner" && plannerNotif;
-                  return (
-                    <li key={item.to}>
-                      <Link
-                        to={item.to}
-                        className={cn(
-                          "group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-                          active && "bg-accent text-foreground",
-                          collapsed && "justify-center px-0",
-                        )}
-                        title={collapsed ? item.label : undefined}
-                      >
-                        <span className="relative">
-                          <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
-                          {showDot && collapsed && (
-                            <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary ring-2 ring-card" />
-                          )}
-                        </span>
-                        {!collapsed && <span className="truncate">{item.label}</span>}
-                        {showDot && !collapsed && (
-                          <span className="ml-auto h-2 w-2 rounded-full bg-primary" />
-                        )}
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
-            </li>
-          ))}
+        <ul className="flex flex-col gap-0.5">
+          {navItems.map((item) => {
+            const active = item.exact
+              ? pathname === item.to
+              : pathname === item.to || pathname.startsWith(item.to + "/");
+            const Icon = item.icon;
+            const showDot = item.to === "/dashboard/planner" && plannerNotif;
+            return (
+              <li key={item.to}>
+                <Link
+                  to={item.to}
+                  className={cn(
+                    "group relative flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+                    active && "bg-accent text-foreground",
+                    collapsed && "justify-center px-0",
+                  )}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <span className="relative">
+                    <Icon className={cn("h-4 w-4 shrink-0", active && "text-primary")} />
+                    {showDot && collapsed && (
+                      <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary ring-2 ring-card" />
+                    )}
+                  </span>
+                  {!collapsed && <span className="truncate">{item.label}</span>}
+                  {showDot && !collapsed && (
+                    <span className="ml-auto h-2 w-2 rounded-full bg-primary" />
+                  )}
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       </nav>
 
-      {!collapsed && (
-        <div className="border-t p-3 text-[11px] text-muted-foreground/70">Postly · v1</div>
-      )}
+      <div className={cn("border-t p-2 flex items-center", collapsed ? "justify-center" : "justify-between gap-2")}>
+        {!collapsed && (
+          <span className="text-[11px] text-muted-foreground/70">Postly · v1</span>
+        )}
+        <ThemeToggle />
+      </div>
     </aside>
   );
 }
