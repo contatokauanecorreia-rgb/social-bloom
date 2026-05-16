@@ -3,7 +3,6 @@ import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/r
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { ThemeProvider } from "@/lib/theme";
 
 function NotFoundComponent() {
   return (
@@ -59,14 +58,11 @@ export const Route = createRootRoute({
   notFoundComponent: NotFoundComponent,
 });
 
-const themeInitScript = `(() => { try { const t = localStorage.getItem('theme'); const dark = t ? t === 'dark' : true; const r = document.documentElement; if (dark) r.classList.add('dark'); r.style.colorScheme = dark ? 'dark' : 'light'; } catch (_) { document.documentElement.classList.add('dark'); document.documentElement.style.colorScheme = 'dark'; } })();`;
-
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className="dark" style={{ colorScheme: "dark" }}>
+    <html lang="pt-BR">
       <head>
         <HeadContent />
-        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
         {children}
@@ -78,11 +74,9 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   return (
-    <ThemeProvider>
-      <TooltipProvider>
-        <Outlet />
-        <Toaster />
-      </TooltipProvider>
-    </ThemeProvider>
+    <TooltipProvider>
+      <Outlet />
+      <Toaster />
+    </TooltipProvider>
   );
 }

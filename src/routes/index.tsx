@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sparkles, Bot, ClipboardList, LayoutGrid, Filter, TrendingUp, Users, Camera, Zap, Check, Instagram } from "lucide-react";
 import heroBg from "@/assets/hero-bg.png";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -24,12 +23,9 @@ function Index() {
             Design System
           </Link>
         </nav>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <Button asChild variant="gradient" size="default">
-            <Link to="/login">Entrar</Link>
-          </Button>
-        </div>
+        <Button asChild variant="gradient" size="default">
+          <Link to="/login">Entrar</Link>
+        </Button>
       </header>
 
       <main className="container mx-auto px-6">

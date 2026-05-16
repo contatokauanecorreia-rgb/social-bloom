@@ -9,7 +9,6 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Sparkles, Loader2 } from "lucide-react";
-import { ThemeToggle } from "@/components/ThemeToggle";
 
 export const Route = createFileRoute("/login")({
   head: () => ({
@@ -124,15 +123,12 @@ function LoginPage() {
           <div className="h-8 w-8 rounded-lg bg-gradient-primary shadow-primary" />
           <span className="text-xl font-bold tracking-tight">Postly</span>
         </Link>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
-          <Link
-            to="/"
-            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            ← Voltar ao site
-          </Link>
-        </div>
+        <Link
+          to="/"
+          className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+        >
+          ← Voltar ao site
+        </Link>
       </header>
 
       <main className="container mx-auto flex min-h-[calc(100vh-96px)] items-center justify-center px-6 py-10">
