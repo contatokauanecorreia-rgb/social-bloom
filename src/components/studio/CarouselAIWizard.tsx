@@ -203,6 +203,15 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
     }
   }, [open]);
 
+  // Seed topic from initialTopic when wizard opens
+  useEffect(() => {
+    if (open && initialTopic && initialTopic.trim().length > 0) {
+      setContentSource("ai");
+      setTopic(initialTopic);
+      setStep(1);
+    }
+  }, [open, initialTopic]);
+
   // Carregar DNA + nome do cliente quando entra no passo 2
   useEffect(() => {
     if (step !== 2 || !clientId) return;
