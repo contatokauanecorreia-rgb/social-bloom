@@ -48,6 +48,7 @@ export type CarouselAIWizardProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clientId: string | null;
+  initialTopic?: string;
 };
 
 type ImageMode = "none" | "bg" | "grid" | "mixed";
