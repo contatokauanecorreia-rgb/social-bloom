@@ -95,7 +95,7 @@ const CATEGORY_OPTIONS: { key: GoogleFontCategory; label: string }[] = [
   { key: "monospace", label: "Monospace" },
 ];
 
-export function CarouselAIWizard({ open, onOpenChange, clientId }: CarouselAIWizardProps) {
+export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }: CarouselAIWizardProps) {
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | "loading">(1);
 
