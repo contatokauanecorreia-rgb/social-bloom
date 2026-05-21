@@ -571,7 +571,7 @@ function PlanoPage() {
                   {ideas.map((idea, i) => (
                     <li
                       key={i}
-                      className="flex items-start justify-between gap-3 rounded-lg border bg-background px-3 py-2.5"
+                      className="flex flex-col items-start gap-3 rounded-lg border bg-background px-3 py-2.5 sm:flex-row sm:items-start sm:justify-between"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{idea.title}</p>
@@ -579,15 +579,29 @@ function PlanoPage() {
                           {idea.description}
                         </p>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0"
-                        onClick={() => handleAddIdeaToPlanner(idea)}
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Adicionar
-                      </Button>
+                      <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAddIdeaToPlanner(idea)}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Adicionar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (!ideasClientId) return;
+                            setCarouselTopic(`${idea.title}\n\n${idea.description}`);
+                            setCarouselClientId(ideasClientId);
+                            setCarouselOpen(true);
+                          }}
+                        >
+                          <Layers className="h-3.5 w-3.5" />
+                          Gerar carrossel
+                        </Button>
+                      </div>
                     </li>
                   ))}
                 </ul>
