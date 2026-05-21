@@ -19,6 +19,7 @@ import { WeekColumn } from "@/components/plano/WeekColumn";
 import { TagChip } from "@/components/plano/TagChip";
 import { PostDialog, type PostDialogValue } from "@/components/plano/PostDialog";
 import { PostCard } from "@/components/plano/PostCard";
+import { CarouselAIWizard } from "@/components/studio/CarouselAIWizard";
 import {
   DndContext,
   DragOverlay,
