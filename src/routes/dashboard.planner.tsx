@@ -67,6 +67,11 @@ function PlanoPage() {
   const [ideasLoading, setIdeasLoading] = useState(false);
   const [ideasClientId, setIdeasClientId] = useState<string | null>(null);
 
+  const [carouselOpen, setCarouselOpen] = useState(false);
+  const [carouselTopic, setCarouselTopic] = useState("");
+  const [carouselClientId, setCarouselClientId] = useState<string | null>(null);
+
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
