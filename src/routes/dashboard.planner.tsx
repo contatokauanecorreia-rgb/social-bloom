@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, X, Loader2, Users, Sparkles, RefreshCw } from "lucide-react";
+import { Plus, Search, X, Loader2, Users, Sparkles, RefreshCw, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,7 @@ import { WeekColumn } from "@/components/plano/WeekColumn";
 import { TagChip } from "@/components/plano/TagChip";
 import { PostDialog, type PostDialogValue } from "@/components/plano/PostDialog";
 import { PostCard } from "@/components/plano/PostCard";
+import { CarouselAIWizard } from "@/components/studio/CarouselAIWizard";
 import {
   DndContext,
   DragOverlay,
@@ -65,6 +66,11 @@ function PlanoPage() {
   const [ideas, setIdeas] = useState<{ title: string; description: string }[]>([]);
   const [ideasLoading, setIdeasLoading] = useState(false);
   const [ideasClientId, setIdeasClientId] = useState<string | null>(null);
+
+  const [carouselOpen, setCarouselOpen] = useState(false);
+  const [carouselTopic, setCarouselTopic] = useState("");
+  const [carouselClientId, setCarouselClientId] = useState<string | null>(null);
+
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -565,7 +571,7 @@ function PlanoPage() {
                   {ideas.map((idea, i) => (
                     <li
                       key={i}
-                      className="flex items-start justify-between gap-3 rounded-lg border bg-background px-3 py-2.5"
+                      className="flex flex-col items-start gap-3 rounded-lg border bg-background px-3 py-2.5 sm:flex-row sm:items-start sm:justify-between"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">{idea.title}</p>
@@ -573,15 +579,29 @@ function PlanoPage() {
                           {idea.description}
                         </p>
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="shrink-0"
-                        onClick={() => handleAddIdeaToPlanner(idea)}
-                      >
-                        <Plus className="h-3.5 w-3.5" />
-                        Adicionar
-                      </Button>
+                      <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAddIdeaToPlanner(idea)}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          Adicionar
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            if (!ideasClientId) return;
+                            setCarouselTopic(`${idea.title}\n\n${idea.description}`);
+                            setCarouselClientId(ideasClientId);
+                            setCarouselOpen(true);
+                          }}
+                        >
+                          <Layers className="h-3.5 w-3.5" />
+                          Gerar carrossel
+                        </Button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -698,6 +718,13 @@ function PlanoPage() {
         clients={clients}
         onSave={handleSavePost}
         onDelete={handleDeletePost}
+      />
+
+      <CarouselAIWizard
+        open={carouselOpen}
+        onOpenChange={setCarouselOpen}
+        clientId={carouselClientId}
+        initialTopic={carouselTopic}
       />
     </PageContainer>
   );

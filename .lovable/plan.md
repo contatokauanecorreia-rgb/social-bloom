@@ -1,46 +1,27 @@
 ## Objetivo
 
-Aumentar o **tamanho padrão do texto de corpo (body)** nos slides do carrossel. Hoje o body usa 28px (≈2,6% da largura de 1080), o que fica visivelmente pequeno em relação ao título (72px). O subtítulo (36px) também fica próximo demais do body.
+Em cada card de ideia gerada pela IA no Planner, adicionar um botão **"Gerar carrossel"** ao lado de **"Adicionar"**. Ao clicar, abrir o `CarouselAIWizard` já com o título e a descrição daquela ideia preenchidos no campo de tópico, e com o cliente selecionado.
 
-## Mudança
+## Mudanças
 
-**Arquivo único:** `src/routes/dashboard.studio.carrossel.tsx`
+### 1. `src/components/studio/CarouselAIWizard.tsx`
+- Adicionar prop opcional `initialTopic?: string` no `CarouselAIWizardProps`.
+- Quando o wizard abrir (`open` vira `true`) e `initialTopic` estiver preenchido:
+  - Setar `contentSource` para `"ai"`.
+  - Setar `topic` com o valor de `initialTopic`.
+- Garantir que o reset no `onClose` continue funcionando normalmente (não tocar nessa lógica além do necessário).
 
-### 1. Defaults de `fontSize` (linha 136)
+### 2. `src/routes/dashboard.planner.tsx`
+- Importar `CarouselAIWizard` e o ícone `Sparkles` (já importado) / `Layers`.
+- Novo state: `carouselOpen: boolean` e `carouselTopic: string`.
+- No card de cada ideia (loop em `ideas.map`), adicionar um segundo botão **"Gerar carrossel"** (variant outline, mesmo tamanho) que:
+  - Verifica se há `ideasClientId` (sempre haverá, pois ideias só existem com cliente selecionado).
+  - Define `carouselTopic` como `${idea.title}\n\n${idea.description}`.
+  - Abre `carouselOpen = true`.
+- Renderizar `<CarouselAIWizard open={carouselOpen} onOpenChange={setCarouselOpen} clientId={ideasClientId} initialTopic={carouselTopic} />` no final do componente, junto ao `PostDialog`.
 
-Antes:
-```
-{ title: 72, subtitle: 36, body: 28 }
-```
+## Notas
 
-Depois:
-```
-{ title: 72, subtitle: 44, body: 40 }
-```
-
-- **body: 28 → 40** (≈3,7% da largura — mais legível em mobile, próximo do tamanho usado em referências de carrossel premium).
-- **subtitle: 36 → 44** para manter a hierarquia visual (subtítulo > body).
-- title permanece 72.
-
-### 2. Constantes de hierarquia (linhas 118–119)
-
-Atualizar para refletir os novos deltas, caso sejam usadas em algum auto-fit futuro:
-```
-const TITLE_TO_SUBTITLE = 28; // 72 - 44
-const SUBTITLE_TO_BODY = 4;   // 44 - 40
-```
-
-(Se hoje não estiverem em uso na renderização — checado: aparecem só como constantes — o ajuste é apenas semântico.)
-
-## Fora do escopo
-
-- Não alterar o título (já está adequado).
-- Não alterar templates já salvos (eles têm `layout.fontSize` próprio e mantêm o tamanho original).
-- Sem mudança no edge function ou no wizard.
-- Sem novo controle de "tamanho do body" no painel — o slider de ajuste manual já existente continua funcionando.
-
-## Verificação
-
-- Abrir `/dashboard/studio/carrossel` recém-gerado e conferir que o body fica maior em relação ao título.
-- Verificar slide com body longo (perto do limite de caracteres) — deve continuar cabendo no canvas, sem estouro.
-- Conferir export PNG/PDF: usa o DOM atual, então pega o novo tamanho automaticamente.
+- O wizard atual já roteia para o editor após gerar, então não há outras dependências.
+- Não alterar a lógica do botão "Adicionar" existente — apenas adicionar o novo botão ao lado.
+- Layout do card de ideia: empilhar os dois botões verticalmente em telas pequenas (`flex-col sm:flex-row`) para não quebrar visualmente.
