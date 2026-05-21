@@ -719,6 +719,13 @@ function PlanoPage() {
         onSave={handleSavePost}
         onDelete={handleDeletePost}
       />
+
+      <CarouselAIWizard
+        open={carouselOpen}
+        onOpenChange={setCarouselOpen}
+        clientId={carouselClientId}
+        initialTopic={carouselTopic}
+      />
     </PageContainer>
   );
 }
