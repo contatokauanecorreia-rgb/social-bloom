@@ -231,6 +231,7 @@ export type Database = {
       }
       content_posts: {
         Row: {
+          caption: string | null
           client_id: string | null
           created_at: string
           id: string
@@ -244,6 +245,7 @@ export type Database = {
           week_id: string
         }
         Insert: {
+          caption?: string | null
           client_id?: string | null
           created_at?: string
           id?: string
@@ -257,6 +259,7 @@ export type Database = {
           week_id: string
         }
         Update: {
+          caption?: string | null
           client_id?: string | null
           created_at?: string
           id?: string

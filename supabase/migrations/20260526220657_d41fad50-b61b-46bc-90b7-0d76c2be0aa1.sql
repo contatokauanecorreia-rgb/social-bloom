@@ -1,0 +1,1 @@
+ALTER TABLE public.content_posts ADD COLUMN IF NOT EXISTS caption text;

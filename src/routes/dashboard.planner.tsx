@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Search, X, Loader2, Users, Sparkles, RefreshCw, Layers } from "lucide-react";
+import { Plus, Search, X, Loader2, Users, Sparkles, RefreshCw, Layers, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -66,6 +66,7 @@ function PlanoPage() {
   const [ideas, setIdeas] = useState<{ title: string; description: string }[]>([]);
   const [ideasLoading, setIdeasLoading] = useState(false);
   const [ideasClientId, setIdeasClientId] = useState<string | null>(null);
+  const [ideaPostIds, setIdeaPostIds] = useState<Record<number, string>>({});
 
   const [carouselOpen, setCarouselOpen] = useState(false);
   const [carouselTopic, setCarouselTopic] = useState("");
@@ -299,6 +300,7 @@ function PlanoPage() {
     if (!userId || selectedClient === "all") return;
     setIdeasLoading(true);
     setIdeas([]);
+    setIdeaPostIds({});
     setIdeasClientId(selectedClient);
     try {
       const { data: sess } = await supabase.auth.getSession();
@@ -319,7 +321,57 @@ function PlanoPage() {
         toast.error(json.error ?? "Erro ao gerar ideias.");
         return;
       }
-      setIdeas(json.ideas ?? []);
+      const generated: { title: string; description: string }[] = json.ideas ?? [];
+      setIdeas(generated);
+
+      if (generated.length === 0) return;
+
+      // Auto-save: ensure a week exists, then insert one post per idea.
+      let targetWeeks = weeks;
+      if (targetWeeks.length === 0) {
+        const { data: newWeek, error: weekErr } = await supabase
+          .from("content_weeks")
+          .insert({ user_id: userId, name: "Semana 1", position: 0 })
+          .select()
+          .single();
+        if (weekErr || !newWeek) {
+          toast.error("Não foi possível criar a semana padrão.");
+          return;
+        }
+        targetWeeks = [newWeek as ContentWeek];
+        setWeeks(targetWeeks);
+      }
+      const weekId = targetWeeks[0].id;
+      const basePosition = posts.filter((p) => p.week_id === weekId).length;
+
+      const rows = generated.map((idea, i) => ({
+        user_id: userId,
+        title: idea.title,
+        week_id: weekId,
+        client_id: selectedClient,
+        tags: [] as string[],
+        notes: idea.description,
+        status: "planned" as const,
+        position: basePosition + i,
+      }));
+
+      const { data: inserted, error: insertErr } = await supabase
+        .from("content_posts")
+        .insert(rows)
+        .select();
+      if (insertErr || !inserted) {
+        toast.error(insertErr?.message ?? "Erro ao salvar ideias no planner.");
+        return;
+      }
+      setPosts((prev) => [...prev, ...(inserted as ContentPost[])]);
+      const ids: Record<number, string> = {};
+      inserted.forEach((row, i) => {
+        ids[i] = (row as ContentPost).id;
+      });
+      setIdeaPostIds(ids);
+      toast.success(
+        `${inserted.length} ${inserted.length === 1 ? "ideia adicionada" : "ideias adicionadas"} ao planner`,
+      );
     } catch {
       toast.error("Erro ao gerar ideias.");
     } finally {
@@ -327,35 +379,30 @@ function PlanoPage() {
     }
   };
 
-  const handleAddIdeaToPlanner = async (idea: { title: string; description: string }) => {
-    if (!userId) return;
-    if (weeks.length === 0) {
-      toast.error("Crie uma semana antes de adicionar posts.");
+  const handleUseAsCaption = async (
+    index: number,
+    idea: { title: string; description: string },
+  ) => {
+    const postId = ideaPostIds[index];
+    if (!postId) {
+      toast.error("Post ainda não foi criado.");
       return;
     }
-    const weekId = weeks[0].id;
-    const position = posts.filter((p) => p.week_id === weekId).length;
+    const caption = `${idea.title}\n\n${idea.description}`;
     const { data, error } = await supabase
       .from("content_posts")
-      .insert({
-        user_id: userId,
-        title: idea.title,
-        week_id: weekId,
-        client_id: ideasClientId,
-        tags: [],
-        notes: idea.description,
-        status: "planned",
-        position,
-      })
+      .update({ caption })
+      .eq("id", postId)
       .select()
       .single();
     if (error) {
       toast.error(error.message);
       return;
     }
-    setPosts((prev) => [...prev, data as ContentPost]);
-    toast.success(`Post adicionado em "${weeks[0].name}"`);
+    setPosts((prev) => prev.map((p) => (p.id === postId ? (data as ContentPost) : p)));
+    toast.success("Legenda salva no post");
   };
+
 
   const toggleTag = (t: string) => {
     setActiveTags((prev) => (prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]));
@@ -565,7 +612,7 @@ function PlanoPage() {
             ) : (
               <div className="flex flex-col gap-2">
                 <p className="text-xs font-medium text-muted-foreground">
-                  5 ideias geradas com IA — clique para adicionar ao Planner
+                  5 ideias geradas com IA — já adicionadas ao Planner do cliente
                 </p>
                 <ul className="flex flex-col gap-2">
                   {ideas.map((idea, i) => (
@@ -583,10 +630,11 @@ function PlanoPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleAddIdeaToPlanner(idea)}
+                          onClick={() => handleUseAsCaption(i, idea)}
+                          disabled={!ideaPostIds[i]}
                         >
-                          <Plus className="h-3.5 w-3.5" />
-                          Adicionar
+                          <FileText className="h-3.5 w-3.5" />
+                          Usar como legenda
                         </Button>
                         <Button
                           variant="outline"

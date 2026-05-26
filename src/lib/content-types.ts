@@ -15,6 +15,7 @@ export type ContentPost = {
   title: string;
   tags: string[];
   notes: string | null;
+  caption: string | null;
   status: PostStatus;
   position: number;
 };
