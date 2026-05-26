@@ -612,7 +612,7 @@ function PlanoPage() {
             ) : (
               <div className="flex flex-col gap-2">
                 <p className="text-xs font-medium text-muted-foreground">
-                  5 ideias geradas com IA — clique para adicionar ao Planner
+                  5 ideias geradas com IA — já adicionadas ao Planner do cliente
                 </p>
                 <ul className="flex flex-col gap-2">
                   {ideas.map((idea, i) => (
@@ -630,10 +630,11 @@ function PlanoPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleAddIdeaToPlanner(idea)}
+                          onClick={() => handleUseAsCaption(i, idea)}
+                          disabled={!ideaPostIds[i]}
                         >
-                          <Plus className="h-3.5 w-3.5" />
-                          Adicionar
+                          <FileText className="h-3.5 w-3.5" />
+                          Usar como legenda
                         </Button>
                         <Button
                           variant="outline"
