@@ -66,6 +66,7 @@ function PlanoPage() {
   const [ideas, setIdeas] = useState<{ title: string; description: string }[]>([]);
   const [ideasLoading, setIdeasLoading] = useState(false);
   const [ideasClientId, setIdeasClientId] = useState<string | null>(null);
+  const [ideaPostIds, setIdeaPostIds] = useState<Record<number, string>>({});
 
   const [carouselOpen, setCarouselOpen] = useState(false);
   const [carouselTopic, setCarouselTopic] = useState("");
