@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
+import { NotificationsBell } from "@/components/dashboard/NotificationsBell";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
