@@ -1,29 +1,67 @@
 ## Objetivo
 
-No Planner, quando a IA gerar ideias, elas devem ser salvas automaticamente no planner do cliente selecionado, e cada ideia ganha um botão "Usar como legenda" que grava o texto como legenda do post correspondente.
+Adicionar um painel de **Score preditivo** no editor de carrossel (`/dashboard/studio/carrossel`). Antes de exportar, o usuário pode rodar uma análise com IA que devolve nota de 1 a 10 + explicação curta com pontos a melhorar, considerando formato, tom, melhor horário e nicho do cliente.
 
-## Decisões assumidas (você pulou as perguntas)
+## UX
 
-- **Auto-save**: assim que a IA terminar de gerar, cada ideia já é criada como post no planner do cliente (na primeira semana existente). O botão "Adicionar" deixa de ser necessário e é removido. Os cards de ideia passam a mostrar o vínculo com o post criado.
-- **Campo legenda**: criar uma coluna nova `caption` (text, nullable) em `content_posts`. O campo `notes` continua existindo para anotações livres; "Usar como legenda" preenche/atualiza `caption`.
+- Novo painel no topbar/sidebar do editor (próximo ao botão "Baixar todos"), com:
+  - Botão **"Analisar com IA"** (gasta 1 crédito, mesmo padrão dos demais geradores).
+  - Após análise: card mostrando **score grande (X/10)**, **horário sugerido** ("Ex.: terça, 19h–21h"), **3 pontos fortes**, **3 sugestões de melhoria**.
+  - Estado vazio antes de rodar: "Rode uma análise antes de exportar para ver o potencial do post."
+- O botão **"Baixar todos"** continua funcional, mas ganha um aviso suave quando nenhum score foi calculado ainda ("Quer analisar antes de exportar?" — não bloqueia, só sugere).
+- Se o usuário editar slides depois da análise, marcar score como "desatualizado" (badge cinza), incentivando re-análise.
+
+## Backend
+
+Nova edge function **`carrossel-score`** (segue o padrão de `carrossel-generate` e `planner-ideas`, via Lovable AI Gateway, modelo `google/gemini-3-flash-preview`, tool-calling para JSON estruturado).
+
+**Input:**
+```json
+{
+  "format": "carrossel" | "quadrado" | "stories",
+  "slides": [{ "title": "...", "subtitle": "...", "body": "..." }],
+  "clientId": "..."
+}
+```
+
+**Lookup do cliente:** mesma lógica usada hoje no editor (briefing mock em `client-context.ts` + briefing salvo se houver). Passa para o prompt: segmento, tom de voz, objetivo, palavras-chave.
+
+**Output (tool call estruturado):**
+```json
+{
+  "score": 8,
+  "summary": "Frase curta justificando a nota.",
+  "bestTime": "Terça e quinta, 19h–21h",
+  "strengths": ["...", "...", "..."],
+  "improvements": ["...", "...", "..."]
+}
+```
+
+Sem persistência em DB nessa entrega — score vive em memória no editor (suficiente para o fluxo "ver antes de exportar"). Caso queira histórico depois, é outra iteração.
 
 ## Mudanças
 
-### 1. Banco (`content_posts`)
-- Migração: `ALTER TABLE content_posts ADD COLUMN caption text;` (sem mudança de RLS — políticas existentes já cobrem).
+### 1. `supabase/functions/carrossel-score/index.ts` (novo)
+- CORS padrão, POST, valida payload com Zod.
+- Monta prompt com briefing do cliente + slides + formato.
+- Chama Lovable AI Gateway com tool `return_score` (schema acima).
+- Trata 429/402 devolvendo a mensagem ao cliente.
 
-### 2. `src/routes/dashboard.planner.tsx`
-- Após `setIdeas(json.ideas)`, disparar auto-save: para cada ideia, inserir um `content_post` (status `planned`, na primeira semana do cliente selecionado), guardando o `id` retornado. Mostrar toast único "N ideias adicionadas ao planner".
-- Guardar estado `ideaPostIds: Record<number, string>` mapeando índice da ideia → id do post criado.
-- Remover o botão "Adicionar" (não é mais necessário) e a função `handleAddIdeaToPlanner`.
-- Manter "Gerar carrossel".
-- Adicionar botão **"Usar como legenda"** em cada card: faz `update` em `content_posts` setando `caption = "${idea.title}\n\n${idea.description}"` no post correspondente; toast "Legenda salva".
-- Tratar caso sem semana: se `weeks.length === 0`, criar automaticamente uma semana padrão ("Semana 1") antes do auto-save, ou exibir aviso e não autossalvar.
-- Tratar caso sem cliente selecionado: manter o gate atual (não gerar ideias sem `ideasClientId`).
+### 2. `src/routes/dashboard.studio.carrossel.tsx`
+- Novo estado: `score: ScoreResult | null`, `scoring: boolean`, `scoreStale: boolean`.
+- Função `runScore()`:
+  - Gate: precisa de `clientId` e ≥1 slide com conteúdo.
+  - `consumeCredits(1)` (refund em erro), igual aos demais fluxos.
+  - `supabase.functions.invoke("carrossel-score", { body })`.
+  - Salva resultado em `score`, zera `scoreStale`.
+- Marcar `scoreStale = true` em qualquer setter de slides (título/subtítulo/body/reordenar/adicionar/remover).
+- Renderizar o painel `<ScorePanel />` ao lado/abaixo do botão "Baixar todos". Componente local no mesmo arquivo (já é o padrão do editor) ou extraído para `src/components/studio/CarouselScorePanel.tsx` se ficar > ~80 linhas.
 
-### 3. Tipos
-- `src/integrations/supabase/types.ts` é auto-gerado após a migração — não editar manualmente. Atualizar quaisquer `type ContentPost` locais no arquivo do planner para incluir `caption?: string | null`.
+### 3. Sem mudanças no banco
+- Nada de migrations. Score é efêmero.
 
 ## Fora de escopo
-- UI para exibir/editar a legenda nos cards de post do board (pode ser feita em uma próxima iteração). Esta entrega apenas grava o campo.
-- Mudar o `CarouselAIWizard` ou o Studio.
+- Histórico de scores por post.
+- Score automático ao abrir o editor (só sob clique, para não gastar créditos sem consentimento).
+- Re-análise automática após editar (apenas marca como desatualizado).
+- Mudar o fluxo do Planner ou do CarouselAIWizard.

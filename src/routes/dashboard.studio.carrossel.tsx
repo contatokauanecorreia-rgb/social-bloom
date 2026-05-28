@@ -14,6 +14,7 @@ import {
   Loader2,
   Plus,
   Save,
+  Sparkles,
   Trash2,
   Type,
   X,
@@ -219,6 +220,18 @@ function CarrosselEditorPage() {
   const [saveTemplateChecked, setSaveTemplateChecked] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
+
+  // Score preditivo
+  type ScoreResult = {
+    score: number;
+    summary: string;
+    bestTime: string;
+    strengths: string[];
+    improvements: string[];
+  };
+  const [score, setScore] = useState<ScoreResult | null>(null);
+  const [scoring, setScoring] = useState(false);
+  const [scoreStale, setScoreStale] = useState(false);
 
   // initial setup
   useEffect(() => {
@@ -536,12 +549,14 @@ function CarrosselEditorPage() {
 
   const updateActive = (mutator: (s: Slide) => Slide) => {
     setSlides((prev) => prev.map((s) => (s.id === activeId ? mutator(s) : s)));
+    if (score) setScoreStale(true);
   };
 
   const applyToAll = (mutator: (s: Slide, source: Slide) => Slide) => {
     const source = slides.find((s) => s.id === activeId);
     if (!source) return;
     setSlides((prev) => prev.map((s) => mutator(s, source)));
+    if (score) setScoreStale(true);
   };
 
   const addSlide = () => {
@@ -549,6 +564,7 @@ function CarrosselEditorPage() {
     const ns = makeSlide(tpl, dna.palette[0]);
     setSlides((prev) => [...prev, ns]);
     setActiveId(ns.id);
+    if (score) setScoreStale(true);
   };
 
 
@@ -562,6 +578,41 @@ function CarrosselEditorPage() {
       if (id === activeId) setActiveId(next[0].id);
       return next;
     });
+    if (score) setScoreStale(true);
+  };
+
+  const runScore = async () => {
+    const hasContent = slides.some(
+      (s) => (s.text.title || s.text.subtitle || s.text.body).trim().length > 0,
+    );
+    if (!hasContent) {
+      toast.info("Adicione conteúdo nos slides antes de analisar.");
+      return;
+    }
+    setScoring(true);
+    try {
+      const payload = {
+        clientId,
+        format: format.key,
+        slides: slides.map((s) => ({
+          title: s.text.title,
+          subtitle: s.text.subtitle,
+          body: s.text.body,
+        })),
+      };
+      const { data, error } = await supabase.functions.invoke("carrossel-score", {
+        body: payload,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setScore(data as ScoreResult);
+      setScoreStale(false);
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Erro ao calcular score.");
+    } finally {
+      setScoring(false);
+    }
   };
 
   const setBgImage = async (file: File, applyAll: boolean) => {
@@ -802,7 +853,87 @@ function CarrosselEditorPage() {
                   }}
                 />
               </div>
-              <div className="space-y-2 border-t p-3">
+              <div className="space-y-3 border-t p-3">
+                {/* Score preditivo */}
+                <div className="rounded-md border bg-muted/30 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                      Score preditivo
+                    </div>
+                    {score && scoreStale && (
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        desatualizado
+                      </span>
+                    )}
+                  </div>
+
+                  {score ? (
+                    <div className="space-y-2">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold leading-none text-primary">
+                          {score.score}
+                        </span>
+                        <span className="text-xs text-muted-foreground">/ 10</span>
+                      </div>
+                      <p className="text-[11px] leading-snug text-foreground">{score.summary}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        <span className="font-medium text-foreground">Melhor horário:</span>{" "}
+                        {score.bestTime}
+                      </p>
+                      {score.strengths?.length > 0 && (
+                        <div>
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Pontos fortes
+                          </p>
+                          <ul className="space-y-0.5 text-[11px] leading-snug">
+                            {score.strengths.map((s, i) => (
+                              <li key={i} className="flex gap-1.5">
+                                <span className="text-emerald-600">+</span>
+                                <span>{s}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {score.improvements?.length > 0 && (
+                        <div>
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Pode melhorar
+                          </p>
+                          <ul className="space-y-0.5 text-[11px] leading-snug">
+                            {score.improvements.map((s, i) => (
+                              <li key={i} className="flex gap-1.5">
+                                <span className="text-amber-600">→</span>
+                                <span>{s}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] leading-snug text-muted-foreground">
+                      Analise o post antes de exportar para ver o potencial estimado e sugestões.
+                    </p>
+                  )}
+
+                  <Button
+                    size="sm"
+                    variant={score ? "outline" : "default"}
+                    className="mt-3 w-full gap-1.5"
+                    onClick={runScore}
+                    disabled={scoring}
+                  >
+                    {scoring ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5" />
+                    )}
+                    {score ? (scoreStale ? "Recalcular score" : "Analisar de novo") : "Analisar com IA"}
+                  </Button>
+                </div>
+
                 <Button
                   className="w-full gap-2"
                   onClick={exportZip}
@@ -815,6 +946,11 @@ function CarrosselEditorPage() {
                   )}
                   Baixar todos
                 </Button>
+                {!score && (
+                  <p className="text-center text-[10px] text-muted-foreground">
+                    Dica: rode o score antes de exportar.
+                  </p>
+                )}
                 <Button
                   variant="outline"
                   className="w-full gap-2"
@@ -826,6 +962,7 @@ function CarrosselEditorPage() {
                 </Button>
               </div>
             </aside>
+
 
             {/* Área central — slides lado a lado horizontalmente */}
             <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
