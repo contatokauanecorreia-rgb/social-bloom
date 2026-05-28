@@ -97,8 +97,7 @@ export function VideoWorkflowCanvas() {
     temperature: 0,
     lut: "Natural",
   });
-    lut: "Natural",
-  });
+
 
   // --- Block 1: upload + transcription state ---
   type TranscriptionStatus = "idle" | "uploading" | "transcribing" | "ready" | "error";
