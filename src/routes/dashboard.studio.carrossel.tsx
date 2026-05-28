@@ -564,6 +564,7 @@ function CarrosselEditorPage() {
     const ns = makeSlide(tpl, dna.palette[0]);
     setSlides((prev) => [...prev, ns]);
     setActiveId(ns.id);
+    if (score) setScoreStale(true);
   };
 
 
@@ -577,6 +578,41 @@ function CarrosselEditorPage() {
       if (id === activeId) setActiveId(next[0].id);
       return next;
     });
+    if (score) setScoreStale(true);
+  };
+
+  const runScore = async () => {
+    const hasContent = slides.some(
+      (s) => (s.text.title || s.text.subtitle || s.text.body).trim().length > 0,
+    );
+    if (!hasContent) {
+      toast.info("Adicione conteúdo nos slides antes de analisar.");
+      return;
+    }
+    setScoring(true);
+    try {
+      const payload = {
+        clientId,
+        format: format.key,
+        slides: slides.map((s) => ({
+          title: s.text.title,
+          subtitle: s.text.subtitle,
+          body: s.text.body,
+        })),
+      };
+      const { data, error } = await supabase.functions.invoke("carrossel-score", {
+        body: payload,
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setScore(data as ScoreResult);
+      setScoreStale(false);
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "Erro ao calcular score.");
+    } finally {
+      setScoring(false);
+    }
   };
 
   const setBgImage = async (file: File, applyAll: boolean) => {
