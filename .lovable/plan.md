@@ -1,51 +1,61 @@
-# Página pública do cliente
+# Aprovação e comentários na página pública + notificações in-app
 
-Cria uma vitrine pública (sem login) com os conteúdos aprovados de cada cliente, acessível via link compartilhável.
+Estende a página pública `/cliente/$slug` (aprovada no plano anterior) com ações de aprovação e comentário por peça, e cria um sistema de notificações dentro da plataforma para o social media.
 
 ## 1. Banco de dados
 
-Migration em `clients`:
-- Adicionar `slug text unique` (gerado a partir do nome ao criar/editar cliente, ex: `studio-bela-forma`).
-- Backfill nos clientes existentes.
-- Nova policy `SELECT` pública (role `anon`) em `clients` restrita por slug — apenas colunas seguras (name, company, avatar_url, instagram, website, slug). Para isso usaremos uma `security definer function` `public.get_public_client(slug text)` que retorna só esses campos + a lista de posts aprovados, evitando expor `user_id`, `email`, `phone`, `notes`.
-- Função `public.get_public_client_content(slug text)` retornando posts com `status = 'published'` (tratado como "aprovado") + tipo derivado de `tags` (carrossel/reels/post/story).
-- `GRANT EXECUTE ... TO anon, authenticated` nas duas funções.
+Migration nova:
 
-Sem expor a tabela `clients` diretamente ao `anon`.
+- **`public.post_approvals`** — uma linha por peça/cliente: `post_id`, `client_id`, `status` ('aprovado' | 'comentado'), `approver_name`, `approver_ip` (hash), `created_at`. Sem `user_id` (ação anônima do cliente).
+- **`public.post_comments`** — `post_id`, `client_id`, `author_name` (opcional), `body` (text, 1–1000), `created_at`. Histórico de comentários.
+- **`public.notifications`** — `user_id` (social media), `type` ('approval' | 'comment'), `client_id`, `post_id`, `payload jsonb`, `read_at` nullable, `created_at`.
+  - RLS: `SELECT/UPDATE/DELETE` apenas para o próprio `user_id`. Sem `INSERT` direto via RLS (inserção feita por RPC `SECURITY DEFINER` abaixo).
+- GRANTs em todas as tabelas (`authenticated` + `service_role`).
 
-## 2. Rota pública `/cliente/$slug`
+Funções públicas (`SECURITY DEFINER`, `GRANT EXECUTE TO anon, authenticated`):
 
-Arquivo: `src/routes/cliente.$slug.tsx` (fora do layout `dashboard`, sem auth).
+- **`public.submit_post_approval(p_slug, p_post_id, p_author_name)`**
+  Valida slug + post pertence ao cliente; insere/atualiza linha em `post_approvals`; insere notificação para o `user_id` dono do cliente. Idempotente (uma aprovação por peça).
+- **`public.submit_post_comment(p_slug, p_post_id, p_author_name, p_body)`**
+  Valida tamanho (≤1000), insere em `post_comments`; insere notificação.
+- **`public.get_public_client_content(p_slug)`** (já existe) — estender para retornar também `approved boolean` e `comments_count int` para a UI mostrar estado.
 
-- `loader`: chama `supabase.rpc('get_public_client', { slug })` + `get_public_client_content`. 404 se não existir.
-- `head()`: title `"{nome} — Conteúdos"`, description, `og:title`, `og:description`, `og:image` (avatar do cliente quando existir), `robots: index`.
-- Layout responsivo mobile-first:
-  - **Header**: avatar/logo (fallback iniciais), nome, @instagram, link do site. Centrado no mobile, alinhado à esquerda no desktop.
-  - **Filtros simples** (chips): Todos · Carrosséis · Vídeos · Posts · Stories.
-  - **Grade**: `grid-cols-2 md:grid-cols-3 lg:grid-cols-4` com cards quadrados, capa por tipo (gradiente já usado no projeto), badge do tipo, título e legenda truncada. Clique abre `Dialog` com detalhes (legenda completa, data, tags).
-  - **Footer**: "Feito com Postly" (branding leve, sem links pro app).
-- Sem ações de edição/aprovação — somente visualização.
-- Estado vazio amigável ("Em breve novos conteúdos").
+Notificações são inseridas com `INSERT INTO public.notifications ...` dentro da função `SECURITY DEFINER`, contornando RLS.
 
-## 3. Botão "Compartilhar com cliente"
+## 2. Página pública `/cliente/$slug`
 
-Em `src/routes/dashboard.clientes.$id.index.tsx` (página do cliente no dashboard):
-- Botão `Compartilhar link público` no header, abre `Dialog` com:
-  - URL completa `https://{host}/cliente/{slug}`
-  - Botão Copiar (toast de confirmação)
-  - Botão Abrir em nova aba
-  - QR code (usa `qrcode.react`, já leve) para abrir no celular
-- Aviso curto: "Qualquer pessoa com o link consegue ver os conteúdos aprovados".
+(Se ainda não existir, criar conforme plano anterior aprovado.) Em cada card de conteúdo:
 
-## 4. Detalhes técnicos
+- Badge "Aprovado ✓" quando `approved=true`.
+- No `Dialog` de detalhes da peça:
+  - Botão **Aprovar** (ícone check). Se já aprovado, mostra estado "Aprovado por {nome} em {data}" e desabilita.
+  - Campo de **nome** (opcional, persistido em `localStorage` por slug para reuso).
+  - **Textarea de comentário** + botão **Enviar comentário**. Validação client+server (1–1000 chars, `zod`).
+  - Lista cronológica dos comentários abaixo.
+- Toast de confirmação após cada ação. Tratamento de erro amigável.
+- Tudo isso usa a `anon key` chamando as RPCs `submit_post_approval` e `submit_post_comment`.
 
-- Cliente Supabase do browser (anon key) já pode chamar as RPCs.
-- Geração de slug: helper `slugify(name)` simples + sufixo numérico em caso de colisão, aplicado no `INSERT`/`UPDATE` do cliente (trigger SQL `BEFORE INSERT OR UPDATE` em `clients`).
-- Tipos atualizados via regen do `types.ts` após migration.
-- Mobile: header empilhado, filtros com scroll horizontal, cards 2 colunas, dialog ocupa quase tela cheia (`sm:max-w-lg`).
+## 3. Notificações dentro da plataforma
+
+Componente `NotificationsBell` no header do dashboard (`src/components/dashboard/AppSidebar.tsx` ou `src/routes/dashboard.tsx`):
+
+- Ícone de sino com badge contendo número de não lidas.
+- `Popover` ao clicar, listando últimas 20 notificações (RPC ou `select` direto via RLS).
+- Cada item:
+  - Ícone (check ou balão), nome do cliente, "aprovou {título}" ou "comentou em {título}", tempo relativo.
+  - Clique → navega para `/dashboard/clientes/$id/aprovacao` ou conteúdo equivalente e marca como lida.
+- Botão "Marcar todas como lidas".
+- Realtime via `supabase.channel('notifications').on('postgres_changes', ...)` filtrando por `user_id` para atualizar contador sem refresh. Habilitar `ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications`.
+
+## 4. Validação e segurança
+
+- `zod` no client para nome (≤80) e comentário (1–1000).
+- Trigger de validação no servidor (CHECK ou validação dentro da RPC) para mesmas regras.
+- Rate-limit simples: a função RPC pode rejeitar mais de N comentários do mesmo IP/post em 1 minuto (usar `inet_client_addr()` com cuidado — opcional, se complicar pulamos).
+- Sem expor `user_id` do social media na resposta pública.
 
 ## Fora de escopo
 
-- Comentários/reações públicas.
-- Autenticação por senha do link.
-- Upload real de mídia dos posts (continua usando as capas-gradiente atuais — quando houver `media_url` nos posts, basta trocar a capa).
+- Notificação por email/push.
+- Sistema de menções, threading de comentários, edição/exclusão pelo cliente.
+- Aprovação revogável pelo cliente (uma vez aprovado, fica aprovado).
