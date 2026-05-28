@@ -1,54 +1,51 @@
-## Objetivo
+# Página pública do cliente
 
-Quando o usuário gerar um carrossel pelo wizard de IA, em vez de cair direto no editor com 1 versão, mostrar **duas variações lado a lado** — uma no sistema **Minimalista** (foco em tipografia, sem foto) e uma no sistema **Criativo** (foto editorial cobrindo o slide). O usuário escolhe qual vai para o editor / aprovação do cliente antes de exportar.
+Cria uma vitrine pública (sem login) com os conteúdos aprovados de cada cliente, acessível via link compartilhável.
 
-## UX
+## 1. Banco de dados
 
-Novo passo final no `CarouselAIWizard` (após o usuário clicar "Gerar"):
+Migration em `clients`:
+- Adicionar `slug text unique` (gerado a partir do nome ao criar/editar cliente, ex: `studio-bela-forma`).
+- Backfill nos clientes existentes.
+- Nova policy `SELECT` pública (role `anon`) em `clients` restrita por slug — apenas colunas seguras (name, company, avatar_url, instagram, website, slug). Para isso usaremos uma `security definer function` `public.get_public_client(slug text)` que retorna só esses campos + a lista de posts aprovados, evitando expor `user_id`, `email`, `phone`, `notes`.
+- Função `public.get_public_client_content(slug text)` retornando posts com `status = 'published'` (tratado como "aprovado") + tipo derivado de `tags` (carrossel/reels/post/story).
+- `GRANT EXECUTE ... TO anon, authenticated` nas duas funções.
 
-1. Wizard chama a edge function **2× em paralelo** com a mesma topic/briefing:
-   - Versão A: `bgKinds: ["texto"]` → vira sistema **Minimalista** (presets M2/M3).
-   - Versão B: `bgKinds: ["foto"]` → vira sistema **Criativo** (presets C1).
-   - **Sem geração de imagem nessa etapa** (`aiImages: false`) — só copy + layout. Placeholder visual com cor da paleta no preview. Isso evita gastar geração de imagem em uma versão que vai ser descartada.
-2. Tela de comparação dentro do mesmo dialog (substitui o spinner de "gerando…"):
-   - Dois cards grandes lado a lado: "Minimalista" e "Criativo".
-   - Cada card mostra mini-preview dos primeiros 3 slides (usa o mesmo `SlidePreview` que o editor já tem, em escala reduzida).
-   - Botão "Escolher esta versão" em cada card.
-   - Botão secundário "Gerar de novo" (volta ao passo de configuração).
-3. Ao escolher uma versão:
-   - Monta o `bootstrap` (sessionStorage) só da versão escolhida.
-   - Se `aiImages` estava ligado na config original e a versão escolhida é **Criativa**, gera os `imageJobs` (a geração das imagens em si continua acontecendo no editor em segundo plano, como já é hoje).
-   - Navega para `/dashboard/studio/carrossel`.
+Sem expor a tabela `clients` diretamente ao `anon`.
 
-## Mudanças
+## 2. Rota pública `/cliente/$slug`
 
-### 1. `src/components/studio/CarouselAIWizard.tsx`
-- Novo estado: `variants: { minimalista: SlideData[] | null; criativo: SlideData[] | null }`, `chooseStep: boolean`.
-- Função `handleGenerate` divide em duas chamadas paralelas:
-  ```ts
-  const [minRes, creRes] = await Promise.all([
-    invoke({ ...common, bgKinds: ["texto"], aiImages: false }),
-    invoke({ ...common, bgKinds: ["foto"], aiImages: false }),
-  ]);
-  ```
-- Em vez de navegar direto, seta `variants` e `chooseStep = true`.
-- Novo render `<VariantPicker>`:
-  - 2 cards com mini-thumbnails (reaproveita render existente de slide, em CSS `transform: scale(0.18)`).
-  - Cada um chama `pickVariant("minimalista" | "criativo")`.
-- `pickVariant` monta o bootstrap da versão escolhida (cópia exata da lógica atual de `imageJobs`, palette, signature, fontPair) e navega.
-- Tratamento de erro: se uma das duas chamadas falhar, ainda permite escolher a que deu certo (com aviso) ou refazer.
+Arquivo: `src/routes/cliente.$slug.tsx` (fora do layout `dashboard`, sem auth).
 
-### 2. Mini-preview de slide
-- Extrair o JSX de render de slide do editor para um componente compartilhado **`src/components/studio/SlideMiniPreview.tsx`** (lê os mesmos campos do bootstrap: title/subtitle/body/sistema/fundo/palette/fontPair), renderizado em ~200×250 px.
-- Usado tanto no editor (não muda) quanto no wizard.
-- Se a refatoração ficar grande, fallback: render simplificado dedicado dentro do wizard (cor de fundo da paleta + título + subtítulo), sem reaproveitar o editor.
+- `loader`: chama `supabase.rpc('get_public_client', { slug })` + `get_public_client_content`. 404 se não existir.
+- `head()`: title `"{nome} — Conteúdos"`, description, `og:title`, `og:description`, `og:image` (avatar do cliente quando existir), `robots: index`.
+- Layout responsivo mobile-first:
+  - **Header**: avatar/logo (fallback iniciais), nome, @instagram, link do site. Centrado no mobile, alinhado à esquerda no desktop.
+  - **Filtros simples** (chips): Todos · Carrosséis · Vídeos · Posts · Stories.
+  - **Grade**: `grid-cols-2 md:grid-cols-3 lg:grid-cols-4` com cards quadrados, capa por tipo (gradiente já usado no projeto), badge do tipo, título e legenda truncada. Clique abre `Dialog` com detalhes (legenda completa, data, tags).
+  - **Footer**: "Feito com Postly" (branding leve, sem links pro app).
+- Sem ações de edição/aprovação — somente visualização.
+- Estado vazio amigável ("Em breve novos conteúdos").
 
-### 3. Backend
-- **Sem mudanças** em `carrossel-generate`. Já aceita `bgKinds` e responde sob esse filtro.
-- **Sem mudanças** em DB.
+## 3. Botão "Compartilhar com cliente"
+
+Em `src/routes/dashboard.clientes.$id.index.tsx` (página do cliente no dashboard):
+- Botão `Compartilhar link público` no header, abre `Dialog` com:
+  - URL completa `https://{host}/cliente/{slug}`
+  - Botão Copiar (toast de confirmação)
+  - Botão Abrir em nova aba
+  - QR code (usa `qrcode.react`, já leve) para abrir no celular
+- Aviso curto: "Qualquer pessoa com o link consegue ver os conteúdos aprovados".
+
+## 4. Detalhes técnicos
+
+- Cliente Supabase do browser (anon key) já pode chamar as RPCs.
+- Geração de slug: helper `slugify(name)` simples + sufixo numérico em caso de colisão, aplicado no `INSERT`/`UPDATE` do cliente (trigger SQL `BEFORE INSERT OR UPDATE` em `clients`).
+- Tipos atualizados via regen do `types.ts` após migration.
+- Mobile: header empilhado, filtros com scroll horizontal, cards 2 colunas, dialog ocupa quase tela cheia (`sm:max-w-lg`).
 
 ## Fora de escopo
-- Salvar as duas versões no Planner como rascunho (entrega atual: apenas a escolhida vai para o editor).
-- Comparar 3+ versões.
-- Editar a versão minimalista e a criativa em paralelo no editor.
-- Mudar como as imagens são geradas no editor (continua igual).
+
+- Comentários/reações públicas.
+- Autenticação por senha do link.
+- Upload real de mídia dos posts (continua usando as capas-gradiente atuais — quando houver `media_url` nos posts, basta trocar a capa).
