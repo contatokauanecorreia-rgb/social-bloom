@@ -1,66 +1,53 @@
-# Video Workflow — Canvas de geração de vídeo com IA
+# Bloco 1 — Transcrição automática com AssemblyAI
 
-Nova página em `/dashboard/studio/video-workflow` com um canvas visual no estilo node-editor, onde 5 blocos aparecem conectados por linhas, na ordem fixa: **vídeo → cenário → IA → LUTs → gerar**. O usuário pode arrastar cada bloco para reposicionar, mas a ordem de execução do pipeline é sempre a mesma.
+## Objetivo
+Quando o usuário enviar um vídeo no Bloco 1 do Video Workflow, o arquivo é salvo em storage privado, enviado à AssemblyAI para transcrição, e o texto fica disponível para os Blocos 2 e 5.
 
-## Escopo do que será construído
+## O que será implementado
 
-### 1. Nova rota
-- `src/routes/dashboard.studio.video-workflow.tsx` (filha de `/dashboard/studio`, herda header, picker de cliente e contexto)
-- `head()` próprio: title `Video Workflow — Postly`, description e og tags
-- Card de entrada na grade do Studio (`dashboard.studio.tsx`) ao lado de "Carrossel AI" para navegar até a nova página
+### 1. Segredo
+- `ASSEMBLYAI_API_KEY` via formulário seguro (`add_secret`). Você cola a chave nova após revogar a antiga.
 
-### 2. Canvas com blocos arrastáveis
-- Componente `VideoWorkflowCanvas.tsx` em `src/components/studio/video-workflow/`
-- Área `relative` com fundo em grid sutil (token `--muted`), altura responsiva (≥600px desktop, scroll vertical no mobile)
-- 5 blocos posicionados via `position: absolute` com `{ x, y }` em estado React
-- Drag implementado com `pointerdown/pointermove/pointerup` nativos (sem libs novas) — clamp dentro do canvas, cursor `grabbing`
-- Posições persistidas em `localStorage` por usuário: `postly-video-workflow-layout`
-- Botão "Reorganizar" para resetar ao layout padrão
-- Linhas de conexão: SVG `<path>` em camada absoluta atrás dos blocos, curvas Bézier ligando borda direita do bloco N à borda esquerda do bloco N+1, recalculadas ao arrastar
-- Indicador visual de etapa concluída (check verde) e etapa ativa (ring `--primary`)
+### 2. Storage
+- Novo bucket **privado** `video-workflow-inputs`.
+- Políticas RLS: cada usuário só lê/escreve dentro de `{user_id}/...`.
+- URLs assinadas (2h) geradas no servidor para a AssemblyAI baixar o vídeo.
 
-### 3. Os 5 blocos (componentes em `src/components/studio/video-workflow/blocks/`)
+### 3. Server functions (`src/lib/assemblyai.functions.ts`)
+- `createSignedUploadUrl({ fileName, contentType })` → retorna URL assinada de upload + `storagePath`.
+- `startTranscription({ storagePath })` → gera signed URL de download, faz `POST https://api.assemblyai.com/v2/transcript` com `{ audio_url, language_detection: true, punctuate: true, format_text: true }`, retorna `{ transcriptId }`.
+- `getTranscriptionStatus({ transcriptId })` → `GET /v2/transcript/{id}`, retorna `{ status: 'queued'|'processing'|'completed'|'error', text, utterances, language_code, error }`.
 
-**Bloco 1 — Upload de vídeo** (`VideoUploadBlock.tsx`)
-- Drop zone aceitando `.mp4`, `.mov`, `.webm` (máx 100MB validado no client)
-- Preview com `<video>` controlado, nome e tamanho do arquivo
-- Botão remover
+### 4. UI — `VideoUploadBlock.tsx`
+Três estados visuais:
+- **Enviando**: barra de progresso do upload direto pro storage.
+- **Transcrevendo**: spinner + label "Transcrevendo áudio…" com polling a cada 3s.
+- **Pronto**: card com idioma detectado, texto da transcrição (scroll), botão "Copiar transcrição completa".
 
-**Bloco 2 — Cenário** (`SceneBlock.tsx`)
-- Toggle entre dois modos: "Imagem" ou "Prompt de texto"
-- Imagem: drop zone (`.jpg/.png/.webp`, máx 10MB) com preview
-- Texto: `<Textarea>` com contador (máx 500 chars), placeholder ex.: "Praia ao pôr-do-sol, tons quentes…"
+Bloco só conta como `complete` quando upload **e** transcrição terminam.
 
-**Bloco 3 — Modelo de IA** (`AIModelBlock.tsx`)
-- `RadioGroup` com 3 cards selecionáveis:
-  - Luma Ray2 Flex — rápido, ideal para iterações
-  - Luma Ray2 Reimaginar — reinterpreta cenário mantendo movimento
-  - Kling via Replicate — maior fidelidade, mais lento
-- Cada card mostra ícone, nome, breve descrição e estimativa de tempo
+### 5. Estado compartilhado (`useVideoWorkflowState`)
+Novos campos:
+- `videoStoragePath: string | null`
+- `transcription: { text, utterances, language } | null`
+- `transcriptionStatus: 'idle' | 'uploading' | 'transcribing' | 'ready' | 'error'`
 
-**Bloco 4 — LUTs e ajuste de cor** (`ColorGradingBlock.tsx`)
-- 3 sliders (shadcn `Slider`): Contraste, Saturação, Temperatura (cada um de -100 a +100, default 0)
-- Valores numéricos ao lado de cada slider
-- Grid 3×2 de LUTs como botões selecionáveis: Cinema, Neon, Natural, B&W, Golden, Cold — um deles ativo por vez (default "Natural"), cada um com mini-thumb colorido representando o look
+Disponível para os próximos blocos consumirem.
 
-**Bloco 5 — Gerar** (`GenerateBlock.tsx`)
-- Estado de validação: desabilita botão até blocos 1, 2 e 3 estarem preenchidos
-- Botão `Gerar vídeo` (variant primary, full width)
-- Ao clicar: barra de progresso (`Progress` do shadcn) animada 0→100 em etapas simuladas (upload → processamento → grading → finalização), com label de etapa atual
-- Mensagem de sucesso ao terminar com placeholder "Em breve: integração com os modelos selecionados"
+## Fora de escopo (próximas rodadas)
+- Bloco 5 / Luma (próxima entrega)
+- Edição manual da transcrição
+- Tabela `video_generations` (vem com o Luma)
 
-### 4. Estado e validação
-- Hook `useVideoWorkflowState.ts` centraliza: `video`, `scene`, `model`, `grading`, `progress`, `status`
-- Validação por bloco (booleano `complete`) usada para acender check e para liberar o botão Gerar
-- Sem integração de backend nesta etapa — somente UI funcional + persistência local
+## Detalhes técnicos
+- Arquivos novos: `src/lib/assemblyai.functions.ts`, migração SQL do bucket + policies.
+- Editados: `src/components/studio/video-workflow/blocks/VideoUploadBlock.tsx`, `VideoWorkflowCanvas.tsx`, hook de estado.
+- Auth: server functions usam `requireSupabaseAuth` (usuário precisa estar logado).
+- Tamanho máx. recomendado: 500MB (AssemblyAI aceita maiores, mas mantemos limite no client).
 
-## Fora de escopo
-- Chamada real às APIs Luma/Replicate (ficará para próxima iteração)
-- Upload dos arquivos para Lovable Cloud Storage
-- Histórico de gerações
-- Edição da ordem dos blocos (a sequência do pipeline é fixa por design)
-
-## Arquivos a criar/editar
-- novo `src/routes/dashboard.studio.video-workflow.tsx`
-- novos componentes em `src/components/studio/video-workflow/` (canvas + 5 blocos + hook)
-- editar `src/routes/dashboard.studio.tsx` para adicionar o ModeCard de entrada
+## Ordem de execução após aprovação
+1. `add_secret` para `ASSEMBLYAI_API_KEY` (você cola a chave nova)
+2. Migração do bucket + policies
+3. Server functions
+4. UI + estado
+5. Teste end-to-end com vídeo curto
