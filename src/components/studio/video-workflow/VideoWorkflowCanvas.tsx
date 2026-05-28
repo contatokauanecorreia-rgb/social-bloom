@@ -97,6 +97,22 @@ export function VideoWorkflowCanvas() {
     temperature: 0,
     lut: "Natural",
   });
+    lut: "Natural",
+  });
+
+  // --- Block 1: upload + transcription state ---
+  type TranscriptionStatus = "idle" | "uploading" | "transcribing" | "ready" | "error";
+  type Transcription = { text: string; language: string | null } | null;
+  const [videoStoragePath, setVideoStoragePath] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [transcriptionStatus, setTranscriptionStatus] = useState<TranscriptionStatus>("idle");
+  const [transcription, setTranscription] = useState<Transcription>(null);
+  const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
+  const pollRef = useRef<number | null>(null);
+
+  const createUploadFn = useServerFn(createSignedUploadUrl);
+  const startTranscriptionFn = useServerFn(startTranscription);
+  const getStatusFn = useServerFn(getTranscriptionStatus);
 
   const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
   const [dragging, setDragging] = useState<BlockId | null>(null);
