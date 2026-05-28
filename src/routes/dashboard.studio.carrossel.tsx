@@ -221,6 +221,18 @@ function CarrosselEditorPage() {
   const [templateName, setTemplateName] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
 
+  // Score preditivo
+  type ScoreResult = {
+    score: number;
+    summary: string;
+    bestTime: string;
+    strengths: string[];
+    improvements: string[];
+  };
+  const [score, setScore] = useState<ScoreResult | null>(null);
+  const [scoring, setScoring] = useState(false);
+  const [scoreStale, setScoreStale] = useState(false);
+
   // initial setup
   useEffect(() => {
     if (slides.length > 0 && !activeId) setActiveId(slides[0].id);
