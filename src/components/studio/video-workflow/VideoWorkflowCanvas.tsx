@@ -11,6 +11,8 @@ import {
   Type,
   RotateCcw,
   X,
+  Copy,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +22,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  createSignedUploadUrl,
+  startTranscription,
+  getTranscriptionStatus,
+} from "@/lib/assemblyai.functions";
+import { supabase } from "@/integrations/supabase/client";
+
 
 // ---------- Types ----------
 type BlockId = "video" | "scene" | "model" | "color" | "generate";
@@ -88,6 +98,21 @@ export function VideoWorkflowCanvas() {
     lut: "Natural",
   });
 
+
+  // --- Block 1: upload + transcription state ---
+  type TranscriptionStatus = "idle" | "uploading" | "transcribing" | "ready" | "error";
+  type Transcription = { text: string; language: string | null } | null;
+  const [videoStoragePath, setVideoStoragePath] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [transcriptionStatus, setTranscriptionStatus] = useState<TranscriptionStatus>("idle");
+  const [transcription, setTranscription] = useState<Transcription>(null);
+  const [transcriptionError, setTranscriptionError] = useState<string | null>(null);
+  const pollRef = useRef<number | null>(null);
+
+  const createUploadFn = useServerFn(createSignedUploadUrl);
+  const startTranscriptionFn = useServerFn(startTranscription);
+  const getStatusFn = useServerFn(getTranscriptionStatus);
+
   const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
   const [dragging, setDragging] = useState<BlockId | null>(null);
   const [progress, setProgress] = useState(0);
@@ -130,7 +155,7 @@ export function VideoWorkflowCanvas() {
   // Completion flags
   const complete = useMemo(
     () => ({
-      video: !!state.videoFile,
+      video: !!state.videoFile && transcriptionStatus === "ready",
       scene:
         state.sceneMode === "image"
           ? !!state.sceneImage
@@ -139,8 +164,9 @@ export function VideoWorkflowCanvas() {
       color: true,
       generate: done,
     }),
-    [state, done],
+    [state, done, transcriptionStatus],
   );
+
 
   const canGenerate = complete.video && complete.scene && complete.model && !generating;
 
@@ -181,22 +207,107 @@ export function VideoWorkflowCanvas() {
   const onPointerUp = () => setDragging(null);
 
   const resetLayout = () => setLayout(DEFAULT_LAYOUT);
-
   // ---------- Handlers ----------
-  const handleVideo = (file: File | null) => {
+  const stopPolling = useCallback(() => {
+    if (pollRef.current !== null) {
+      window.clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => stopPolling, [stopPolling]);
+
+  const resetVideoBlock = useCallback(() => {
+    stopPolling();
+    if (state.videoUrl) URL.revokeObjectURL(state.videoUrl);
+    setState((s) => ({ ...s, videoFile: null, videoUrl: null }));
+    setVideoStoragePath(null);
+    setUploadProgress(0);
+    setTranscription(null);
+    setTranscriptionError(null);
+    setTranscriptionStatus("idle");
+  }, [state.videoUrl, stopPolling]);
+
+  const pollTranscription = useCallback(
+    (transcriptId: string) => {
+      stopPolling();
+      pollRef.current = window.setInterval(async () => {
+        try {
+          const status = await getStatusFn({ data: { transcriptId } });
+          if (status.status === "completed") {
+            stopPolling();
+            setTranscription({ text: status.text ?? "", language: status.language });
+            setTranscriptionStatus("ready");
+            toast.success("Transcrição concluída.");
+          } else if (status.status === "error") {
+            stopPolling();
+            setTranscriptionError(status.error ?? "Erro na transcrição.");
+            setTranscriptionStatus("error");
+            toast.error(`Transcrição falhou: ${status.error ?? "erro desconhecido"}`);
+          }
+        } catch (err) {
+          stopPolling();
+          const msg = err instanceof Error ? err.message : "Erro ao verificar status.";
+          setTranscriptionError(msg);
+          setTranscriptionStatus("error");
+          toast.error(msg);
+        }
+      }, 3000);
+    },
+    [getStatusFn, stopPolling],
+  );
+
+  const handleVideo = async (file: File | null) => {
     if (!file) return;
     if (!/\.(mp4|mov|webm)$/i.test(file.name)) {
       toast.error("Formato inválido. Use MP4, MOV ou WEBM.");
       return;
     }
-    if (file.size > 100 * 1024 * 1024) {
-      toast.error("Vídeo excede 100MB.");
+    if (file.size > 500 * 1024 * 1024) {
+      toast.error("Vídeo excede 500MB.");
       return;
     }
+
+    // Local preview + reset prior state
+    stopPolling();
     if (state.videoUrl) URL.revokeObjectURL(state.videoUrl);
     const url = URL.createObjectURL(file);
     setState((s) => ({ ...s, videoFile: file, videoUrl: url }));
+    setTranscription(null);
+    setTranscriptionError(null);
+    setVideoStoragePath(null);
+    setUploadProgress(0);
+    setTranscriptionStatus("uploading");
+
+    try {
+      // 1. Get signed upload URL
+      const { storagePath, token } = await createUploadFn({
+        data: { fileName: file.name, contentType: file.type || "video/mp4" },
+      });
+
+      // 2. Upload to storage with progress
+      await uploadWithProgress({
+        bucket: "video-workflow-inputs",
+        path: storagePath,
+        token,
+        file,
+        onProgress: setUploadProgress,
+      });
+      setVideoStoragePath(storagePath);
+      setUploadProgress(100);
+
+      // 3. Start transcription
+      setTranscriptionStatus("transcribing");
+      const { transcriptId } = await startTranscriptionFn({ data: { storagePath } });
+      pollTranscription(transcriptId);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Falha no envio do vídeo.";
+      setTranscriptionError(msg);
+      setTranscriptionStatus("error");
+      toast.error(msg);
+    }
   };
+
 
   const handleSceneImage = (file: File | null) => {
     if (!file) return;
@@ -323,30 +434,76 @@ export function VideoWorkflowCanvas() {
         >
           {state.videoUrl ? (
             <div className="space-y-2">
-              <video src={state.videoUrl} controls className="h-32 w-full rounded-md bg-black object-contain" />
+              <video src={state.videoUrl} controls className="h-28 w-full rounded-md bg-black object-contain" />
               <div className="flex items-center justify-between text-xs">
                 <span className="truncate text-muted-foreground">{state.videoFile?.name}</span>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
-                  onClick={() => {
-                    if (state.videoUrl) URL.revokeObjectURL(state.videoUrl);
-                    setState((s) => ({ ...s, videoFile: null, videoUrl: null }));
-                  }}
+                  onClick={resetVideoBlock}
+                  disabled={transcriptionStatus === "uploading" || transcriptionStatus === "transcribing"}
                 >
                   <X className="h-3 w-3" />
                 </Button>
               </div>
+
+              {transcriptionStatus === "uploading" && (
+                <div className="space-y-1">
+                  <Progress value={uploadProgress} className="h-1.5" />
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>Enviando…</span>
+                    <span className="tabular-nums">{Math.round(uploadProgress)}%</span>
+                  </div>
+                </div>
+              )}
+
+              {transcriptionStatus === "transcribing" && (
+                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1.5 text-[11px] text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Transcrevendo áudio…
+                </div>
+              )}
+
+              {transcriptionStatus === "ready" && transcription && (
+                <div className="space-y-1.5 rounded-md border border-primary/30 bg-primary/5 p-2">
+                  <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <span>Transcrição{transcription.language ? ` · ${transcription.language}` : ""}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={() => {
+                        navigator.clipboard.writeText(transcription.text);
+                        toast.success("Transcrição copiada.");
+                      }}
+                      title="Copiar transcrição completa"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="max-h-24 overflow-auto whitespace-pre-wrap text-[11px] leading-snug text-foreground">
+                    {transcription.text || "(sem texto detectado)"}
+                  </div>
+                </div>
+              )}
+
+              {transcriptionStatus === "error" && (
+                <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-[11px] text-destructive">
+                  <AlertCircle className="mt-0.5 h-3 w-3 flex-shrink-0" />
+                  <span className="flex-1">{transcriptionError ?? "Erro na transcrição."}</span>
+                </div>
+              )}
             </div>
           ) : (
             <FileDropzone
               accept="video/mp4,video/quicktime,video/webm"
               onFile={handleVideo}
-              hint="MP4, MOV ou WEBM (até 100MB)"
+              hint="MP4, MOV ou WEBM (até 500MB)"
               icon={<Upload className="h-5 w-5" />}
             />
           )}
+
         </BlockShell>
 
         <BlockShell
@@ -673,3 +830,46 @@ function FileDropzone({
     </label>
   );
 }
+
+// ---------- Upload helper (XHR for progress) ----------
+async function uploadWithProgress({
+  bucket,
+  path,
+  token,
+  file,
+  onProgress,
+}: {
+  bucket: string;
+  path: string;
+  token: string;
+  file: File;
+  onProgress: (pct: number) => void;
+}) {
+  // Use the supabase-js signed upload URL flow via fetch with progress.
+  // The signed upload uses a special PUT endpoint; supabase-js does it via
+  // uploadToSignedUrl, but that lacks progress events. So we replicate it
+  // with XHR.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const baseUrl = (supabase as unknown as { supabaseUrl: string }).supabaseUrl;
+  const url = `${baseUrl}/storage/v1/object/upload/sign/${bucket}/${path}?token=${encodeURIComponent(token)}`;
+
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("content-type", file.type || "application/octet-stream");
+    xhr.setRequestHeader("x-upsert", "true");
+    if (sessionData.session?.access_token) {
+      xhr.setRequestHeader("authorization", `Bearer ${sessionData.session.access_token}`);
+    }
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress((e.loaded / e.total) * 100);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`Upload falhou (${xhr.status}): ${xhr.responseText.slice(0, 200)}`));
+    };
+    xhr.onerror = () => reject(new Error("Falha de rede no upload."));
+    xhr.send(file);
+  });
+}
+
