@@ -209,6 +209,8 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
           return;
         }
         setStep(1);
+        setVariants({ minimalista: null, criativo: null });
+        generationCtxRef.current = null;
         setContentSource("ai");
         setTopic("");
         setSelectedPostIds([]);
