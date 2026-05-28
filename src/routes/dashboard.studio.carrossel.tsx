@@ -853,7 +853,87 @@ function CarrosselEditorPage() {
                   }}
                 />
               </div>
-              <div className="space-y-2 border-t p-3">
+              <div className="space-y-3 border-t p-3">
+                {/* Score preditivo */}
+                <div className="rounded-md border bg-muted/30 p-3">
+                  <div className="mb-2 flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" />
+                      Score preditivo
+                    </div>
+                    {score && scoreStale && (
+                      <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                        desatualizado
+                      </span>
+                    )}
+                  </div>
+
+                  {score ? (
+                    <div className="space-y-2">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-3xl font-bold leading-none text-primary">
+                          {score.score}
+                        </span>
+                        <span className="text-xs text-muted-foreground">/ 10</span>
+                      </div>
+                      <p className="text-[11px] leading-snug text-foreground">{score.summary}</p>
+                      <p className="text-[11px] text-muted-foreground">
+                        <span className="font-medium text-foreground">Melhor horário:</span>{" "}
+                        {score.bestTime}
+                      </p>
+                      {score.strengths?.length > 0 && (
+                        <div>
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Pontos fortes
+                          </p>
+                          <ul className="space-y-0.5 text-[11px] leading-snug">
+                            {score.strengths.map((s, i) => (
+                              <li key={i} className="flex gap-1.5">
+                                <span className="text-emerald-600">+</span>
+                                <span>{s}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {score.improvements?.length > 0 && (
+                        <div>
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Pode melhorar
+                          </p>
+                          <ul className="space-y-0.5 text-[11px] leading-snug">
+                            {score.improvements.map((s, i) => (
+                              <li key={i} className="flex gap-1.5">
+                                <span className="text-amber-600">→</span>
+                                <span>{s}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[11px] leading-snug text-muted-foreground">
+                      Analise o post antes de exportar para ver o potencial estimado e sugestões.
+                    </p>
+                  )}
+
+                  <Button
+                    size="sm"
+                    variant={score ? "outline" : "default"}
+                    className="mt-3 w-full gap-1.5"
+                    onClick={runScore}
+                    disabled={scoring}
+                  >
+                    {scoring ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3.5 w-3.5" />
+                    )}
+                    {score ? (scoreStale ? "Recalcular score" : "Analisar de novo") : "Analisar com IA"}
+                  </Button>
+                </div>
+
                 <Button
                   className="w-full gap-2"
                   onClick={exportZip}
@@ -866,6 +946,11 @@ function CarrosselEditorPage() {
                   )}
                   Baixar todos
                 </Button>
+                {!score && (
+                  <p className="text-center text-[10px] text-muted-foreground">
+                    Dica: rode o score antes de exportar.
+                  </p>
+                )}
                 <Button
                   variant="outline"
                   className="w-full gap-2"
@@ -877,6 +962,7 @@ function CarrosselEditorPage() {
                 </Button>
               </div>
             </aside>
+
 
             {/* Área central — slides lado a lado horizontalmente */}
             <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
