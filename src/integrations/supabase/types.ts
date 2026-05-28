@@ -319,6 +319,90 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          client_id: string
+          created_at: string
+          id: string
+          payload: Json
+          post_id: string
+          read_at: string | null
+          type: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          post_id: string
+          read_at?: string | null
+          type: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          created_at?: string
+          id?: string
+          payload?: Json
+          post_id?: string
+          read_at?: string | null
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      post_approvals: {
+        Row: {
+          approver_name: string | null
+          client_id: string
+          created_at: string
+          id: string
+          post_id: string
+        }
+        Insert: {
+          approver_name?: string | null
+          client_id: string
+          created_at?: string
+          id?: string
+          post_id: string
+        }
+        Update: {
+          approver_name?: string | null
+          client_id?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+        }
+        Relationships: []
+      }
+      post_comments: {
+        Row: {
+          author_name: string | null
+          body: string
+          client_id: string
+          created_at: string
+          id: string
+          post_id: string
+        }
+        Insert: {
+          author_name?: string | null
+          body: string
+          client_id: string
+          created_at?: string
+          id?: string
+          post_id: string
+        }
+        Update: {
+          author_name?: string | null
+          body?: string
+          client_id?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -393,14 +477,40 @@ export type Database = {
       get_public_client_content: {
         Args: { p_slug: string }
         Returns: {
+          approved: boolean
+          approved_at: string
+          approver_name: string
           caption: string
+          comments_count: number
           created_at: string
           id: string
           tags: string[]
           title: string
         }[]
       }
+      get_public_post_comments: {
+        Args: { p_post_id: string; p_slug: string }
+        Returns: {
+          author_name: string
+          body: string
+          created_at: string
+          id: string
+        }[]
+      }
       slugify: { Args: { input: string }; Returns: string }
+      submit_post_approval: {
+        Args: { p_author_name: string; p_post_id: string; p_slug: string }
+        Returns: undefined
+      }
+      submit_post_comment: {
+        Args: {
+          p_author_name: string
+          p_body: string
+          p_post_id: string
+          p_slug: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

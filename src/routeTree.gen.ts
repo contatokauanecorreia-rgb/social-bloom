@@ -20,6 +20,7 @@ import { Route as DashboardPlanoRouteImport } from './routes/dashboard.plano'
 import { Route as DashboardPlannerRouteImport } from './routes/dashboard.planner'
 import { Route as DashboardConfiguracoesRouteImport } from './routes/dashboard.configuracoes'
 import { Route as DashboardCarrosseisRouteImport } from './routes/dashboard.carrosseis'
+import { Route as ClienteSlugRouteImport } from './routes/cliente.$slug'
 import { Route as AprovarTokenRouteImport } from './routes/aprovar.$token'
 import { Route as DashboardClientesIndexRouteImport } from './routes/dashboard.clientes.index'
 import { Route as DashboardStudioCarrosselRouteImport } from './routes/dashboard.studio.carrossel'
@@ -85,6 +86,11 @@ const DashboardCarrosseisRoute = DashboardCarrosseisRouteImport.update({
   path: '/carrosseis',
   getParentRoute: () => DashboardRoute,
 } as any)
+const ClienteSlugRoute = ClienteSlugRouteImport.update({
+  id: '/cliente/$slug',
+  path: '/cliente/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AprovarTokenRoute = AprovarTokenRouteImport.update({
   id: '/aprovar/$token',
   path: '/aprovar/$token',
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/design-system': typeof DesignSystemRoute
   '/login': typeof LoginRoute
   '/aprovar/$token': typeof AprovarTokenRoute
+  '/cliente/$slug': typeof ClienteSlugRoute
   '/dashboard/carrosseis': typeof DashboardCarrosseisRoute
   '/dashboard/configuracoes': typeof DashboardConfiguracoesRoute
   '/dashboard/planner': typeof DashboardPlannerRoute
@@ -164,6 +171,7 @@ export interface FileRoutesByTo {
   '/design-system': typeof DesignSystemRoute
   '/login': typeof LoginRoute
   '/aprovar/$token': typeof AprovarTokenRoute
+  '/cliente/$slug': typeof ClienteSlugRoute
   '/dashboard/carrosseis': typeof DashboardCarrosseisRoute
   '/dashboard/configuracoes': typeof DashboardConfiguracoesRoute
   '/dashboard/planner': typeof DashboardPlannerRoute
@@ -186,6 +194,7 @@ export interface FileRoutesById {
   '/design-system': typeof DesignSystemRoute
   '/login': typeof LoginRoute
   '/aprovar/$token': typeof AprovarTokenRoute
+  '/cliente/$slug': typeof ClienteSlugRoute
   '/dashboard/carrosseis': typeof DashboardCarrosseisRoute
   '/dashboard/configuracoes': typeof DashboardConfiguracoesRoute
   '/dashboard/planner': typeof DashboardPlannerRoute
@@ -210,6 +219,7 @@ export interface FileRouteTypes {
     | '/design-system'
     | '/login'
     | '/aprovar/$token'
+    | '/cliente/$slug'
     | '/dashboard/carrosseis'
     | '/dashboard/configuracoes'
     | '/dashboard/planner'
@@ -231,6 +241,7 @@ export interface FileRouteTypes {
     | '/design-system'
     | '/login'
     | '/aprovar/$token'
+    | '/cliente/$slug'
     | '/dashboard/carrosseis'
     | '/dashboard/configuracoes'
     | '/dashboard/planner'
@@ -252,6 +263,7 @@ export interface FileRouteTypes {
     | '/design-system'
     | '/login'
     | '/aprovar/$token'
+    | '/cliente/$slug'
     | '/dashboard/carrosseis'
     | '/dashboard/configuracoes'
     | '/dashboard/planner'
@@ -275,6 +287,7 @@ export interface RootRouteChildren {
   DesignSystemRoute: typeof DesignSystemRoute
   LoginRoute: typeof LoginRoute
   AprovarTokenRoute: typeof AprovarTokenRoute
+  ClienteSlugRoute: typeof ClienteSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -355,6 +368,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dashboard/carrosseis'
       preLoaderRoute: typeof DashboardCarrosseisRouteImport
       parentRoute: typeof DashboardRoute
+    }
+    '/cliente/$slug': {
+      id: '/cliente/$slug'
+      path: '/cliente/$slug'
+      fullPath: '/cliente/$slug'
+      preLoaderRoute: typeof ClienteSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/aprovar/$token': {
       id: '/aprovar/$token'
@@ -487,6 +507,7 @@ const rootRouteChildren: RootRouteChildren = {
   DesignSystemRoute: DesignSystemRoute,
   LoginRoute: LoginRoute,
   AprovarTokenRoute: AprovarTokenRoute,
+  ClienteSlugRoute: ClienteSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
