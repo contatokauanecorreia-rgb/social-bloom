@@ -308,7 +308,6 @@ export function VideoWorkflowCanvas() {
     }
   };
 
-  };
 
   const handleSceneImage = (file: File | null) => {
     if (!file) return;
