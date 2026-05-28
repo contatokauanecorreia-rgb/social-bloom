@@ -207,21 +207,107 @@ export function VideoWorkflowCanvas() {
   const onPointerUp = () => setDragging(null);
 
   const resetLayout = () => setLayout(DEFAULT_LAYOUT);
-
   // ---------- Handlers ----------
-  const handleVideo = (file: File | null) => {
+  const stopPolling = useCallback(() => {
+    if (pollRef.current !== null) {
+      window.clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => stopPolling, [stopPolling]);
+
+  const resetVideoBlock = useCallback(() => {
+    stopPolling();
+    if (state.videoUrl) URL.revokeObjectURL(state.videoUrl);
+    setState((s) => ({ ...s, videoFile: null, videoUrl: null }));
+    setVideoStoragePath(null);
+    setUploadProgress(0);
+    setTranscription(null);
+    setTranscriptionError(null);
+    setTranscriptionStatus("idle");
+  }, [state.videoUrl, stopPolling]);
+
+  const pollTranscription = useCallback(
+    (transcriptId: string) => {
+      stopPolling();
+      pollRef.current = window.setInterval(async () => {
+        try {
+          const status = await getStatusFn({ data: { transcriptId } });
+          if (status.status === "completed") {
+            stopPolling();
+            setTranscription({ text: status.text ?? "", language: status.language });
+            setTranscriptionStatus("ready");
+            toast.success("Transcrição concluída.");
+          } else if (status.status === "error") {
+            stopPolling();
+            setTranscriptionError(status.error ?? "Erro na transcrição.");
+            setTranscriptionStatus("error");
+            toast.error(`Transcrição falhou: ${status.error ?? "erro desconhecido"}`);
+          }
+        } catch (err) {
+          stopPolling();
+          const msg = err instanceof Error ? err.message : "Erro ao verificar status.";
+          setTranscriptionError(msg);
+          setTranscriptionStatus("error");
+          toast.error(msg);
+        }
+      }, 3000);
+    },
+    [getStatusFn, stopPolling],
+  );
+
+  const handleVideo = async (file: File | null) => {
     if (!file) return;
     if (!/\.(mp4|mov|webm)$/i.test(file.name)) {
       toast.error("Formato inválido. Use MP4, MOV ou WEBM.");
       return;
     }
-    if (file.size > 100 * 1024 * 1024) {
-      toast.error("Vídeo excede 100MB.");
+    if (file.size > 500 * 1024 * 1024) {
+      toast.error("Vídeo excede 500MB.");
       return;
     }
+
+    // Local preview + reset prior state
+    stopPolling();
     if (state.videoUrl) URL.revokeObjectURL(state.videoUrl);
     const url = URL.createObjectURL(file);
     setState((s) => ({ ...s, videoFile: file, videoUrl: url }));
+    setTranscription(null);
+    setTranscriptionError(null);
+    setVideoStoragePath(null);
+    setUploadProgress(0);
+    setTranscriptionStatus("uploading");
+
+    try {
+      // 1. Get signed upload URL
+      const { storagePath, token } = await createUploadFn({
+        data: { fileName: file.name, contentType: file.type || "video/mp4" },
+      });
+
+      // 2. Upload to storage with progress
+      await uploadWithProgress({
+        bucket: "video-workflow-inputs",
+        path: storagePath,
+        token,
+        file,
+        onProgress: setUploadProgress,
+      });
+      setVideoStoragePath(storagePath);
+      setUploadProgress(100);
+
+      // 3. Start transcription
+      setTranscriptionStatus("transcribing");
+      const { transcriptId } = await startTranscriptionFn({ data: { storagePath } });
+      pollTranscription(transcriptId);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Falha no envio do vídeo.";
+      setTranscriptionError(msg);
+      setTranscriptionStatus("error");
+      toast.error(msg);
+    }
+  };
+
   };
 
   const handleSceneImage = (file: File | null) => {
