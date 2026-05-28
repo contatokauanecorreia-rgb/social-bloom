@@ -291,7 +291,7 @@ export function VideoWorkflowCanvas() {
         style={{
           minHeight: 700,
           backgroundImage:
-            "radial-gradient(circle, hsl(var(--border)) 1px, transparent 1px)",
+            "radial-gradient(circle, var(--border) 1px, transparent 1px)",
           backgroundSize: "24px 24px",
         }}
       >
@@ -302,7 +302,7 @@ export function VideoWorkflowCanvas() {
               key={c.key}
               d={c.d}
               fill="none"
-              stroke={c.active ? "hsl(var(--primary))" : "hsl(var(--border))"}
+              stroke={c.active ? "var(--primary)" : "var(--border)"}
               strokeWidth={2}
               strokeDasharray={c.active ? "0" : "6 6"}
             />
