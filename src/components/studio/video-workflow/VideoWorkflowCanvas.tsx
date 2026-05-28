@@ -434,30 +434,76 @@ export function VideoWorkflowCanvas() {
         >
           {state.videoUrl ? (
             <div className="space-y-2">
-              <video src={state.videoUrl} controls className="h-32 w-full rounded-md bg-black object-contain" />
+              <video src={state.videoUrl} controls className="h-28 w-full rounded-md bg-black object-contain" />
               <div className="flex items-center justify-between text-xs">
                 <span className="truncate text-muted-foreground">{state.videoFile?.name}</span>
                 <Button
                   variant="ghost"
                   size="icon"
                   className="h-6 w-6"
-                  onClick={() => {
-                    if (state.videoUrl) URL.revokeObjectURL(state.videoUrl);
-                    setState((s) => ({ ...s, videoFile: null, videoUrl: null }));
-                  }}
+                  onClick={resetVideoBlock}
+                  disabled={transcriptionStatus === "uploading" || transcriptionStatus === "transcribing"}
                 >
                   <X className="h-3 w-3" />
                 </Button>
               </div>
+
+              {transcriptionStatus === "uploading" && (
+                <div className="space-y-1">
+                  <Progress value={uploadProgress} className="h-1.5" />
+                  <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                    <span>Enviando…</span>
+                    <span className="tabular-nums">{Math.round(uploadProgress)}%</span>
+                  </div>
+                </div>
+              )}
+
+              {transcriptionStatus === "transcribing" && (
+                <div className="flex items-center gap-2 rounded-md border border-border bg-muted/50 px-2 py-1.5 text-[11px] text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Transcrevendo áudio…
+                </div>
+              )}
+
+              {transcriptionStatus === "ready" && transcription && (
+                <div className="space-y-1.5 rounded-md border border-primary/30 bg-primary/5 p-2">
+                  <div className="flex items-center justify-between text-[10px] uppercase tracking-wide text-muted-foreground">
+                    <span>Transcrição{transcription.language ? ` · ${transcription.language}` : ""}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-5 w-5"
+                      onClick={() => {
+                        navigator.clipboard.writeText(transcription.text);
+                        toast.success("Transcrição copiada.");
+                      }}
+                      title="Copiar transcrição completa"
+                    >
+                      <Copy className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="max-h-24 overflow-auto whitespace-pre-wrap text-[11px] leading-snug text-foreground">
+                    {transcription.text || "(sem texto detectado)"}
+                  </div>
+                </div>
+              )}
+
+              {transcriptionStatus === "error" && (
+                <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-[11px] text-destructive">
+                  <AlertCircle className="mt-0.5 h-3 w-3 flex-shrink-0" />
+                  <span className="flex-1">{transcriptionError ?? "Erro na transcrição."}</span>
+                </div>
+              )}
             </div>
           ) : (
             <FileDropzone
               accept="video/mp4,video/quicktime,video/webm"
               onFile={handleVideo}
-              hint="MP4, MOV ou WEBM (até 100MB)"
+              hint="MP4, MOV ou WEBM (até 500MB)"
               icon={<Upload className="h-5 w-5" />}
             />
           )}
+
         </BlockShell>
 
         <BlockShell
