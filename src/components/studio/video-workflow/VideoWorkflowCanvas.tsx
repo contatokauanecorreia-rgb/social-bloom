@@ -11,6 +11,8 @@ import {
   Type,
   RotateCcw,
   X,
+  Copy,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +22,14 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import {
+  createSignedUploadUrl,
+  startTranscription,
+  getTranscriptionStatus,
+} from "@/lib/assemblyai.functions";
+import { supabase } from "@/integrations/supabase/client";
+
 
 // ---------- Types ----------
 type BlockId = "video" | "scene" | "model" | "color" | "generate";
