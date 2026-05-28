@@ -338,7 +338,7 @@ function PostDialog({
     const { error } = await supabase.rpc("submit_post_approval", {
       p_slug: slug,
       p_post_id: post.id,
-      p_author_name: name.trim() || null,
+      p_author_name: name.trim() || "",
     });
     setApproving(false);
     if (error) {
