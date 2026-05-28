@@ -148,10 +148,10 @@ function StudioPage() {
         <ModeCard
           icon={Film}
           title="Gerar vídeo"
-          description="Roteiros e conteúdo completos para Reels e vídeos."
+          description="Pipeline visual com upload, cenário, IA e LUTs."
           cost={MODE_COST.roteiro}
           disabled={exhausted}
-          onClick={() => toast.info("Em breve!")}
+          onClick={() => navigate({ to: "/dashboard/studio/video-workflow" })}
         />
       </div>
 

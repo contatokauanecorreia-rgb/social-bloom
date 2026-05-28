@@ -23,6 +23,7 @@ import { Route as DashboardCarrosseisRouteImport } from './routes/dashboard.carr
 import { Route as ClienteSlugRouteImport } from './routes/cliente.$slug'
 import { Route as AprovarTokenRouteImport } from './routes/aprovar.$token'
 import { Route as DashboardClientesIndexRouteImport } from './routes/dashboard.clientes.index'
+import { Route as DashboardStudioVideoWorkflowRouteImport } from './routes/dashboard.studio.video-workflow'
 import { Route as DashboardStudioCarrosselRouteImport } from './routes/dashboard.studio.carrossel'
 import { Route as DashboardClientesIdRouteImport } from './routes/dashboard.clientes.$id'
 import { Route as DashboardClientesIdIndexRouteImport } from './routes/dashboard.clientes.$id.index'
@@ -101,6 +102,12 @@ const DashboardClientesIndexRoute = DashboardClientesIndexRouteImport.update({
   path: '/clientes/',
   getParentRoute: () => DashboardRoute,
 } as any)
+const DashboardStudioVideoWorkflowRoute =
+  DashboardStudioVideoWorkflowRouteImport.update({
+    id: '/video-workflow',
+    path: '/video-workflow',
+    getParentRoute: () => DashboardStudioRoute,
+  } as any)
 const DashboardStudioCarrosselRoute =
   DashboardStudioCarrosselRouteImport.update({
     id: '/carrossel',
@@ -159,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/clientes/$id': typeof DashboardClientesIdRouteWithChildren
   '/dashboard/studio/carrossel': typeof DashboardStudioCarrosselRoute
+  '/dashboard/studio/video-workflow': typeof DashboardStudioVideoWorkflowRoute
   '/dashboard/clientes/': typeof DashboardClientesIndexRoute
   '/dashboard/clientes/$id/aprovacao': typeof DashboardClientesIdAprovacaoRoute
   '/dashboard/clientes/$id/briefing': typeof DashboardClientesIdBriefingRoute
@@ -180,6 +188,7 @@ export interface FileRoutesByTo {
   '/dashboard/studio': typeof DashboardStudioRouteWithChildren
   '/dashboard': typeof DashboardIndexRoute
   '/dashboard/studio/carrossel': typeof DashboardStudioCarrosselRoute
+  '/dashboard/studio/video-workflow': typeof DashboardStudioVideoWorkflowRoute
   '/dashboard/clientes': typeof DashboardClientesIndexRoute
   '/dashboard/clientes/$id/aprovacao': typeof DashboardClientesIdAprovacaoRoute
   '/dashboard/clientes/$id/briefing': typeof DashboardClientesIdBriefingRoute
@@ -204,6 +213,7 @@ export interface FileRoutesById {
   '/dashboard/': typeof DashboardIndexRoute
   '/dashboard/clientes/$id': typeof DashboardClientesIdRouteWithChildren
   '/dashboard/studio/carrossel': typeof DashboardStudioCarrosselRoute
+  '/dashboard/studio/video-workflow': typeof DashboardStudioVideoWorkflowRoute
   '/dashboard/clientes/': typeof DashboardClientesIndexRoute
   '/dashboard/clientes/$id/aprovacao': typeof DashboardClientesIdAprovacaoRoute
   '/dashboard/clientes/$id/briefing': typeof DashboardClientesIdBriefingRoute
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/dashboard/clientes/$id'
     | '/dashboard/studio/carrossel'
+    | '/dashboard/studio/video-workflow'
     | '/dashboard/clientes/'
     | '/dashboard/clientes/$id/aprovacao'
     | '/dashboard/clientes/$id/briefing'
@@ -250,6 +261,7 @@ export interface FileRouteTypes {
     | '/dashboard/studio'
     | '/dashboard'
     | '/dashboard/studio/carrossel'
+    | '/dashboard/studio/video-workflow'
     | '/dashboard/clientes'
     | '/dashboard/clientes/$id/aprovacao'
     | '/dashboard/clientes/$id/briefing'
@@ -273,6 +285,7 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/dashboard/clientes/$id'
     | '/dashboard/studio/carrossel'
+    | '/dashboard/studio/video-workflow'
     | '/dashboard/clientes/'
     | '/dashboard/clientes/$id/aprovacao'
     | '/dashboard/clientes/$id/briefing'
@@ -390,6 +403,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardClientesIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/dashboard/studio/video-workflow': {
+      id: '/dashboard/studio/video-workflow'
+      path: '/video-workflow'
+      fullPath: '/dashboard/studio/video-workflow'
+      preLoaderRoute: typeof DashboardStudioVideoWorkflowRouteImport
+      parentRoute: typeof DashboardStudioRoute
+    }
     '/dashboard/studio/carrossel': {
       id: '/dashboard/studio/carrossel'
       path: '/carrossel'
@@ -444,10 +464,12 @@ declare module '@tanstack/react-router' {
 
 interface DashboardStudioRouteChildren {
   DashboardStudioCarrosselRoute: typeof DashboardStudioCarrosselRoute
+  DashboardStudioVideoWorkflowRoute: typeof DashboardStudioVideoWorkflowRoute
 }
 
 const DashboardStudioRouteChildren: DashboardStudioRouteChildren = {
   DashboardStudioCarrosselRoute: DashboardStudioCarrosselRoute,
+  DashboardStudioVideoWorkflowRoute: DashboardStudioVideoWorkflowRoute,
 }
 
 const DashboardStudioRouteWithChildren = DashboardStudioRoute._addFileChildren(
