@@ -155,7 +155,7 @@ export function VideoWorkflowCanvas() {
   // Completion flags
   const complete = useMemo(
     () => ({
-      video: !!state.videoFile,
+      video: !!state.videoFile && transcriptionStatus === "ready",
       scene:
         state.sceneMode === "image"
           ? !!state.sceneImage
@@ -164,8 +164,9 @@ export function VideoWorkflowCanvas() {
       color: true,
       generate: done,
     }),
-    [state, done],
+    [state, done, transcriptionStatus],
   );
+
 
   const canGenerate = complete.video && complete.scene && complete.model && !generating;
 
