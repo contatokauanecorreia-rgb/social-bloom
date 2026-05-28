@@ -549,12 +549,14 @@ function CarrosselEditorPage() {
 
   const updateActive = (mutator: (s: Slide) => Slide) => {
     setSlides((prev) => prev.map((s) => (s.id === activeId ? mutator(s) : s)));
+    if (score) setScoreStale(true);
   };
 
   const applyToAll = (mutator: (s: Slide, source: Slide) => Slide) => {
     const source = slides.find((s) => s.id === activeId);
     if (!source) return;
     setSlides((prev) => prev.map((s) => mutator(s, source)));
+    if (score) setScoreStale(true);
   };
 
   const addSlide = () => {
