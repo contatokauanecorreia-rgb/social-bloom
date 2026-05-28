@@ -70,6 +70,7 @@ function DashboardLayout() {
       <AppSidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex h-14 items-center justify-end gap-3 border-b bg-background/60 px-6 backdrop-blur">
+          <NotificationsBell userId={user.id} />
           <span className="hidden text-sm text-muted-foreground sm:inline">{user.email}</span>
           <Button variant="outline" size="sm" onClick={handleLogout}>
             <LogOut className="h-4 w-4" />
