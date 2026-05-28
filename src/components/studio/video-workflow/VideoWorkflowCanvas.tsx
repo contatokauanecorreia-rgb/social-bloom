@@ -830,3 +830,46 @@ function FileDropzone({
     </label>
   );
 }
+
+// ---------- Upload helper (XHR for progress) ----------
+async function uploadWithProgress({
+  bucket,
+  path,
+  token,
+  file,
+  onProgress,
+}: {
+  bucket: string;
+  path: string;
+  token: string;
+  file: File;
+  onProgress: (pct: number) => void;
+}) {
+  // Use the supabase-js signed upload URL flow via fetch with progress.
+  // The signed upload uses a special PUT endpoint; supabase-js does it via
+  // uploadToSignedUrl, but that lacks progress events. So we replicate it
+  // with XHR.
+  const { data: sessionData } = await supabase.auth.getSession();
+  const baseUrl = (supabase as unknown as { supabaseUrl: string }).supabaseUrl;
+  const url = `${baseUrl}/storage/v1/object/upload/sign/${bucket}/${path}?token=${encodeURIComponent(token)}`;
+
+  await new Promise<void>((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("PUT", url);
+    xhr.setRequestHeader("content-type", file.type || "application/octet-stream");
+    xhr.setRequestHeader("x-upsert", "true");
+    if (sessionData.session?.access_token) {
+      xhr.setRequestHeader("authorization", `Bearer ${sessionData.session.access_token}`);
+    }
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress((e.loaded / e.total) * 100);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) resolve();
+      else reject(new Error(`Upload falhou (${xhr.status}): ${xhr.responseText.slice(0, 200)}`));
+    };
+    xhr.onerror = () => reject(new Error("Falha de rede no upload."));
+    xhr.send(file);
+  });
+}
+
