@@ -192,6 +192,7 @@ export type Database = {
           name: string
           notes: string | null
           phone: string | null
+          slug: string | null
           status: string
           updated_at: string
           user_id: string
@@ -207,6 +208,7 @@ export type Database = {
           name: string
           notes?: string | null
           phone?: string | null
+          slug?: string | null
           status?: string
           updated_at?: string
           user_id: string
@@ -222,6 +224,7 @@ export type Database = {
           name?: string
           notes?: string | null
           phone?: string | null
+          slug?: string | null
           status?: string
           updated_at?: string
           user_id?: string
@@ -375,7 +378,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_public_client: {
+        Args: { p_slug: string }
+        Returns: {
+          avatar_url: string
+          company: string
+          id: string
+          instagram: string
+          name: string
+          slug: string
+          website: string
+        }[]
+      }
+      get_public_client_content: {
+        Args: { p_slug: string }
+        Returns: {
+          caption: string
+          created_at: string
+          id: string
+          tags: string[]
+          title: string
+        }[]
+      }
+      slugify: { Args: { input: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
