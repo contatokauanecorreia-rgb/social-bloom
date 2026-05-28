@@ -1299,6 +1299,105 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
   );
 }
 
+function VariantPreviewCard({
+  kind,
+  title,
+  subtitle,
+  variant,
+  palette,
+  fontPair,
+  onPick,
+}: {
+  kind: "minimalista" | "criativo";
+  title: string;
+  subtitle: string;
+  variant: {
+    slides: Array<{ title: string; subtitle?: string; body: string }>;
+    archetype: string | null;
+  } | null;
+  palette: [string, string, string];
+  fontPair: { heading: string; body: string } | null;
+  onPick: () => void;
+}) {
+  const headingFont = fontPair?.heading ?? "Inter";
+  const bodyFont = fontPair?.body ?? "Inter";
+  const slides = variant?.slides ?? [];
+  const previewSlides = slides.slice(0, 3);
+  const isCriativo = kind === "criativo";
+
+  return (
+    <div className="flex flex-col rounded-lg border bg-card p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <div>
+          <div className="text-sm font-semibold">{title}</div>
+          <div className="text-[11px] text-muted-foreground">{subtitle}</div>
+        </div>
+        {!variant && (
+          <span className="rounded bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive">
+            falhou
+          </span>
+        )}
+      </div>
+
+      {variant ? (
+        <div className="grid grid-cols-3 gap-1.5">
+          {previewSlides.map((s, i) => (
+            <div
+              key={i}
+              className="relative aspect-[4/5] overflow-hidden rounded border"
+              style={{
+                background: isCriativo
+                  ? `linear-gradient(135deg, ${palette[2]} 0%, ${palette[0]} 100%)`
+                  : palette[1],
+                color: isCriativo ? "#fff" : palette[2],
+              }}
+            >
+              {isCriativo && (
+                <div className="absolute inset-0 bg-black/30" aria-hidden />
+              )}
+              <div className="relative flex h-full flex-col justify-end p-2">
+                <div
+                  className="line-clamp-3 text-[9px] font-bold leading-tight"
+                  style={{ fontFamily: `"${headingFont}", system-ui, sans-serif` }}
+                >
+                  {s.title || `Slide ${i + 1}`}
+                </div>
+                {s.body && (
+                  <div
+                    className="mt-1 line-clamp-2 text-[7px] opacity-80"
+                    style={{ fontFamily: `"${bodyFont}", system-ui, sans-serif` }}
+                  >
+                    {s.body}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex aspect-[4/2] items-center justify-center rounded border border-dashed text-[11px] text-muted-foreground">
+          Não foi possível gerar esta versão.
+        </div>
+      )}
+
+      <p className="mt-2 text-[10px] text-muted-foreground">
+        {variant ? `${slides.length} slides` : "—"}
+      </p>
+
+      <Button
+        className="mt-3 w-full gap-1.5"
+        onClick={onPick}
+        disabled={!variant}
+        size="sm"
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+        Escolher esta versão
+      </Button>
+    </div>
+  );
+}
+
+
 function FontCard({
   heading,
   body,
