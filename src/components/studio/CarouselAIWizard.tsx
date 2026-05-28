@@ -1233,9 +1233,9 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
           <div className="flex flex-col items-center gap-4 py-10 text-center">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
             <div>
-              <h3 className="text-lg font-semibold">Gerando conteúdo...</h3>
+              <h3 className="text-lg font-semibold">Gerando duas versões...</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                A IA está criando seus slides com base no DNA da marca.
+                A IA está criando uma versão minimalista e uma criativa para você comparar.
               </p>
             </div>
             <div className="w-full max-w-sm">
@@ -1244,6 +1244,56 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
             </div>
           </div>
         )}
+
+        {step === "choose" && (
+          <>
+            <DialogHeader>
+              <DialogTitle>Escolha a versão</DialogTitle>
+              <DialogDescription>
+                Geramos duas versões do seu carrossel. Escolha qual vai para o editor — você poderá ajustar tudo depois.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 py-4 sm:grid-cols-2">
+              <VariantPreviewCard
+                kind="minimalista"
+                title="Minimalista"
+                subtitle="Tipografia limpa, sem foto. Foco no texto."
+                variant={variants.minimalista}
+                palette={generationCtxRef.current?.palette ?? palette}
+                fontPair={generationCtxRef.current?.fontPair ?? fontPairForOutput}
+                onPick={() => pickVariant("minimalista")}
+              />
+              <VariantPreviewCard
+                kind="criativo"
+                title="Criativo"
+                subtitle="Foto editorial cobrindo o slide, texto sobreposto."
+                variant={variants.criativo}
+                palette={generationCtxRef.current?.palette ?? palette}
+                fontPair={generationCtxRef.current?.fontPair ?? fontPairForOutput}
+                onPick={() => pickVariant("criativo")}
+              />
+            </div>
+
+            <div className="flex items-center justify-between border-t pt-3">
+              <p className="text-xs text-muted-foreground">
+                As imagens da versão criativa são geradas no editor depois de escolher.
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setVariants({ minimalista: null, criativo: null });
+                  setStep(2);
+                  setProgress(0);
+                }}
+              >
+                Gerar de novo
+              </Button>
+            </div>
+          </>
+        )}
+
       </DialogContent>
     </Dialog>
   );
