@@ -8,3 +8,6 @@ verify_jwt = true
 
 [functions.carrossel-generate]
 verify_jwt = true
+
+[functions.carrossel-score]
+verify_jwt = true
