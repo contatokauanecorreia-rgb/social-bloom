@@ -97,7 +97,43 @@ const CATEGORY_OPTIONS: { key: GoogleFontCategory; label: string }[] = [
 
 export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }: CarouselAIWizardProps) {
   const navigate = useNavigate();
-  const [step, setStep] = useState<1 | 2 | "loading">(1);
+  const [step, setStep] = useState<1 | 2 | "loading" | "choose">(1);
+
+  type VariantSlide = {
+    title: string;
+    subtitle?: string;
+    body: string;
+    imagePrompt: string;
+    imageDataUrl: string | null;
+    sistema?: "minimalista" | "criativo";
+    tipo?: string;
+    fundo?: string;
+    imageFrame?: "full" | "top-60" | "half-left" | "half-right" | "centered-square" | "bottom-third" | null;
+    label?: string;
+    tags?: string[];
+    elemento_decorativo?: string;
+    palavra_destaque?: string;
+    ticker_texto?: string;
+    elemento_grafico?: string;
+  };
+  type VariantData = {
+    slides: VariantSlide[];
+    archetype: string | null;
+  } | null;
+  const [variants, setVariants] = useState<{
+    minimalista: VariantData;
+    criativo: VariantData;
+  }>({ minimalista: null, criativo: null });
+  // Snapshot dos parâmetros comuns no momento da geração (para usar ao montar o bootstrap)
+  const generationCtxRef = useRef<{
+    aiImages: boolean;
+    imageMode: ImageMode;
+    imageStyle: string;
+    palette: [string, string, string];
+    fontPair: { heading: string; body: string } | null;
+    signature: { enabled: boolean; handle: string; position: SignaturePos6; color: string } | null;
+    selectedSource: SelectedSource | null;
+  } | null>(null);
 
   // Step 1
   const [contentSource, setContentSource] = useState<"planner" | "ai">("ai");
@@ -173,6 +209,8 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
           return;
         }
         setStep(1);
+        setVariants({ minimalista: null, criativo: null });
+        generationCtxRef.current = null;
         setContentSource("ai");
         setTopic("");
         setSelectedPostIds([]);
@@ -482,116 +520,81 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
         effectiveTopic = picked.map((p) => p.title).join(" / ") || "Conteúdo do Planner";
       }
 
-      const { data, error } = await supabase.functions.invoke("carrossel-generate", {
-        body: {
-          clientId,
-          topic: effectiveTopic,
-          slideCount,
-          imageMode,
-          aiImages,
-          fontPair: fontPairForOutput,
-          palette,
-          instagram: instagram.trim() || null,
-          textOnly: true,
-          referenceImageDataUrl: referenceImageDataUrl ?? null,
-          plannerSource,
-          designPrinciples: null,
-          textAlign: textAlignChoice,
-          bgKinds,
-        },
-      });
+      const commonBody = {
+        clientId,
+        topic: effectiveTopic,
+        slideCount,
+        // Sempre desligamos imagens nessa etapa — vamos gerar 2 variantes só de
+        // copy/layout. As imagens da escolhida são geradas no editor depois.
+        imageMode: "none" as ImageMode,
+        aiImages: false,
+        fontPair: fontPairForOutput,
+        palette,
+        instagram: instagram.trim() || null,
+        textOnly: true,
+        referenceImageDataUrl: referenceImageDataUrl ?? null,
+        plannerSource,
+        designPrinciples: null,
+        textAlign: textAlignChoice,
+      };
 
-      if (error) throw error;
-      if (!data || !Array.isArray(data.slides)) throw new Error("Resposta inválida da IA.");
+      // Captura snapshot do contexto da geração para usar ao montar bootstrap
+      // depois que o usuário escolher uma das versões.
+      generationCtxRef.current = {
+        aiImages,
+        imageMode,
+        imageStyle,
+        palette,
+        fontPair: fontPairForOutput,
+        signature:
+          signatureEnabled && instagram.trim()
+            ? {
+                enabled: true,
+                handle: instagram.trim().startsWith("@") ? instagram.trim() : `@${instagram.trim()}`,
+                position: signaturePos,
+                color: palette[0],
+              }
+            : null,
+        selectedSource: selected?.source ?? null,
+      };
+
+      // Duas chamadas em paralelo: minimalista (texto) + criativo (foto).
+      const [minRes, creRes] = await Promise.all([
+        supabase.functions.invoke("carrossel-generate", {
+          body: { ...commonBody, bgKinds: ["texto"] },
+        }),
+        supabase.functions.invoke("carrossel-generate", {
+          body: { ...commonBody, bgKinds: ["foto"] },
+        }),
+      ]);
 
       stopProgress();
       setProgress(100);
 
-      const slidesData = data.slides as Array<{
-        title: string;
-        subtitle?: string;
-        body: string;
-        imagePrompt: string;
-        imageDataUrl: string | null;
-        sistema?: "minimalista" | "criativo";
-        tipo?: "M1" | "M2" | "M3" | "M4" | "M5" | "C1" | "C2" | "C3" | "C4" | "C5";
-        fundo?: "off-white" | "bege-texturizado" | "foto" | "branco";
-        imageFrame?: "full" | "top-60" | "half-left" | "half-right" | "centered-square" | "bottom-third" | null;
-        label?: string;
-        tags?: string[];
-        elemento_decorativo?: "seta" | "asterisco" | "triangulo" | "seta-circular" | "nenhum";
-        palavra_destaque?: string;
-        ticker_texto?: string;
-        elemento_grafico?: "circulo" | "seta-curva" | "ticker" | "seta-vertical" | "toggle";
-      }>;
-
-      // Jobs de imagem (geradas em background no editor).
-      // Geramos imagem para TODOS os slides quando aiImages estiver ligado,
-      // independente do tipo visual. Se o slide não tiver `imagePrompt`
-      // explícita (ex.: tipos M1/M2/M3 do minimalista), derivamos uma
-      // descrição visual neutra a partir do título/body para que a foto
-      // seja gerada mesmo assim — o usuário pediu imagens em todo o carrossel.
-      const trimmedStyle = imageStyle.trim() || null;
-      const deriveVisualSeed = (s: { title?: string; body?: string; subtitle?: string }) => {
-        const t = (s.title ?? "").trim();
-        const b = (s.body ?? s.subtitle ?? "").trim();
-        const seed = [t, b].filter(Boolean).join(". ").slice(0, 200);
-        return seed
-          ? `editorial lifestyle photograph evoking the mood of: ${seed}`
-          : `editorial lifestyle photograph, calm and emotionally resonant scene`;
+      const parseVariant = (res: typeof minRes): VariantData => {
+        if (res.error) {
+          console.error("variant error", res.error);
+          return null;
+        }
+        const d = res.data as { slides?: VariantSlide[]; meta?: { archetype?: string | null } } | null;
+        if (!d || !Array.isArray(d.slides)) return null;
+        return { slides: d.slides, archetype: d.meta?.archetype ?? null };
       };
-      // Só geramos imagem para slides cujo princípio pede foto (fundo === "foto")
-      // ou que tenham um imagePrompt explícito vindo do backend. Princípios sem
-      // imagem (espaco-branco, proporcao, hierarquia, etc.) ficam sem foto.
-      const imageJobs =
-        aiImages && imageMode !== "none"
-          ? slidesData
-              .map((s, i) => {
-                const explicit = typeof s.imagePrompt === "string" ? s.imagePrompt.trim() : "";
-                const wantsPhoto = s.fundo === "foto" || (s.imageFrame ?? null) !== null || explicit.length > 0;
-                if (!wantsPhoto) return null;
-                const promptText = explicit.length > 0 ? explicit : deriveVisualSeed(s);
-                return {
-                  slideIndex: i,
-                  imagePrompt: promptText,
-                  imageStyle: trimmedStyle,
-                };
-              })
-              .filter((j): j is { slideIndex: number; imagePrompt: string; imageStyle: string | null } => j !== null)
-          : [];
 
-      const bootstrap = {
-        slides: slidesData,
-        fontPair: fontPairForOutput,
-        palette,
-        imageMode,
-        textAlign: textAlignChoice,
-        bgKinds,
-        signature: signatureEnabled && instagram.trim()
-          ? {
-              enabled: true,
-              handle: instagram.trim().startsWith("@") ? instagram.trim() : `@${instagram.trim()}`,
-              position: signaturePos,
-              color: palette[0],
-            }
-          : null,
-        imageJobs,
-        archetype: data?.meta?.archetype ?? null,
-        imageStyle: trimmedStyle,
-        fontWeightOverride:
-          selected && selected.source !== "dna"
-            ? { title: 700, subtitle: 500, body: 300 }
-            : null,
-      };
-      try {
-        sessionStorage.setItem("studio:carrossel:bootstrap", JSON.stringify(bootstrap));
-      } catch (e) {
-        console.warn("bootstrap sessionStorage failed", e);
+      const minimalista = parseVariant(minRes);
+      const criativo = parseVariant(creRes);
+
+      if (!minimalista && !criativo) {
+        throw new Error("A IA não conseguiu gerar nenhuma versão. Tente de novo.");
+      }
+      if (!minimalista || !criativo) {
+        toast.message(
+          "Uma das versões falhou. Você ainda pode escolher a versão gerada ou tentar de novo.",
+        );
       }
 
-      loadingPersistRef.current = true;
-      onOpenChange(false);
-      navigate({ to: "/dashboard/studio/carrossel" });
+      setVariants({ minimalista, criativo });
+      setStep("choose");
     } catch (err) {
       console.error(err);
       stopProgress();
@@ -601,6 +604,73 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
       setProgress(0);
     }
   };
+
+  const pickVariant = (kind: "minimalista" | "criativo") => {
+    const variant = variants[kind];
+    const ctx = generationCtxRef.current;
+    if (!variant || !ctx) return;
+
+    const trimmedStyle = ctx.imageStyle.trim() || null;
+    const deriveVisualSeed = (s: { title?: string; body?: string; subtitle?: string }) => {
+      const t = (s.title ?? "").trim();
+      const b = (s.body ?? s.subtitle ?? "").trim();
+      const seed = [t, b].filter(Boolean).join(". ").slice(0, 200);
+      return seed
+        ? `editorial lifestyle photograph evoking the mood of: ${seed}`
+        : `editorial lifestyle photograph, calm and emotionally resonant scene`;
+    };
+
+    // Imagens só fazem sentido na versão criativa (presets com foto).
+    const shouldGenImages = ctx.aiImages && kind === "criativo";
+    const imageJobs = shouldGenImages
+      ? variant.slides
+          .map((s, i) => {
+            const explicit = typeof s.imagePrompt === "string" ? s.imagePrompt.trim() : "";
+            const wantsPhoto =
+              s.fundo === "foto" || (s.imageFrame ?? null) !== null || explicit.length > 0;
+            if (!wantsPhoto) return null;
+            const promptText = explicit.length > 0 ? explicit : deriveVisualSeed(s);
+            return {
+              slideIndex: i,
+              imagePrompt: promptText,
+              imageStyle: trimmedStyle,
+            };
+          })
+          .filter(
+            (j): j is { slideIndex: number; imagePrompt: string; imageStyle: string | null } =>
+              j !== null,
+          )
+      : [];
+
+    const bootstrap = {
+      slides: variant.slides,
+      fontPair: ctx.fontPair,
+      palette: ctx.palette,
+      imageMode: shouldGenImages ? ctx.imageMode : ("none" as ImageMode),
+      textAlign: textAlignChoice,
+      bgKinds: kind === "minimalista" ? ["texto"] : ["foto"],
+      signature: ctx.signature,
+      imageJobs,
+      archetype: variant.archetype,
+      imageStyle: trimmedStyle,
+      fontWeightOverride:
+        ctx.selectedSource && ctx.selectedSource !== "dna"
+          ? { title: 700, subtitle: 500, body: 300 }
+          : null,
+    };
+
+    try {
+      sessionStorage.setItem("studio:carrossel:bootstrap", JSON.stringify(bootstrap));
+    } catch (e) {
+      console.warn("bootstrap sessionStorage failed", e);
+    }
+
+    loadingPersistRef.current = true;
+    onOpenChange(false);
+    navigate({ to: "/dashboard/studio/carrossel" });
+  };
+
+
 
   const isSelected = (heading: string, body: string, source: SelectedSource) =>
     !!selected && selected.heading === heading && selected.body === body && selected.source === source;
@@ -613,7 +683,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
         onOpenChange(o);
       }}
     >
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         {step === 1 && (
           <>
             <DialogHeader>
@@ -1163,9 +1233,9 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
           <div className="flex flex-col items-center gap-4 py-10 text-center">
             <Loader2 className="h-10 w-10 animate-spin text-primary" />
             <div>
-              <h3 className="text-lg font-semibold">Gerando conteúdo...</h3>
+              <h3 className="text-lg font-semibold">Gerando duas versões...</h3>
               <p className="mt-1 text-sm text-muted-foreground">
-                A IA está criando seus slides com base no DNA da marca.
+                A IA está criando uma versão minimalista e uma criativa para você comparar.
               </p>
             </div>
             <div className="w-full max-w-sm">
@@ -1174,10 +1244,159 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
             </div>
           </div>
         )}
+
+        {step === "choose" && (
+          <>
+            <DialogHeader>
+              <DialogTitle>Escolha a versão</DialogTitle>
+              <DialogDescription>
+                Geramos duas versões do seu carrossel. Escolha qual vai para o editor — você poderá ajustar tudo depois.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="grid gap-4 py-4 sm:grid-cols-2">
+              <VariantPreviewCard
+                kind="minimalista"
+                title="Minimalista"
+                subtitle="Tipografia limpa, sem foto. Foco no texto."
+                variant={variants.minimalista}
+                palette={generationCtxRef.current?.palette ?? palette}
+                fontPair={generationCtxRef.current?.fontPair ?? fontPairForOutput}
+                onPick={() => pickVariant("minimalista")}
+              />
+              <VariantPreviewCard
+                kind="criativo"
+                title="Criativo"
+                subtitle="Foto editorial cobrindo o slide, texto sobreposto."
+                variant={variants.criativo}
+                palette={generationCtxRef.current?.palette ?? palette}
+                fontPair={generationCtxRef.current?.fontPair ?? fontPairForOutput}
+                onPick={() => pickVariant("criativo")}
+              />
+            </div>
+
+            <div className="flex items-center justify-between border-t pt-3">
+              <p className="text-xs text-muted-foreground">
+                As imagens da versão criativa são geradas no editor depois de escolher.
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setVariants({ minimalista: null, criativo: null });
+                  setStep(2);
+                  setProgress(0);
+                }}
+              >
+                Gerar de novo
+              </Button>
+            </div>
+          </>
+        )}
+
       </DialogContent>
     </Dialog>
   );
 }
+
+function VariantPreviewCard({
+  kind,
+  title,
+  subtitle,
+  variant,
+  palette,
+  fontPair,
+  onPick,
+}: {
+  kind: "minimalista" | "criativo";
+  title: string;
+  subtitle: string;
+  variant: {
+    slides: Array<{ title: string; subtitle?: string; body: string }>;
+    archetype: string | null;
+  } | null;
+  palette: [string, string, string];
+  fontPair: { heading: string; body: string } | null;
+  onPick: () => void;
+}) {
+  const headingFont = fontPair?.heading ?? "Inter";
+  const bodyFont = fontPair?.body ?? "Inter";
+  const slides = variant?.slides ?? [];
+  const previewSlides = slides.slice(0, 3);
+  const isCriativo = kind === "criativo";
+
+  return (
+    <div className="flex flex-col rounded-lg border bg-card p-3">
+      <div className="mb-2 flex items-center justify-between">
+        <div>
+          <div className="text-sm font-semibold">{title}</div>
+          <div className="text-[11px] text-muted-foreground">{subtitle}</div>
+        </div>
+        {!variant && (
+          <span className="rounded bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive">
+            falhou
+          </span>
+        )}
+      </div>
+
+      {variant ? (
+        <div className="grid grid-cols-3 gap-1.5">
+          {previewSlides.map((s, i) => (
+            <div
+              key={i}
+              className="relative aspect-[4/5] overflow-hidden rounded border"
+              style={{
+                background: isCriativo
+                  ? `linear-gradient(135deg, ${palette[2]} 0%, ${palette[0]} 100%)`
+                  : palette[1],
+                color: isCriativo ? "#fff" : palette[2],
+              }}
+            >
+              {isCriativo && (
+                <div className="absolute inset-0 bg-black/30" aria-hidden />
+              )}
+              <div className="relative flex h-full flex-col justify-end p-2">
+                <div
+                  className="line-clamp-3 text-[9px] font-bold leading-tight"
+                  style={{ fontFamily: `"${headingFont}", system-ui, sans-serif` }}
+                >
+                  {s.title || `Slide ${i + 1}`}
+                </div>
+                {s.body && (
+                  <div
+                    className="mt-1 line-clamp-2 text-[7px] opacity-80"
+                    style={{ fontFamily: `"${bodyFont}", system-ui, sans-serif` }}
+                  >
+                    {s.body}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="flex aspect-[4/2] items-center justify-center rounded border border-dashed text-[11px] text-muted-foreground">
+          Não foi possível gerar esta versão.
+        </div>
+      )}
+
+      <p className="mt-2 text-[10px] text-muted-foreground">
+        {variant ? `${slides.length} slides` : "—"}
+      </p>
+
+      <Button
+        className="mt-3 w-full gap-1.5"
+        onClick={onPick}
+        disabled={!variant}
+        size="sm"
+      >
+        <Sparkles className="h-3.5 w-3.5" />
+        Escolher esta versão
+      </Button>
+    </div>
+  );
+}
+
 
 function FontCard({
   heading,

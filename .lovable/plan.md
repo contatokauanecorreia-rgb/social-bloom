@@ -1,67 +1,54 @@
 ## Objetivo
 
-Adicionar um painel de **Score preditivo** no editor de carrossel (`/dashboard/studio/carrossel`). Antes de exportar, o usuário pode rodar uma análise com IA que devolve nota de 1 a 10 + explicação curta com pontos a melhorar, considerando formato, tom, melhor horário e nicho do cliente.
+Quando o usuário gerar um carrossel pelo wizard de IA, em vez de cair direto no editor com 1 versão, mostrar **duas variações lado a lado** — uma no sistema **Minimalista** (foco em tipografia, sem foto) e uma no sistema **Criativo** (foto editorial cobrindo o slide). O usuário escolhe qual vai para o editor / aprovação do cliente antes de exportar.
 
 ## UX
 
-- Novo painel no topbar/sidebar do editor (próximo ao botão "Baixar todos"), com:
-  - Botão **"Analisar com IA"** (gasta 1 crédito, mesmo padrão dos demais geradores).
-  - Após análise: card mostrando **score grande (X/10)**, **horário sugerido** ("Ex.: terça, 19h–21h"), **3 pontos fortes**, **3 sugestões de melhoria**.
-  - Estado vazio antes de rodar: "Rode uma análise antes de exportar para ver o potencial do post."
-- O botão **"Baixar todos"** continua funcional, mas ganha um aviso suave quando nenhum score foi calculado ainda ("Quer analisar antes de exportar?" — não bloqueia, só sugere).
-- Se o usuário editar slides depois da análise, marcar score como "desatualizado" (badge cinza), incentivando re-análise.
+Novo passo final no `CarouselAIWizard` (após o usuário clicar "Gerar"):
 
-## Backend
-
-Nova edge function **`carrossel-score`** (segue o padrão de `carrossel-generate` e `planner-ideas`, via Lovable AI Gateway, modelo `google/gemini-3-flash-preview`, tool-calling para JSON estruturado).
-
-**Input:**
-```json
-{
-  "format": "carrossel" | "quadrado" | "stories",
-  "slides": [{ "title": "...", "subtitle": "...", "body": "..." }],
-  "clientId": "..."
-}
-```
-
-**Lookup do cliente:** mesma lógica usada hoje no editor (briefing mock em `client-context.ts` + briefing salvo se houver). Passa para o prompt: segmento, tom de voz, objetivo, palavras-chave.
-
-**Output (tool call estruturado):**
-```json
-{
-  "score": 8,
-  "summary": "Frase curta justificando a nota.",
-  "bestTime": "Terça e quinta, 19h–21h",
-  "strengths": ["...", "...", "..."],
-  "improvements": ["...", "...", "..."]
-}
-```
-
-Sem persistência em DB nessa entrega — score vive em memória no editor (suficiente para o fluxo "ver antes de exportar"). Caso queira histórico depois, é outra iteração.
+1. Wizard chama a edge function **2× em paralelo** com a mesma topic/briefing:
+   - Versão A: `bgKinds: ["texto"]` → vira sistema **Minimalista** (presets M2/M3).
+   - Versão B: `bgKinds: ["foto"]` → vira sistema **Criativo** (presets C1).
+   - **Sem geração de imagem nessa etapa** (`aiImages: false`) — só copy + layout. Placeholder visual com cor da paleta no preview. Isso evita gastar geração de imagem em uma versão que vai ser descartada.
+2. Tela de comparação dentro do mesmo dialog (substitui o spinner de "gerando…"):
+   - Dois cards grandes lado a lado: "Minimalista" e "Criativo".
+   - Cada card mostra mini-preview dos primeiros 3 slides (usa o mesmo `SlidePreview` que o editor já tem, em escala reduzida).
+   - Botão "Escolher esta versão" em cada card.
+   - Botão secundário "Gerar de novo" (volta ao passo de configuração).
+3. Ao escolher uma versão:
+   - Monta o `bootstrap` (sessionStorage) só da versão escolhida.
+   - Se `aiImages` estava ligado na config original e a versão escolhida é **Criativa**, gera os `imageJobs` (a geração das imagens em si continua acontecendo no editor em segundo plano, como já é hoje).
+   - Navega para `/dashboard/studio/carrossel`.
 
 ## Mudanças
 
-### 1. `supabase/functions/carrossel-score/index.ts` (novo)
-- CORS padrão, POST, valida payload com Zod.
-- Monta prompt com briefing do cliente + slides + formato.
-- Chama Lovable AI Gateway com tool `return_score` (schema acima).
-- Trata 429/402 devolvendo a mensagem ao cliente.
+### 1. `src/components/studio/CarouselAIWizard.tsx`
+- Novo estado: `variants: { minimalista: SlideData[] | null; criativo: SlideData[] | null }`, `chooseStep: boolean`.
+- Função `handleGenerate` divide em duas chamadas paralelas:
+  ```ts
+  const [minRes, creRes] = await Promise.all([
+    invoke({ ...common, bgKinds: ["texto"], aiImages: false }),
+    invoke({ ...common, bgKinds: ["foto"], aiImages: false }),
+  ]);
+  ```
+- Em vez de navegar direto, seta `variants` e `chooseStep = true`.
+- Novo render `<VariantPicker>`:
+  - 2 cards com mini-thumbnails (reaproveita render existente de slide, em CSS `transform: scale(0.18)`).
+  - Cada um chama `pickVariant("minimalista" | "criativo")`.
+- `pickVariant` monta o bootstrap da versão escolhida (cópia exata da lógica atual de `imageJobs`, palette, signature, fontPair) e navega.
+- Tratamento de erro: se uma das duas chamadas falhar, ainda permite escolher a que deu certo (com aviso) ou refazer.
 
-### 2. `src/routes/dashboard.studio.carrossel.tsx`
-- Novo estado: `score: ScoreResult | null`, `scoring: boolean`, `scoreStale: boolean`.
-- Função `runScore()`:
-  - Gate: precisa de `clientId` e ≥1 slide com conteúdo.
-  - `consumeCredits(1)` (refund em erro), igual aos demais fluxos.
-  - `supabase.functions.invoke("carrossel-score", { body })`.
-  - Salva resultado em `score`, zera `scoreStale`.
-- Marcar `scoreStale = true` em qualquer setter de slides (título/subtítulo/body/reordenar/adicionar/remover).
-- Renderizar o painel `<ScorePanel />` ao lado/abaixo do botão "Baixar todos". Componente local no mesmo arquivo (já é o padrão do editor) ou extraído para `src/components/studio/CarouselScorePanel.tsx` se ficar > ~80 linhas.
+### 2. Mini-preview de slide
+- Extrair o JSX de render de slide do editor para um componente compartilhado **`src/components/studio/SlideMiniPreview.tsx`** (lê os mesmos campos do bootstrap: title/subtitle/body/sistema/fundo/palette/fontPair), renderizado em ~200×250 px.
+- Usado tanto no editor (não muda) quanto no wizard.
+- Se a refatoração ficar grande, fallback: render simplificado dedicado dentro do wizard (cor de fundo da paleta + título + subtítulo), sem reaproveitar o editor.
 
-### 3. Sem mudanças no banco
-- Nada de migrations. Score é efêmero.
+### 3. Backend
+- **Sem mudanças** em `carrossel-generate`. Já aceita `bgKinds` e responde sob esse filtro.
+- **Sem mudanças** em DB.
 
 ## Fora de escopo
-- Histórico de scores por post.
-- Score automático ao abrir o editor (só sob clique, para não gastar créditos sem consentimento).
-- Re-análise automática após editar (apenas marca como desatualizado).
-- Mudar o fluxo do Planner ou do CarouselAIWizard.
+- Salvar as duas versões no Planner como rascunho (entrega atual: apenas a escolhida vai para o editor).
+- Comparar 3+ versões.
+- Editar a versão minimalista e a criativa em paralelo no editor.
+- Mudar como as imagens são geradas no editor (continua igual).
