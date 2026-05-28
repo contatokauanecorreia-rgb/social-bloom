@@ -97,7 +97,43 @@ const CATEGORY_OPTIONS: { key: GoogleFontCategory; label: string }[] = [
 
 export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }: CarouselAIWizardProps) {
   const navigate = useNavigate();
-  const [step, setStep] = useState<1 | 2 | "loading">(1);
+  const [step, setStep] = useState<1 | 2 | "loading" | "choose">(1);
+
+  type VariantSlide = {
+    title: string;
+    subtitle?: string;
+    body: string;
+    imagePrompt: string;
+    imageDataUrl: string | null;
+    sistema?: "minimalista" | "criativo";
+    tipo?: string;
+    fundo?: string;
+    imageFrame?: "full" | "top-60" | "half-left" | "half-right" | "centered-square" | "bottom-third" | null;
+    label?: string;
+    tags?: string[];
+    elemento_decorativo?: string;
+    palavra_destaque?: string;
+    ticker_texto?: string;
+    elemento_grafico?: string;
+  };
+  type VariantData = {
+    slides: VariantSlide[];
+    archetype: string | null;
+  } | null;
+  const [variants, setVariants] = useState<{
+    minimalista: VariantData;
+    criativo: VariantData;
+  }>({ minimalista: null, criativo: null });
+  // Snapshot dos parâmetros comuns no momento da geração (para usar ao montar o bootstrap)
+  const generationCtxRef = useRef<{
+    aiImages: boolean;
+    imageMode: ImageMode;
+    imageStyle: string;
+    palette: [string, string, string];
+    fontPair: { heading: string; body: string } | null;
+    signature: { enabled: boolean; handle: string; position: SignaturePos6; color: string } | null;
+    selectedSource: SelectedSource | null;
+  } | null>(null);
 
   // Step 1
   const [contentSource, setContentSource] = useState<"planner" | "ai">("ai");
