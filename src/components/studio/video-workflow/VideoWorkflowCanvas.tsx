@@ -382,7 +382,7 @@ export function VideoWorkflowCanvas() {
 
       setStageLabel("Enviando para Luma Ray2…");
       setProgress(10);
-      const { requestId } = await startLumaFn({
+      const { requestId, statusUrl, responseUrl } = await startLumaFn({
         data: {
           videoStoragePath,
           sceneMode: state.sceneMode,
