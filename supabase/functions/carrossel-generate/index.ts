@@ -77,16 +77,8 @@ function buildBriefingContext(b: any | null, clientName: string | null) {
   return parts.join(" ");
 }
 
-async function callAI(payload: unknown, apiKey: string) {
-  return await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-}
+// AI call now goes through ../_shared/claude.ts (callClaudeTool).
+
 
 function fallbackSlides(topic: string, clientName: string | null, n: number) {
   const who = clientName ? ` para ${clientName}` : "";
