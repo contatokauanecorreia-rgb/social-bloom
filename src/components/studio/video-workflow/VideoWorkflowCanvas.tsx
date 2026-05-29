@@ -13,7 +13,11 @@ import {
   X,
   Copy,
   AlertCircle,
+  Download,
+  Scissors,
+  Send,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
@@ -28,7 +32,9 @@ import {
   startTranscription,
   getTranscriptionStatus,
 } from "@/lib/assemblyai.functions";
+import { startLumaGeneration, getLumaStatus } from "@/lib/luma.functions";
 import { supabase } from "@/integrations/supabase/client";
+
 
 
 // ---------- Types ----------
@@ -112,6 +118,8 @@ export function VideoWorkflowCanvas() {
   const createUploadFn = useServerFn(createSignedUploadUrl);
   const startTranscriptionFn = useServerFn(startTranscription);
   const getStatusFn = useServerFn(getTranscriptionStatus);
+  const startLumaFn = useServerFn(startLumaGeneration);
+  const getLumaStatusFn = useServerFn(getLumaStatus);
 
   const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
   const [dragging, setDragging] = useState<BlockId | null>(null);
@@ -119,7 +127,11 @@ export function VideoWorkflowCanvas() {
   const [generating, setGenerating] = useState(false);
   const [stageLabel, setStageLabel] = useState<string>("");
   const [done, setDone] = useState(false);
+  const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const generationPollRef = useRef<number | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
+
 
   // Load saved layout
   useEffect(() => {
@@ -324,45 +336,110 @@ export function VideoWorkflowCanvas() {
     setState((s) => ({ ...s, sceneImage: file, sceneImageUrl: url }));
   };
 
+  const stopGenerationPolling = useCallback(() => {
+    if (generationPollRef.current !== null) {
+      window.clearInterval(generationPollRef.current);
+      generationPollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => stopGenerationPolling, [stopGenerationPolling]);
+
   const handleGenerate = useCallback(async () => {
     if (!canGenerate) return;
+    if (!videoStoragePath) {
+      toast.error("Vídeo ainda não foi enviado.");
+      return;
+    }
     setGenerating(true);
     setDone(false);
-    setProgress(0);
-    const stages = [
-      { label: "Enviando vídeo…", to: 25 },
-      { label: "Processando cenário…", to: 55 },
-      { label: "Aplicando LUTs e cor…", to: 85 },
-      { label: "Finalizando…", to: 100 },
-    ];
-    for (const stage of stages) {
-      setStageLabel(stage.label);
-      // animate to stage.to
-      await new Promise<void>((resolve) => {
-        const start = performance.now();
-        const from = progressRef.current;
-        const duration = 900;
-        const step = (now: number) => {
-          const t = Math.min(1, (now - start) / duration);
-          const value = from + (stage.to - from) * t;
-          setProgress(value);
-          progressRef.current = value;
-          if (t < 1) requestAnimationFrame(step);
-          else resolve();
-        };
-        requestAnimationFrame(step);
-      });
-    }
-    setStageLabel("Concluído");
-    setDone(true);
-    setGenerating(false);
-    toast.success("Vídeo gerado (simulação). Em breve: integração com os modelos selecionados.");
-  }, [canGenerate]);
+    setProgress(5);
+    setStageLabel("Preparando…");
+    setGeneratedVideoUrl(null);
+    setGenerationError(null);
 
-  const progressRef = useRef(0);
-  useEffect(() => {
-    progressRef.current = progress;
-  }, [progress]);
+    try {
+      // If scene mode is image, upload the image to storage first.
+      let sceneImagePath: string | null = null;
+      if (state.sceneMode === "image" && state.sceneImage) {
+        setStageLabel("Enviando imagem do cenário…");
+        const { storagePath, token } = await createUploadFn({
+          data: {
+            fileName: state.sceneImage.name,
+            contentType: state.sceneImage.type || "image/jpeg",
+          },
+        });
+        await uploadWithProgress({
+          bucket: "video-workflow-inputs",
+          path: storagePath,
+          token,
+          file: state.sceneImage,
+          onProgress: () => {},
+        });
+        sceneImagePath = storagePath;
+      }
+
+      setStageLabel("Enviando para Luma Ray2…");
+      setProgress(10);
+      const { requestId } = await startLumaFn({
+        data: {
+          videoStoragePath,
+          sceneMode: state.sceneMode,
+          scenePrompt: state.scenePrompt,
+          sceneImagePath,
+          model: state.model!,
+          lut: state.lut,
+          contrast: state.contrast,
+          saturation: state.saturation,
+          temperature: state.temperature,
+        },
+      });
+
+      setStageLabel("Processando vídeo…");
+      stopGenerationPolling();
+      generationPollRef.current = window.setInterval(async () => {
+        try {
+          const s = await getLumaStatusFn({ data: { requestId } });
+          setProgress(s.progress);
+          if (s.status === "IN_QUEUE") setStageLabel("Na fila…");
+          else if (s.status === "IN_PROGRESS") setStageLabel("Processando vídeo…");
+          if (s.status === "COMPLETED" && s.videoUrl) {
+            stopGenerationPolling();
+            setGeneratedVideoUrl(s.videoUrl);
+            setStageLabel("Concluído");
+            setProgress(100);
+            setDone(true);
+            setGenerating(false);
+            toast.success("Vídeo gerado com sucesso.");
+          }
+        } catch (err) {
+          stopGenerationPolling();
+          const msg = err instanceof Error ? err.message : "Erro ao consultar status.";
+          setGenerationError(msg);
+          setStageLabel("Falhou");
+          setGenerating(false);
+          toast.error(msg);
+        }
+      }, 3000);
+    } catch (err) {
+      stopGenerationPolling();
+      const msg = err instanceof Error ? err.message : "Falha ao iniciar geração.";
+      setGenerationError(msg);
+      setStageLabel("Falhou");
+      setGenerating(false);
+      toast.error(msg);
+    }
+  }, [
+    canGenerate,
+    videoStoragePath,
+    state,
+    createUploadFn,
+    startLumaFn,
+    getLumaStatusFn,
+    stopGenerationPolling,
+  ]);
+
+
 
   // ---------- Connection lines ----------
   const order: BlockId[] = ["video", "scene", "model", "color", "generate"];
@@ -684,22 +761,26 @@ export function VideoWorkflowCanvas() {
           onPointerUp={onPointerUp}
         >
           <div className="space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Confirme as etapas anteriores e inicie a geração do vídeo final.
-            </p>
-            <Button onClick={handleGenerate} disabled={!canGenerate} className="w-full">
-              {generating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Gerando…
-                </>
-              ) : (
-                <>
-                  <Play className="mr-2 h-4 w-4" />
-                  Gerar vídeo
-                </>
-              )}
-            </Button>
+            {!done && (
+              <p className="text-xs text-muted-foreground">
+                Confirme as etapas anteriores e inicie a geração com Luma Ray2.
+              </p>
+            )}
+            {!done && (
+              <Button onClick={handleGenerate} disabled={!canGenerate} className="w-full">
+                {generating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Gerando…
+                  </>
+                ) : (
+                  <>
+                    <Play className="mr-2 h-4 w-4" />
+                    Gerar vídeo
+                  </>
+                )}
+              </Button>
+            )}
             {(generating || done) && (
               <div className="space-y-1">
                 <Progress value={progress} className="h-2" />
@@ -709,12 +790,69 @@ export function VideoWorkflowCanvas() {
                 </div>
               </div>
             )}
-            {done && (
-              <p className="text-[11px] text-muted-foreground">
-                Em breve: integração com os modelos selecionados.
-              </p>
+            {generationError && (
+              <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-[11px] text-destructive">
+                <AlertCircle className="mt-0.5 h-3 w-3 flex-shrink-0" />
+                <span className="flex-1">{generationError}</span>
+              </div>
+            )}
+            {done && generatedVideoUrl && (
+              <div className="space-y-2">
+                <video
+                  src={generatedVideoUrl}
+                  controls
+                  className="h-32 w-full rounded-md bg-black object-contain"
+                />
+                <div className="grid grid-cols-1 gap-1.5">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="h-8 text-xs"
+                  >
+                    <a href={generatedVideoUrl} download="video-gerado.mp4" target="_blank" rel="noreferrer">
+                      <Download className="mr-1.5 h-3 w-3" />
+                      Baixar MP4
+                    </a>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => {
+                      const url = `/studio/video-editor?src=${encodeURIComponent(generatedVideoUrl)}`;
+                      window.open(url, "_blank", "noopener,noreferrer");
+                    }}
+                  >
+                    <Scissors className="mr-1.5 h-3 w-3" />
+                    Editar cortes e legendas
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => toast.info("Envio ao cliente: em breve.")}
+                  >
+                    <Send className="mr-1.5 h-3 w-3" />
+                    Enviar ao cliente
+                  </Button>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-full text-[11px]"
+                  onClick={() => {
+                    setDone(false);
+                    setGeneratedVideoUrl(null);
+                    setProgress(0);
+                    setStageLabel("");
+                  }}
+                >
+                  Gerar novamente
+                </Button>
+              </div>
             )}
           </div>
+
         </BlockShell>
       </div>
     </div>

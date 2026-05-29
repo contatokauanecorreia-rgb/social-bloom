@@ -1,53 +1,44 @@
-# Bloco 1 — Transcrição automática com AssemblyAI
+## Bloco 5 — Geração com Luma Ray2
 
-## Objetivo
-Quando o usuário enviar um vídeo no Bloco 1 do Video Workflow, o arquivo é salvo em storage privado, enviado à AssemblyAI para transcrição, e o texto fica disponível para os Blocos 2 e 5.
+### O que vai acontecer quando o usuário clicar em "Gerar vídeo"
 
-## O que será implementado
+1. O Bloco 5 envia ao backend:
+   - O vídeo do Bloco 1 (caminho no storage `video-workflow-inputs/...` já existente)
+   - O prompt do Bloco 2 (se em modo "prompt") ou a imagem do Bloco 2 (modo "image")
+   - O modelo selecionado no Bloco 3 (`luma-flex`, `luma-reimagine` ou `kling`)
+   - Os ajustes do Bloco 4 (LUT + contraste/saturação/temperatura) concatenados ao prompt
+2. O backend chama a API do FAL (Luma Ray 2) e retorna um `requestId`.
+3. O frontend faz polling do status e atualiza a barra de progresso real (0 → 100%) com rótulos de etapa.
+4. Quando termina, o vídeo gerado aparece dentro do bloco com 3 botões:
+   - **Baixar MP4** — download direto do arquivo
+   - **Editar cortes e legendas** — abre editor (placeholder navegando para `/studio/video-editor?src=...`, a ser implementado depois)
+   - **Enviar ao cliente** — placeholder (toast "em breve") até o fluxo de envio existir
 
-### 1. Segredo
-- `ASSEMBLYAI_API_KEY` via formulário seguro (`add_secret`). Você cola a chave nova após revogar a antiga.
+### Arquivos novos
 
-### 2. Storage
-- Novo bucket **privado** `video-workflow-inputs`.
-- Políticas RLS: cada usuário só lê/escreve dentro de `{user_id}/...`.
-- URLs assinadas (2h) geradas no servidor para a AssemblyAI baixar o vídeo.
+- `src/lib/luma.functions.ts` — server functions TanStack:
+  - `startLumaGeneration({ storagePath, sceneMode, scenePrompt, sceneImagePath, model, color })` → gera signed URL do vídeo de entrada, monta prompt final (incluindo LUT/ajustes), chama FAL `queue.submit` e retorna `{ requestId, endpoint }`.
+  - `getLumaStatus({ requestId, endpoint })` → consulta `queue.status`; quando `COMPLETED`, busca `queue.result` e retorna `{ status, progress, videoUrl }`.
+- (Reusa `FAL_API_KEY` já configurado.)
 
-### 3. Server functions (`src/lib/assemblyai.functions.ts`)
-- `createSignedUploadUrl({ fileName, contentType })` → retorna URL assinada de upload + `storagePath`.
-- `startTranscription({ storagePath })` → gera signed URL de download, faz `POST https://api.assemblyai.com/v2/transcript` com `{ audio_url, language_detection: true, punctuate: true, format_text: true }`, retorna `{ transcriptId }`.
-- `getTranscriptionStatus({ transcriptId })` → `GET /v2/transcript/{id}`, retorna `{ status: 'queued'|'processing'|'completed'|'error', text, utterances, language_code, error }`.
+### Arquivos editados
 
-### 4. UI — `VideoUploadBlock.tsx`
-Três estados visuais:
-- **Enviando**: barra de progresso do upload direto pro storage.
-- **Transcrevendo**: spinner + label "Transcrevendo áudio…" com polling a cada 3s.
-- **Pronto**: card com idioma detectado, texto da transcrição (scroll), botão "Copiar transcrição completa".
+- `src/components/studio/video-workflow/VideoWorkflowCanvas.tsx`:
+  - Substitui o `handleGenerate` simulado por chamada real às server functions + polling a cada 3s.
+  - Estados novos: `generatedVideoUrl`, `lumaRequestId`, `lumaEndpoint`.
+  - Bloco 5 renderiza `<video>` + 3 botões após `done`.
+  - Se imagem do Bloco 2 estiver em modo "image", faz upload prévio para `video-workflow-inputs` (reusa `createSignedUploadUrl`) antes de chamar `startLumaGeneration`.
 
-Bloco só conta como `complete` quando upload **e** transcrição terminam.
+### Mapeamento de modelos para endpoints FAL
 
-### 5. Estado compartilhado (`useVideoWorkflowState`)
-Novos campos:
-- `videoStoragePath: string | null`
-- `transcription: { text, utterances, language } | null`
-- `transcriptionStatus: 'idle' | 'uploading' | 'transcribing' | 'ready' | 'error'`
+- `luma-flex` → `fal-ai/luma-dream-machine/ray-2-flash/image-to-video` (ou `video-to-video` quando aplicável)
+- `luma-reimagine` → `fal-ai/luma-dream-machine/ray-2/modify`
+- `kling` → `fal-ai/kling-video/v2/master/image-to-video` (mantido como opção alternativa via mesma camada)
 
-Disponível para os próximos blocos consumirem.
+### O que NÃO faz parte deste passo
 
-## Fora de escopo (próximas rodadas)
-- Bloco 5 / Luma (próxima entrega)
-- Edição manual da transcrição
-- Tabela `video_generations` (vem com o Luma)
+- Editor de cortes/legendas (botão só navega para rota placeholder).
+- Fluxo "Enviar ao cliente" (mostra toast "em breve").
+- Persistência do vídeo gerado em uma tabela de histórico.
 
-## Detalhes técnicos
-- Arquivos novos: `src/lib/assemblyai.functions.ts`, migração SQL do bucket + policies.
-- Editados: `src/components/studio/video-workflow/blocks/VideoUploadBlock.tsx`, `VideoWorkflowCanvas.tsx`, hook de estado.
-- Auth: server functions usam `requireSupabaseAuth` (usuário precisa estar logado).
-- Tamanho máx. recomendado: 500MB (AssemblyAI aceita maiores, mas mantemos limite no client).
-
-## Ordem de execução após aprovação
-1. `add_secret` para `ASSEMBLYAI_API_KEY` (você cola a chave nova)
-2. Migração do bucket + policies
-3. Server functions
-4. UI + estado
-5. Teste end-to-end com vídeo curto
+Confirme se posso prosseguir, ou se quer ajustar o mapeamento de modelos / comportamento dos botões pós-geração.
