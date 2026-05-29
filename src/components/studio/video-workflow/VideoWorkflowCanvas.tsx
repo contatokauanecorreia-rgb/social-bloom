@@ -336,45 +336,110 @@ export function VideoWorkflowCanvas() {
     setState((s) => ({ ...s, sceneImage: file, sceneImageUrl: url }));
   };
 
+  const stopGenerationPolling = useCallback(() => {
+    if (generationPollRef.current !== null) {
+      window.clearInterval(generationPollRef.current);
+      generationPollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => stopGenerationPolling, [stopGenerationPolling]);
+
   const handleGenerate = useCallback(async () => {
     if (!canGenerate) return;
+    if (!videoStoragePath) {
+      toast.error("Vídeo ainda não foi enviado.");
+      return;
+    }
     setGenerating(true);
     setDone(false);
-    setProgress(0);
-    const stages = [
-      { label: "Enviando vídeo…", to: 25 },
-      { label: "Processando cenário…", to: 55 },
-      { label: "Aplicando LUTs e cor…", to: 85 },
-      { label: "Finalizando…", to: 100 },
-    ];
-    for (const stage of stages) {
-      setStageLabel(stage.label);
-      // animate to stage.to
-      await new Promise<void>((resolve) => {
-        const start = performance.now();
-        const from = progressRef.current;
-        const duration = 900;
-        const step = (now: number) => {
-          const t = Math.min(1, (now - start) / duration);
-          const value = from + (stage.to - from) * t;
-          setProgress(value);
-          progressRef.current = value;
-          if (t < 1) requestAnimationFrame(step);
-          else resolve();
-        };
-        requestAnimationFrame(step);
-      });
-    }
-    setStageLabel("Concluído");
-    setDone(true);
-    setGenerating(false);
-    toast.success("Vídeo gerado (simulação). Em breve: integração com os modelos selecionados.");
-  }, [canGenerate]);
+    setProgress(5);
+    setStageLabel("Preparando…");
+    setGeneratedVideoUrl(null);
+    setGenerationError(null);
 
-  const progressRef = useRef(0);
-  useEffect(() => {
-    progressRef.current = progress;
-  }, [progress]);
+    try {
+      // If scene mode is image, upload the image to storage first.
+      let sceneImagePath: string | null = null;
+      if (state.sceneMode === "image" && state.sceneImage) {
+        setStageLabel("Enviando imagem do cenário…");
+        const { storagePath, token } = await createUploadFn({
+          data: {
+            fileName: state.sceneImage.name,
+            contentType: state.sceneImage.type || "image/jpeg",
+          },
+        });
+        await uploadWithProgress({
+          bucket: "video-workflow-inputs",
+          path: storagePath,
+          token,
+          file: state.sceneImage,
+          onProgress: () => {},
+        });
+        sceneImagePath = storagePath;
+      }
+
+      setStageLabel("Enviando para Luma Ray2…");
+      setProgress(10);
+      const { requestId } = await startLumaFn({
+        data: {
+          videoStoragePath,
+          sceneMode: state.sceneMode,
+          scenePrompt: state.scenePrompt,
+          sceneImagePath,
+          model: state.model!,
+          lut: state.lut,
+          contrast: state.contrast,
+          saturation: state.saturation,
+          temperature: state.temperature,
+        },
+      });
+
+      setStageLabel("Processando vídeo…");
+      stopGenerationPolling();
+      generationPollRef.current = window.setInterval(async () => {
+        try {
+          const s = await getLumaStatusFn({ data: { requestId } });
+          setProgress(s.progress);
+          if (s.status === "IN_QUEUE") setStageLabel("Na fila…");
+          else if (s.status === "IN_PROGRESS") setStageLabel("Processando vídeo…");
+          if (s.status === "COMPLETED" && s.videoUrl) {
+            stopGenerationPolling();
+            setGeneratedVideoUrl(s.videoUrl);
+            setStageLabel("Concluído");
+            setProgress(100);
+            setDone(true);
+            setGenerating(false);
+            toast.success("Vídeo gerado com sucesso.");
+          }
+        } catch (err) {
+          stopGenerationPolling();
+          const msg = err instanceof Error ? err.message : "Erro ao consultar status.";
+          setGenerationError(msg);
+          setStageLabel("Falhou");
+          setGenerating(false);
+          toast.error(msg);
+        }
+      }, 3000);
+    } catch (err) {
+      stopGenerationPolling();
+      const msg = err instanceof Error ? err.message : "Falha ao iniciar geração.";
+      setGenerationError(msg);
+      setStageLabel("Falhou");
+      setGenerating(false);
+      toast.error(msg);
+    }
+  }, [
+    canGenerate,
+    videoStoragePath,
+    state,
+    createUploadFn,
+    startLumaFn,
+    getLumaStatusFn,
+    stopGenerationPolling,
+  ]);
+
+
 
   // ---------- Connection lines ----------
   const order: BlockId[] = ["video", "scene", "model", "color", "generate"];
