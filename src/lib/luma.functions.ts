@@ -26,6 +26,8 @@ const startSchema = z.object({
 
 const statusSchema = z.object({
   requestId: z.string().min(1).max(200),
+  statusUrl: z.string().url().startsWith('https://queue.fal.run/').max(500),
+  responseUrl: z.string().url().startsWith('https://queue.fal.run/').max(500),
 });
 
 function buildPrompt(input: z.infer<typeof startSchema>): string {
@@ -99,9 +101,11 @@ export const startLumaGeneration = createServerFn({ method: 'POST' })
       throw new Error(`FAL recusou o pedido (${res.status}): ${txt.slice(0, 300)}`);
     }
 
-    const json = (await res.json()) as { request_id?: string };
-    if (!json.request_id) throw new Error('FAL não retornou request_id.');
-    return { requestId: json.request_id };
+    const json = (await res.json()) as { request_id?: string; status_url?: string; response_url?: string };
+    if (!json.request_id || !json.status_url || !json.response_url) {
+      throw new Error('FAL não retornou request_id/status_url.');
+    }
+    return { requestId: json.request_id, statusUrl: json.status_url, responseUrl: json.response_url };
   });
 
 export const getLumaStatus = createServerFn({ method: 'POST' })
@@ -111,8 +115,10 @@ export const getLumaStatus = createServerFn({ method: 'POST' })
     const apiKey = process.env.FAL_API_KEY;
     if (!apiKey) throw new Error('FAL_API_KEY não configurada.');
 
-    const base = `${FAL_QUEUE}/${MODIFY_ENDPOINT}/requests/${encodeURIComponent(data.requestId)}`;
-    const statusRes = await fetch(`${base}/status?logs=1`, {
+    const statusUrl = data.statusUrl.includes('?')
+      ? `${data.statusUrl}&logs=1`
+      : `${data.statusUrl}?logs=1`;
+    const statusRes = await fetch(statusUrl, {
       headers: { authorization: `Key ${apiKey}` },
     });
     if (!statusRes.ok) {
@@ -153,7 +159,7 @@ export const getLumaStatus = createServerFn({ method: 'POST' })
       };
     }
 
-    const resultRes = await fetch(base, {
+    const resultRes = await fetch(data.responseUrl, {
       headers: { authorization: `Key ${apiKey}` },
     });
     if (!resultRes.ok) {

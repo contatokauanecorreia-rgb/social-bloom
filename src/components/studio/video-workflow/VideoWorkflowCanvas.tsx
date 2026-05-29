@@ -382,7 +382,7 @@ export function VideoWorkflowCanvas() {
 
       setStageLabel("Enviando para Luma Ray2…");
       setProgress(10);
-      const { requestId } = await startLumaFn({
+      const { requestId, statusUrl, responseUrl } = await startLumaFn({
         data: {
           videoStoragePath,
           sceneMode: state.sceneMode,
@@ -400,7 +400,7 @@ export function VideoWorkflowCanvas() {
       stopGenerationPolling();
       generationPollRef.current = window.setInterval(async () => {
         try {
-          const s = await getLumaStatusFn({ data: { requestId } });
+          const s = await getLumaStatusFn({ data: { requestId, statusUrl, responseUrl } });
           setProgress(s.progress);
           if (s.status === "IN_QUEUE") setStageLabel("Na fila…");
           else if (s.status === "IN_PROGRESS") setStageLabel("Processando vídeo…");
