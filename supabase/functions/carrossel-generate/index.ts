@@ -405,43 +405,23 @@ REGRAS DE ADAPTAÇÃO:
 - Respeite a SEQUÊNCIA de princípios definida acima — cada slide tem seu layout fixo.
 ` : "";
 
-    const finalSystemPromptBase = systemPrompt + principleAppendix + plannerAppendix;
+    const finalSystemPrompt = systemPrompt + principleAppendix + plannerAppendix;
 
     const hasReference = !!referenceImageDataUrl;
 
+    // Schema enviado ao Gemini: só copy + layout. Elementos gráficos decorativos
+    // são responsabilidade da etapa B (Claude diretor criativo) e só aparecem
+    // quando o usuário anexou uma referência visual.
     const slideItemProperties: any = {
       title: { type: "string" },
       subtitle: { type: "string" },
       body: { type: "string" },
       imagePrompt: { type: "string" },
-      // Schema unificado — princípio dita o tipo, mas aceitamos todos.
       sistema: { type: "string", enum: ["minimalista", "criativo"] },
       tipo: { type: "string", enum: ["M1", "M2", "M3", "M4", "M5", "C1", "C2", "C3", "C4", "C5"] },
       fundo: { type: "string", enum: ["off-white", "bege-texturizado", "foto", "branco"] },
       nota_visual: { type: "string" },
     };
-
-    // Elementos gráficos decorativos só são oferecidos ao modelo quando o
-    // usuário anexa uma referência visual — caso contrário, Claude só produz copy.
-    if (hasReference) {
-      slideItemProperties.label = { type: "string" };
-      slideItemProperties.tags = { type: "array", items: { type: "string" } };
-      slideItemProperties.elemento_decorativo = {
-        type: "string",
-        enum: ["seta", "asterisco", "triangulo", "seta-circular", "nenhum"],
-      };
-      slideItemProperties.palavra_destaque = { type: "string" };
-      slideItemProperties.ticker_texto = { type: "string" };
-      slideItemProperties.elemento_grafico = {
-        type: "string",
-        enum: ["circulo", "seta-curva", "ticker", "seta-vertical", "toggle"],
-      };
-    }
-
-    const graphicsAppendix = hasReference
-      ? `\n\n---\n\nELEMENTOS GRÁFICOS (REFERÊNCIA ANEXADA)\n\nO usuário anexou uma referência visual. Observe-a e, quando fizer sentido com o estilo dela, sugira elementos gráficos decorativos por slide (\`elemento_decorativo\`, \`elemento_grafico\`, \`palavra_destaque\`, \`ticker_texto\`, \`label\`, \`tags\`). Esses elementos devem combinar com o DNA da marca e com a estética da referência. Não force: se a referência for limpa/minimalista, use \`nenhum\`.`
-      : `\n\n---\n\nSEM ELEMENTOS GRÁFICOS\n\nO usuário NÃO anexou referência visual. NÃO sugira nenhum elemento gráfico decorativo (setas, linhas, asteriscos, tickers, labels, tags, palavras de destaque). Foque exclusivamente em copy: \`title\`, \`subtitle\`, \`body\`. Mantenha o layout limpo conforme os presets.`;
-
 
     const tools = [
       {
@@ -476,26 +456,29 @@ REGRAS DE ADAPTAÇÃO:
           .join("\n")
       : "";
 
-    // Claude (Anthropic) call: forced tool-use for structured JSON.
-    const userBlocks: ClaudeContentBlock[] = [
-      { type: "text", text: `${dnaPrompt}\n\nTema/contexto: ${topic.trim()}${plannerBlock}` },
-    ];
-    if (referenceImageDataUrl) {
-      const imgBlock = dataUrlToImageBlock(referenceImageDataUrl);
-      if (imgBlock) userBlocks.push(imgBlock);
-    }
+    // ====================================================================
+    // ETAPA A — Copy via Lovable AI Gateway (Gemini 2.5 Flash).
+    // ====================================================================
+    const userContent: any = referenceImageDataUrl
+      ? [
+          { type: "text", text: `${dnaPrompt}\n\nTema/contexto: ${topic.trim()}${plannerBlock}` },
+          { type: "image_url", image_url: { url: referenceImageDataUrl } },
+        ]
+      : `${dnaPrompt}\n\nTema/contexto: ${topic.trim()}${plannerBlock}`;
 
-    const claudeRes = await callClaudeTool<{ slides: any[] }>({
-      system: finalSystemPromptBase + graphicsAppendix,
-      user: userBlocks,
-      tool: {
-        name: "build_carousel",
-        description: "Retorna os slides do carrossel.",
-        input_schema: tools[0].function.parameters as Record<string, unknown>,
+    const aiResp = await callAI(
+      {
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: finalSystemPrompt },
+          { role: "user", content: userContent },
+        ],
+        tools,
+        tool_choice: { type: "function", function: { name: "build_carousel" } },
       },
-      maxTokens: 4096,
-      temperature: 0.7,
-    });
+      LOVABLE_API_KEY,
+    );
+
 
     let textFallback = false;
     type SlideOut = {
