@@ -612,6 +612,127 @@ REGRAS DE ADAPTAÇÃO:
       fallback: textFallback,
     });
 
+    // ====================================================================
+    // ETAPA B — Direção criativa via Claude (DNA da marca).
+    // Não reescreve copy. Apenas sugere tipografia + (se houver referência
+    // visual anexada) elementos gráficos por slide.
+    // Falhas aqui são não-bloqueantes: seguimos sem direção criativa.
+    // ====================================================================
+    let typographyMeta: { heading: string; body: string; rationale?: string } | null = null;
+    let creativeDirector: "claude" | null = null;
+
+    if (!textFallback && Deno.env.get("ANTHROPIC_API_KEY")) {
+      try {
+        const slideSummary = slides.map((s, i) => ({
+          i: i + 1,
+          title: (s.title ?? "").slice(0, 120),
+          body: (s.body ?? "").slice(0, 200),
+        }));
+
+        const directorSystem =
+          `Você é o diretor criativo desta marca. NÃO reescreva copy. ` +
+          `Use o DNA abaixo para propor tipografia (par de Google Fonts) ` +
+          `${hasReference
+            ? "e elementos gráficos decorativos por slide, inspirados na referência visual anexada."
+            : "apenas. NÃO sugira elementos gráficos (deixe o array `slides` vazio) — o usuário não enviou referência visual."} ` +
+          `Combine sempre com o DNA da marca.\n\n${dnaPrompt}`;
+
+        const directorUserText =
+          `Slides já redigidos pelo copywriter (apenas contexto, não altere):\n` +
+          slideSummary.map((s) => `${s.i}. ${s.title}\n   ${s.body}`).join("\n");
+
+        const directorUser: ClaudeContentBlock[] = [{ type: "text", text: directorUserText }];
+        if (hasReference && referenceImageDataUrl) {
+          const imgBlock = dataUrlToImageBlock(referenceImageDataUrl);
+          if (imgBlock) directorUser.push(imgBlock);
+        }
+
+        const directorTool = {
+          name: "creative_direction",
+          description: "Devolve tipografia e elementos gráficos por slide.",
+          input_schema: {
+            type: "object" as const,
+            properties: {
+              typography: {
+                type: "object",
+                properties: {
+                  heading: { type: "string", description: "Nome exato de uma Google Font para títulos" },
+                  body: { type: "string", description: "Nome exato de uma Google Font para o corpo" },
+                  rationale: { type: "string", description: "Por que esse par combina com o DNA" },
+                },
+                required: ["heading", "body"],
+              },
+              slides: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    elemento_decorativo: { type: "string", enum: ["seta", "asterisco", "triangulo", "seta-circular", "nenhum"] },
+                    elemento_grafico: { type: "string", enum: ["circulo", "seta-curva", "ticker", "seta-vertical", "toggle"] },
+                    palavra_destaque: { type: "string" },
+                    ticker_texto: { type: "string" },
+                    label: { type: "string" },
+                    tags: { type: "array", items: { type: "string" } },
+                  },
+                },
+              },
+            },
+            required: ["typography", "slides"],
+          },
+        };
+
+        const directorRes = await callClaudeTool<{
+          typography?: { heading?: string; body?: string; rationale?: string };
+          slides?: any[];
+        }>({
+          system: directorSystem,
+          user: directorUser,
+          tool: directorTool,
+          maxTokens: 1024,
+          temperature: 0.6,
+        });
+
+        if (directorRes.ok) {
+          creativeDirector = "claude";
+          const t = directorRes.data?.typography;
+          if (t && typeof t.heading === "string" && typeof t.body === "string") {
+            typographyMeta = {
+              heading: t.heading,
+              body: t.body,
+              rationale: typeof t.rationale === "string" ? t.rationale : undefined,
+            };
+          }
+
+          // Elementos gráficos: só aplica se houver referência anexada (defesa em profundidade).
+          if (hasReference && Array.isArray(directorRes.data?.slides)) {
+            directorRes.data!.slides!.forEach((g: any, idx: number) => {
+              const s = slides[idx];
+              if (!s || !g) return;
+              if (s.sistema === "minimalista") {
+                if (typeof g.label === "string") s.label = g.label;
+                if (Array.isArray(g.tags)) s.tags = g.tags.filter((x: any) => typeof x === "string");
+                if (g.elemento_decorativo) s.elemento_decorativo = g.elemento_decorativo;
+              } else if (s.sistema === "criativo") {
+                if (typeof g.palavra_destaque === "string") s.palavra_destaque = g.palavra_destaque;
+                if (typeof g.ticker_texto === "string") s.ticker_texto = g.ticker_texto;
+                if (g.elemento_grafico) s.elemento_grafico = g.elemento_grafico;
+              }
+            });
+          }
+          console.log("[carrossel-generate] creative_director_done", {
+            hasReference,
+            typography: !!typographyMeta,
+            graphicsApplied: hasReference && Array.isArray(directorRes.data?.slides) ? directorRes.data!.slides!.length : 0,
+          });
+        } else {
+          console.warn("[carrossel-generate] creative_director_failed", directorRes.status, directorRes.error);
+        }
+      } catch (e) {
+        console.warn("[carrossel-generate] creative_director_error", e instanceof Error ? e.message : String(e));
+      }
+    }
+
+
     // Image generation — parallel with global deadline (gateway timeout is ~150s)
     const DEADLINE_MS = 120_000;
     const remaining = () => DEADLINE_MS - (Date.now() - t0);
