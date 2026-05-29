@@ -399,7 +399,7 @@ export function VideoWorkflowCanvas() {
 
       setStageLabel("Processando vídeo…");
       stopGenerationPolling();
-      generationPollRef.current = window.setInterval(async () => {
+      const tick = async () => {
         try {
           const s = await getLumaStatusFn({ data: { requestId, statusUrl, responseUrl } });
           setProgress(s.progress);
@@ -413,7 +413,9 @@ export function VideoWorkflowCanvas() {
             setDone(true);
             setGenerating(false);
             toast.success("Vídeo gerado com sucesso.");
+            return;
           }
+          generationPollRef.current = window.setTimeout(tick, 1500);
         } catch (err) {
           stopGenerationPolling();
           const msg = err instanceof Error ? err.message : "Erro ao consultar status.";
@@ -422,7 +424,9 @@ export function VideoWorkflowCanvas() {
           setGenerating(false);
           toast.error(msg);
         }
-      }, 3000);
+      };
+      void tick();
+
     } catch (err) {
       stopGenerationPolling();
       const msg = err instanceof Error ? err.message : "Falha ao iniciar geração.";
