@@ -389,7 +389,7 @@ REGRAS DE ADAPTAÇÃO:
 - Respeite a SEQUÊNCIA de princípios definida acima — cada slide tem seu layout fixo.
 ` : "";
 
-    const finalSystemPrompt = systemPrompt + principleAppendix + plannerAppendix;
+    const finalSystemPromptBase = systemPrompt + principleAppendix + plannerAppendix;
 
     const hasReference = !!referenceImageDataUrl;
 
