@@ -1,34 +1,77 @@
-## Causa
+## Objetivo
 
-A função `supabase/functions/carrossel-generate/index.ts` usa o modelo `google/gemini-3-flash-preview` (preview, instável) com `tool_choice` forçado e schema rígido (`additionalProperties: false`, vários campos opcionais). Nessa combinação, o modelo às vezes devolve `tool_calls[0].function.arguments` com o array `slides` no tamanho certo, mas com `title`, `subtitle` e `body` todos vazios.
+Substituir o provedor de IA atual (Lovable AI Gateway / Gemini) por **Claude Sonnet 4** nas funções de geração de carrossel e de ideias do planner, sempre injetando o **DNA do cliente** (briefing completo) no prompt. A chave fica como secret no backend, nunca no frontend.
 
-Isso explica:
+## O que muda
 
-- Logs mostram `slides: 5, fallback: false` — o array existe.
-- Pré-vias do wizard aparentam ter texto porque o card de prévia usa o fallback de UI `s.title || \`Slide ${i+1}\`` (linha 1363 de `CarouselAIWizard.tsx`) e oculta o corpo quando `s.body` está vazio. Ou seja, o usuário vê "Slide 1 / Slide 2 / Slide 3" mesmo quando os textos vieram em branco.
-- No editor, `slide.text.title/subtitle/body` ficam `""`, então não renderiza nada — só o fundo estilizado (que vem de `s.sistema` / `s.fundo`, esses sim populados pelo servidor a partir dos PRESETS, independente da IA).
+### 1. Secret `ANTHROPIC_API_KEY`
+- Adicionar via `add_secret` (você cola o valor no popup seguro).
+- Lida apenas dentro das edge functions com `Deno.env.get("ANTHROPIC_API_KEY")`.
+- Nada vai pro `.env`, nada vai pro client.
 
-## Mudanças
+### 2. Helper compartilhado `supabase/functions/_shared/claude.ts`
+- Wrapper para `https://api.anthropic.com/v1/messages` com:
+  - headers `x-api-key`, `anthropic-version: 2023-06-01`, `content-type`.
+  - modelo fixo `claude-sonnet-4-20250514`.
+  - suporte a **tool use** (equivalente ao `tool_choice` da OpenAI) para extrair JSON estruturado de slides/ideias de forma confiável.
+  - tratamento de erros 401 / 429 / 529 devolvendo mensagens claras ao cliente.
 
-### 1. `supabase/functions/carrossel-generate/index.ts`
+### 3. Helper compartilhado `supabase/functions/_shared/client-dna.ts`
+- Função `loadClientDNA(supabaseClient, clientId)` que busca de `clients` + `client_briefings`:
+  - nome, segmento/company
+  - `tone_of_voice`, `target_audience`, `business_description`
+  - `goals`, `content_pillars`, `dos`, `donts`, `archetype`, `palette`, `references`
+- Retorna um bloco de texto formatado pronto para virar `system prompt` ("DNA da marca").
+- Usado tanto por `carrossel-generate` quanto por `planner-ideas`, garantindo contexto idêntico nas duas superfícies.
 
-- Trocar o modelo `google/gemini-3-flash-preview` por `google/gemini-2.5-flash` (estável, suporta tool calls de forma confiável e é o modelo usado nas outras funções do projeto).
-- Logar o tamanho de `tool_calls[0].function.arguments` e uma amostra do primeiro slide retornado, para confirmar conteúdo bruto.
-- Após o parse, detectar "slides estruturalmente vazios" (todos os slides com `title`, `subtitle` e `body` simultaneamente em branco) e, nesse caso, cair em `fallbackSlides(topic, clientName, slideCount)` — exatamente como já é feito quando `parsed.slides.length === 0`.
-- Marcar `textFallback = true` nesse caminho para que o `meta.fallback` chegue ao cliente refletindo a realidade.
+### 4. `supabase/functions/carrossel-generate/index.ts`
+- Substituir a chamada para `ai.gateway.lovable.dev` (linhas ~79 e ~470) por `callClaude(...)` do helper.
+- Antes de montar o prompt: chamar `loadClientDNA(clientId)` e prefixar o system prompt com:
+  - "Você é um copywriter especializado no nicho **X**, tom **Y**, falando com **Z**…"
+  - listar pilares, dos/donts, referências.
+- Manter o schema atual de slides (`title`, `subtitle`, `body`, `sistema`, `tipo`, `fundo`, `imageFrame`), mas declarar via `tools` do Anthropic (input_schema) em vez de `tool_choice` OpenAI.
+- Manter a detecção `allEmpty` → fallback existente, e os logs de diagnóstico.
+- O campo "referências de conteúdo / alinhamento / estilo de textos e títulos" enviado pela UI do wizard é repassado como bloco adicional no user message ("Configurações do usuário para esta geração: …").
 
-### 2. `src/components/studio/CarouselAIWizard.tsx` (linha ~1363)
+### 5. `supabase/functions/planner-ideas/index.ts`
+- Mesma troca: ler `clientId` do body (já existe), carregar DNA, chamar Claude com tool use que devolve `{ ideas: [{ title, hook, format, pillar }] }`.
+- Sem mudança de contrato no client.
 
-Pequeno ajuste de UX para evitar repetir o problema no futuro: na prévia do `VariantPreviewCard`, quando `s.title` está vazio, mostrar um placeholder visualmente discreto (ex.: `"(sem título)"` em cor `muted`) em vez de `\`Slide ${i + 1}\``. Assim, quando a IA falhar de novo, a falha fica visível no próprio wizard antes do usuário ir para o editor.
+### 6. Frontend
+- **Nenhuma mudança de fluxo.** O wizard de carrossel e o planner continuam invocando as mesmas edge functions (`carrossel-generate`, `planner-ideas`) com o mesmo payload, então `CarouselAIWizard.tsx` e a tela do planner não precisam ser alterados.
+- Só ajuste cosmético: trocar textos de erro genéricos ("IA indisponível") para refletir mensagens vindas do helper Claude (rate limit / créditos / chave inválida).
 
-## Fora de escopo
+## Detalhes técnicos
 
-- Não muda o schema do tool, o consumidor do editor (`dashboard.studio.carrossel.tsx`), banco, RLS ou pacotes.
-- Não mexe no fluxo de geração de imagens (que já está funcionando — o log mostra `done_fal`).
+- **Modelo:** `claude-sonnet-4-20250514` (hardcoded no helper — fácil de trocar em um único lugar).
+- **max_tokens:** 4096 para carrossel, 2048 para planner.
+- **Tool use shape (Anthropic):**
+  ```json
+  {
+    "tools": [{
+      "name": "emit_slides",
+      "description": "Retorna os slides do carrossel",
+      "input_schema": { "type": "object", "properties": { "slides": {...} }, "required": ["slides"] }
+    }],
+    "tool_choice": { "type": "tool", "name": "emit_slides" }
+  }
+  ```
+- **Segurança:** secret só em edge function; client nunca recebe a key. `config.toml` mantém `verify_jwt = true` para ambas as funções (já está).
+- **Sem migração de banco** — o DNA já está em `client_briefings`.
 
-## Como validar
+## Arquivos tocados
 
-1. Abrir o wizard, gerar um carrossel com qualquer cliente.
-2. Conferir nos logs do edge function (`carrossel-generate`) a nova linha de diagnóstico — `arguments` deve ter tamanho > 200 chars e o `firstSlide` deve ter `title`/`body` preenchidos.
-3. No editor, os 5 slides devem aparecer com título e corpo escritos pela IA.
-4. Forçar o caminho fallback (ex.: simular resposta vazia) e confirmar que aparecem os textos genéricos do `fallbackSlides`, em vez de slides em branco.
+```
+supabase/functions/_shared/claude.ts          (novo)
+supabase/functions/_shared/client-dna.ts      (novo)
+supabase/functions/carrossel-generate/index.ts (editado: troca de provider + DNA)
+supabase/functions/planner-ideas/index.ts      (editado: troca de provider + DNA)
+```
+
+## O que **não** vai mudar
+- UI do wizard, UI do planner, estrutura dos slides, fluxo de créditos, geração de imagens (continua FAL/`carrossel-image`), score, RLS, tabelas.
+
+## Próximo passo após aprovação
+1. Pedir o secret `ANTHROPIC_API_KEY` via `add_secret`.
+2. Implementar os 4 arquivos acima.
+3. Deploy das duas funções e teste rápido via `curl_edge_functions` com um cliente real.
