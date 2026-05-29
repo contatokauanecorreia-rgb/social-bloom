@@ -470,7 +470,7 @@ REGRAS DE ADAPTAÇÃO:
     }
 
     const claudeRes = await callClaudeTool<{ slides: any[] }>({
-      system: finalSystemPrompt,
+      system: finalSystemPromptBase + graphicsAppendix,
       user: userBlocks,
       tool: {
         name: "build_carousel",
