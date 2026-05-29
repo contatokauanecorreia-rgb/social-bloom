@@ -339,8 +339,9 @@ export function VideoWorkflowCanvas() {
 
   const stopGenerationPolling = useCallback(() => {
     if (generationPollRef.current !== null) {
-      window.clearInterval(generationPollRef.current);
+      window.clearTimeout(generationPollRef.current);
       generationPollRef.current = null;
+
     }
   }, []);
 
