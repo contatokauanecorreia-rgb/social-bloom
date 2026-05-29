@@ -77,7 +77,20 @@ function buildBriefingContext(b: any | null, clientName: string | null) {
   return parts.join(" ");
 }
 
-// AI call now goes through ../_shared/claude.ts (callClaudeTool).
+// Copy generation goes through the Lovable AI Gateway (Gemini).
+// Claude (Anthropic) is used only as the "creative director" — typography +
+// graphic elements based on the client DNA, see callClaudeTool below.
+async function callAI(payload: unknown, apiKey: string) {
+  return await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
 
 
 function fallbackSlides(topic: string, clientName: string | null, n: number) {
@@ -150,12 +163,15 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_PUBLISHABLE_KEY =
       Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
-    if (!Deno.env.get("ANTHROPIC_API_KEY")) {
-      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY não configurada." }), {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY não configurada." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    // ANTHROPIC_API_KEY é opcional — usada só para a direção criativa via Claude.
+
 
     let briefing: any | null = null;
     let clientName: string | null = null;
@@ -389,43 +405,23 @@ REGRAS DE ADAPTAÇÃO:
 - Respeite a SEQUÊNCIA de princípios definida acima — cada slide tem seu layout fixo.
 ` : "";
 
-    const finalSystemPromptBase = systemPrompt + principleAppendix + plannerAppendix;
+    const finalSystemPrompt = systemPrompt + principleAppendix + plannerAppendix;
 
     const hasReference = !!referenceImageDataUrl;
 
+    // Schema enviado ao Gemini: só copy + layout. Elementos gráficos decorativos
+    // são responsabilidade da etapa B (Claude diretor criativo) e só aparecem
+    // quando o usuário anexou uma referência visual.
     const slideItemProperties: any = {
       title: { type: "string" },
       subtitle: { type: "string" },
       body: { type: "string" },
       imagePrompt: { type: "string" },
-      // Schema unificado — princípio dita o tipo, mas aceitamos todos.
       sistema: { type: "string", enum: ["minimalista", "criativo"] },
       tipo: { type: "string", enum: ["M1", "M2", "M3", "M4", "M5", "C1", "C2", "C3", "C4", "C5"] },
       fundo: { type: "string", enum: ["off-white", "bege-texturizado", "foto", "branco"] },
       nota_visual: { type: "string" },
     };
-
-    // Elementos gráficos decorativos só são oferecidos ao modelo quando o
-    // usuário anexa uma referência visual — caso contrário, Claude só produz copy.
-    if (hasReference) {
-      slideItemProperties.label = { type: "string" };
-      slideItemProperties.tags = { type: "array", items: { type: "string" } };
-      slideItemProperties.elemento_decorativo = {
-        type: "string",
-        enum: ["seta", "asterisco", "triangulo", "seta-circular", "nenhum"],
-      };
-      slideItemProperties.palavra_destaque = { type: "string" };
-      slideItemProperties.ticker_texto = { type: "string" };
-      slideItemProperties.elemento_grafico = {
-        type: "string",
-        enum: ["circulo", "seta-curva", "ticker", "seta-vertical", "toggle"],
-      };
-    }
-
-    const graphicsAppendix = hasReference
-      ? `\n\n---\n\nELEMENTOS GRÁFICOS (REFERÊNCIA ANEXADA)\n\nO usuário anexou uma referência visual. Observe-a e, quando fizer sentido com o estilo dela, sugira elementos gráficos decorativos por slide (\`elemento_decorativo\`, \`elemento_grafico\`, \`palavra_destaque\`, \`ticker_texto\`, \`label\`, \`tags\`). Esses elementos devem combinar com o DNA da marca e com a estética da referência. Não force: se a referência for limpa/minimalista, use \`nenhum\`.`
-      : `\n\n---\n\nSEM ELEMENTOS GRÁFICOS\n\nO usuário NÃO anexou referência visual. NÃO sugira nenhum elemento gráfico decorativo (setas, linhas, asteriscos, tickers, labels, tags, palavras de destaque). Foque exclusivamente em copy: \`title\`, \`subtitle\`, \`body\`. Mantenha o layout limpo conforme os presets.`;
-
 
     const tools = [
       {
@@ -460,26 +456,29 @@ REGRAS DE ADAPTAÇÃO:
           .join("\n")
       : "";
 
-    // Claude (Anthropic) call: forced tool-use for structured JSON.
-    const userBlocks: ClaudeContentBlock[] = [
-      { type: "text", text: `${dnaPrompt}\n\nTema/contexto: ${topic.trim()}${plannerBlock}` },
-    ];
-    if (referenceImageDataUrl) {
-      const imgBlock = dataUrlToImageBlock(referenceImageDataUrl);
-      if (imgBlock) userBlocks.push(imgBlock);
-    }
+    // ====================================================================
+    // ETAPA A — Copy via Lovable AI Gateway (Gemini 2.5 Flash).
+    // ====================================================================
+    const userContent: any = referenceImageDataUrl
+      ? [
+          { type: "text", text: `${dnaPrompt}\n\nTema/contexto: ${topic.trim()}${plannerBlock}` },
+          { type: "image_url", image_url: { url: referenceImageDataUrl } },
+        ]
+      : `${dnaPrompt}\n\nTema/contexto: ${topic.trim()}${plannerBlock}`;
 
-    const claudeRes = await callClaudeTool<{ slides: any[] }>({
-      system: finalSystemPromptBase + graphicsAppendix,
-      user: userBlocks,
-      tool: {
-        name: "build_carousel",
-        description: "Retorna os slides do carrossel.",
-        input_schema: tools[0].function.parameters as Record<string, unknown>,
+    const aiResp = await callAI(
+      {
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: finalSystemPrompt },
+          { role: "user", content: userContent },
+        ],
+        tools,
+        tool_choice: { type: "function", function: { name: "build_carousel" } },
       },
-      maxTokens: 4096,
-      temperature: 0.7,
-    });
+      LOVABLE_API_KEY,
+    );
+
 
     let textFallback = false;
     type SlideOut = {
@@ -502,18 +501,28 @@ REGRAS DE ADAPTAÇÃO:
     };
     let slides: SlideOut[] = [];
 
-    if (!claudeRes.ok) {
-      console.error("[carrossel-generate] claude_error", claudeRes.status, claudeRes.error);
+    if (!aiResp.ok) {
+      const t = await aiResp.text();
+      console.error("[carrossel-generate] AI text error", aiResp.status, t);
+      if (aiResp.status === 429 || aiResp.status === 402) {
+        return aiErrorResponse(aiResp.status);
+      }
       slides = fallbackSlides(topic.trim(), clientName, slideCount);
       textFallback = true;
     } else {
-      const parsed = {
-        slides: Array.isArray((claudeRes.data as any)?.slides) ? (claudeRes.data as any).slides : [],
-      };
+      const data = await aiResp.json();
+      const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
+      const rawArgs = toolCall?.function?.arguments ?? "{}";
+      let parsed: { slides: any[] } = { slides: [] };
+      try {
+        parsed = JSON.parse(rawArgs);
+      } catch (e) {
+        console.error("[carrossel-generate] parse tool call failed", e);
+      }
       console.log("[carrossel-generate] ai_raw", {
-        argsLen: claudeRes.rawArgsLen,
-        slidesIn: parsed.slides.length,
-        firstSlide: parsed.slides[0]
+        argsLen: typeof rawArgs === "string" ? rawArgs.length : 0,
+        slidesIn: Array.isArray(parsed.slides) ? parsed.slides.length : 0,
+        firstSlide: parsed.slides?.[0]
           ? {
               titleLen: (parsed.slides[0].title ?? "").length,
               bodyLen: (parsed.slides[0].body ?? "").length,
@@ -521,7 +530,6 @@ REGRAS DE ADAPTAÇÃO:
             }
           : null,
       });
-
 
       slides = (parsed.slides ?? []).slice(0, slideCount).map((s: any, idx: number) => {
         // Princípio dita o layout — sobrescreve qualquer sistema/tipo/fundo do modelo.
@@ -540,18 +548,6 @@ REGRAS DE ADAPTAÇÃO:
         out.fundo = layout.fundo as any;
         out.imageFrame = layout.imageFrame;
 
-        // Elementos gráficos decorativos só passam se o usuário anexou referência.
-        if (hasReference) {
-          if (layout.sistema === "minimalista") {
-            if (typeof s.label === "string") out.label = s.label;
-            if (Array.isArray(s.tags)) out.tags = s.tags.filter((x: any) => typeof x === "string");
-            if (s.elemento_decorativo) out.elemento_decorativo = s.elemento_decorativo;
-          } else {
-            if (typeof s.palavra_destaque === "string") out.palavra_destaque = s.palavra_destaque;
-            if (typeof s.ticker_texto === "string") out.ticker_texto = s.ticker_texto;
-            if (s.elemento_grafico) out.elemento_grafico = s.elemento_grafico;
-          }
-        }
 
         // Imagem: presente apenas se o princípio pede.
         if (layout.hasImage) {
@@ -615,6 +611,127 @@ REGRAS DE ADAPTAÇÃO:
       slides: slides.length,
       fallback: textFallback,
     });
+
+    // ====================================================================
+    // ETAPA B — Direção criativa via Claude (DNA da marca).
+    // Não reescreve copy. Apenas sugere tipografia + (se houver referência
+    // visual anexada) elementos gráficos por slide.
+    // Falhas aqui são não-bloqueantes: seguimos sem direção criativa.
+    // ====================================================================
+    let typographyMeta: { heading: string; body: string; rationale?: string } | null = null;
+    let creativeDirector: "claude" | null = null;
+
+    if (!textFallback && Deno.env.get("ANTHROPIC_API_KEY")) {
+      try {
+        const slideSummary = slides.map((s, i) => ({
+          i: i + 1,
+          title: (s.title ?? "").slice(0, 120),
+          body: (s.body ?? "").slice(0, 200),
+        }));
+
+        const directorSystem =
+          `Você é o diretor criativo desta marca. NÃO reescreva copy. ` +
+          `Use o DNA abaixo para propor tipografia (par de Google Fonts) ` +
+          `${hasReference
+            ? "e elementos gráficos decorativos por slide, inspirados na referência visual anexada."
+            : "apenas. NÃO sugira elementos gráficos (deixe o array `slides` vazio) — o usuário não enviou referência visual."} ` +
+          `Combine sempre com o DNA da marca.\n\n${dnaPrompt}`;
+
+        const directorUserText =
+          `Slides já redigidos pelo copywriter (apenas contexto, não altere):\n` +
+          slideSummary.map((s) => `${s.i}. ${s.title}\n   ${s.body}`).join("\n");
+
+        const directorUser: ClaudeContentBlock[] = [{ type: "text", text: directorUserText }];
+        if (hasReference && referenceImageDataUrl) {
+          const imgBlock = dataUrlToImageBlock(referenceImageDataUrl);
+          if (imgBlock) directorUser.push(imgBlock);
+        }
+
+        const directorTool = {
+          name: "creative_direction",
+          description: "Devolve tipografia e elementos gráficos por slide.",
+          input_schema: {
+            type: "object" as const,
+            properties: {
+              typography: {
+                type: "object",
+                properties: {
+                  heading: { type: "string", description: "Nome exato de uma Google Font para títulos" },
+                  body: { type: "string", description: "Nome exato de uma Google Font para o corpo" },
+                  rationale: { type: "string", description: "Por que esse par combina com o DNA" },
+                },
+                required: ["heading", "body"],
+              },
+              slides: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    elemento_decorativo: { type: "string", enum: ["seta", "asterisco", "triangulo", "seta-circular", "nenhum"] },
+                    elemento_grafico: { type: "string", enum: ["circulo", "seta-curva", "ticker", "seta-vertical", "toggle"] },
+                    palavra_destaque: { type: "string" },
+                    ticker_texto: { type: "string" },
+                    label: { type: "string" },
+                    tags: { type: "array", items: { type: "string" } },
+                  },
+                },
+              },
+            },
+            required: ["typography", "slides"],
+          },
+        };
+
+        const directorRes = await callClaudeTool<{
+          typography?: { heading?: string; body?: string; rationale?: string };
+          slides?: any[];
+        }>({
+          system: directorSystem,
+          user: directorUser,
+          tool: directorTool,
+          maxTokens: 1024,
+          temperature: 0.6,
+        });
+
+        if (directorRes.ok) {
+          creativeDirector = "claude";
+          const t = directorRes.data?.typography;
+          if (t && typeof t.heading === "string" && typeof t.body === "string") {
+            typographyMeta = {
+              heading: t.heading,
+              body: t.body,
+              rationale: typeof t.rationale === "string" ? t.rationale : undefined,
+            };
+          }
+
+          // Elementos gráficos: só aplica se houver referência anexada (defesa em profundidade).
+          if (hasReference && Array.isArray(directorRes.data?.slides)) {
+            directorRes.data!.slides!.forEach((g: any, idx: number) => {
+              const s = slides[idx];
+              if (!s || !g) return;
+              if (s.sistema === "minimalista") {
+                if (typeof g.label === "string") s.label = g.label;
+                if (Array.isArray(g.tags)) s.tags = g.tags.filter((x: any) => typeof x === "string");
+                if (g.elemento_decorativo) s.elemento_decorativo = g.elemento_decorativo;
+              } else if (s.sistema === "criativo") {
+                if (typeof g.palavra_destaque === "string") s.palavra_destaque = g.palavra_destaque;
+                if (typeof g.ticker_texto === "string") s.ticker_texto = g.ticker_texto;
+                if (g.elemento_grafico) s.elemento_grafico = g.elemento_grafico;
+              }
+            });
+          }
+          console.log("[carrossel-generate] creative_director_done", {
+            hasReference,
+            typography: !!typographyMeta,
+            graphicsApplied: hasReference && Array.isArray(directorRes.data?.slides) ? directorRes.data!.slides!.length : 0,
+          });
+        } else {
+          console.warn("[carrossel-generate] creative_director_failed", directorRes.status, directorRes.error);
+        }
+      } catch (e) {
+        console.warn("[carrossel-generate] creative_director_error", e instanceof Error ? e.message : String(e));
+      }
+    }
+
 
     // Image generation — parallel with global deadline (gateway timeout is ~150s)
     const DEADLINE_MS = 120_000;
@@ -763,6 +880,9 @@ REGRAS DE ADAPTAÇÃO:
           textAlign: ALINHAMENTO,
           bgKinds: validBgKinds,
           presetsPerSlide: sequence,
+          typography: typographyMeta,
+          creativeDirector,
+
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
