@@ -509,12 +509,24 @@ REGRAS DE ADAPTAÇÃO:
     } else {
       const data = await aiResp.json();
       const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
+      const rawArgs = toolCall?.function?.arguments ?? "{}";
       let parsed: { slides: any[] } = { slides: [] };
       try {
-        parsed = JSON.parse(toolCall?.function?.arguments ?? "{}");
+        parsed = JSON.parse(rawArgs);
       } catch (e) {
         console.error("[carrossel-generate] parse tool call failed", e);
       }
+      console.log("[carrossel-generate] ai_raw", {
+        argsLen: typeof rawArgs === "string" ? rawArgs.length : 0,
+        slidesIn: Array.isArray(parsed.slides) ? parsed.slides.length : 0,
+        firstSlide: parsed.slides?.[0]
+          ? {
+              titleLen: (parsed.slides[0].title ?? "").length,
+              bodyLen: (parsed.slides[0].body ?? "").length,
+              subtitleLen: (parsed.slides[0].subtitle ?? "").length,
+            }
+          : null,
+      });
 
       slides = (parsed.slides ?? []).slice(0, slideCount).map((s: any, idx: number) => {
         // Princípio dita o layout — sobrescreve qualquer sistema/tipo/fundo do modelo.
@@ -554,8 +566,19 @@ REGRAS DE ADAPTAÇÃO:
         return out;
       });
 
-      if (slides.length === 0) {
-        console.warn("[carrossel-generate] empty slides from model — using fallback");
+      // Detecta slides estruturalmente vazios (todos os campos de texto em branco)
+      const allEmpty = slides.length > 0 && slides.every(
+        (s) =>
+          !(s.title ?? "").trim() &&
+          !(s.subtitle ?? "").trim() &&
+          !(s.body ?? "").trim(),
+      );
+
+      if (slides.length === 0 || allEmpty) {
+        console.warn("[carrossel-generate] empty_or_blank_slides — using fallback", {
+          slides: slides.length,
+          allEmpty,
+        });
         slides = fallbackSlides(topic.trim(), clientName, slideCount);
         textFallback = true;
       } else {
