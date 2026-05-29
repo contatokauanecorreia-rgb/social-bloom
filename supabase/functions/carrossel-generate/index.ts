@@ -501,18 +501,28 @@ REGRAS DE ADAPTAÇÃO:
     };
     let slides: SlideOut[] = [];
 
-    if (!claudeRes.ok) {
-      console.error("[carrossel-generate] claude_error", claudeRes.status, claudeRes.error);
+    if (!aiResp.ok) {
+      const t = await aiResp.text();
+      console.error("[carrossel-generate] AI text error", aiResp.status, t);
+      if (aiResp.status === 429 || aiResp.status === 402) {
+        return aiErrorResponse(aiResp.status);
+      }
       slides = fallbackSlides(topic.trim(), clientName, slideCount);
       textFallback = true;
     } else {
-      const parsed = {
-        slides: Array.isArray((claudeRes.data as any)?.slides) ? (claudeRes.data as any).slides : [],
-      };
+      const data = await aiResp.json();
+      const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
+      const rawArgs = toolCall?.function?.arguments ?? "{}";
+      let parsed: { slides: any[] } = { slides: [] };
+      try {
+        parsed = JSON.parse(rawArgs);
+      } catch (e) {
+        console.error("[carrossel-generate] parse tool call failed", e);
+      }
       console.log("[carrossel-generate] ai_raw", {
-        argsLen: claudeRes.rawArgsLen,
-        slidesIn: parsed.slides.length,
-        firstSlide: parsed.slides[0]
+        argsLen: typeof rawArgs === "string" ? rawArgs.length : 0,
+        slidesIn: Array.isArray(parsed.slides) ? parsed.slides.length : 0,
+        firstSlide: parsed.slides?.[0]
           ? {
               titleLen: (parsed.slides[0].title ?? "").length,
               bodyLen: (parsed.slides[0].body ?? "").length,
@@ -520,7 +530,6 @@ REGRAS DE ADAPTAÇÃO:
             }
           : null,
       });
-
 
       slides = (parsed.slides ?? []).slice(0, slideCount).map((s: any, idx: number) => {
         // Princípio dita o layout — sobrescreve qualquer sistema/tipo/fundo do modelo.
@@ -539,18 +548,6 @@ REGRAS DE ADAPTAÇÃO:
         out.fundo = layout.fundo as any;
         out.imageFrame = layout.imageFrame;
 
-        // Elementos gráficos decorativos só passam se o usuário anexou referência.
-        if (hasReference) {
-          if (layout.sistema === "minimalista") {
-            if (typeof s.label === "string") out.label = s.label;
-            if (Array.isArray(s.tags)) out.tags = s.tags.filter((x: any) => typeof x === "string");
-            if (s.elemento_decorativo) out.elemento_decorativo = s.elemento_decorativo;
-          } else {
-            if (typeof s.palavra_destaque === "string") out.palavra_destaque = s.palavra_destaque;
-            if (typeof s.ticker_texto === "string") out.ticker_texto = s.ticker_texto;
-            if (s.elemento_grafico) out.elemento_grafico = s.elemento_grafico;
-          }
-        }
 
         // Imagem: presente apenas se o princípio pede.
         if (layout.hasImage) {
