@@ -525,7 +525,6 @@ export function VideoWorkflowCanvas() {
                   }}
                 />
               </div>
-              <video src={state.videoUrl} controls className="h-28 w-full rounded-md bg-black object-contain" />
               <div className="flex items-center justify-between text-xs">
                 <span className="truncate text-muted-foreground">{state.videoFile?.name}</span>
                 <Button
