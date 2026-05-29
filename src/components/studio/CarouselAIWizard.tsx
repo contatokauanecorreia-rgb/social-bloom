@@ -1358,9 +1358,13 @@ function VariantPreviewCard({
               <div className="relative flex h-full flex-col justify-end p-2">
                 <div
                   className="line-clamp-3 text-[9px] font-bold leading-tight"
-                  style={{ fontFamily: `"${headingFont}", system-ui, sans-serif` }}
+                  style={{
+                    fontFamily: `"${headingFont}", system-ui, sans-serif`,
+                    opacity: s.title ? 1 : 0.45,
+                    fontStyle: s.title ? "normal" : "italic",
+                  }}
                 >
-                  {s.title || `Slide ${i + 1}`}
+                  {s.title || "(sem título)"}
                 </div>
                 {s.body && (
                   <div
