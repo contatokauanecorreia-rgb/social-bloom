@@ -448,25 +448,26 @@ REGRAS DE ADAPTAÇÃO:
           .join("\n")
       : "";
 
-    const userContent: any = referenceImageDataUrl
-      ? [
-          { type: "text", text: `Tema/contexto: ${topic.trim()}${plannerBlock}` },
-          { type: "image_url", image_url: { url: referenceImageDataUrl } },
-        ]
-      : `Tema/contexto: ${topic.trim()}${plannerBlock}`;
+    // Claude (Anthropic) call: forced tool-use for structured JSON.
+    const userBlocks: ClaudeContentBlock[] = [
+      { type: "text", text: `${dnaPrompt}\n\nTema/contexto: ${topic.trim()}${plannerBlock}` },
+    ];
+    if (referenceImageDataUrl) {
+      const imgBlock = dataUrlToImageBlock(referenceImageDataUrl);
+      if (imgBlock) userBlocks.push(imgBlock);
+    }
 
-    const aiResp = await callAI(
-      {
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: finalSystemPrompt },
-          { role: "user", content: userContent },
-        ],
-        tools,
-        tool_choice: { type: "function", function: { name: "build_carousel" } },
+    const claudeRes = await callClaudeTool<{ slides: any[] }>({
+      system: finalSystemPrompt,
+      user: userBlocks,
+      tool: {
+        name: "build_carousel",
+        description: "Retorna os slides do carrossel.",
+        input_schema: tools[0].function.parameters as Record<string, unknown>,
       },
-      LOVABLE_API_KEY,
-    );
+      maxTokens: 4096,
+      temperature: 0.7,
+    });
 
     let textFallback = false;
     type SlideOut = {
@@ -489,25 +490,18 @@ REGRAS DE ADAPTAÇÃO:
     };
     let slides: SlideOut[] = [];
 
-    if (!aiResp.ok) {
-      const t = await aiResp.text();
-      console.error("[carrossel-generate] AI text error", aiResp.status, t);
+    if (!claudeRes.ok) {
+      console.error("[carrossel-generate] claude_error", claudeRes.status, claudeRes.error);
       slides = fallbackSlides(topic.trim(), clientName, slideCount);
       textFallback = true;
     } else {
-      const data = await aiResp.json();
-      const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
-      const rawArgs = toolCall?.function?.arguments ?? "{}";
-      let parsed: { slides: any[] } = { slides: [] };
-      try {
-        parsed = JSON.parse(rawArgs);
-      } catch (e) {
-        console.error("[carrossel-generate] parse tool call failed", e);
-      }
+      const parsed = {
+        slides: Array.isArray((claudeRes.data as any)?.slides) ? (claudeRes.data as any).slides : [],
+      };
       console.log("[carrossel-generate] ai_raw", {
-        argsLen: typeof rawArgs === "string" ? rawArgs.length : 0,
-        slidesIn: Array.isArray(parsed.slides) ? parsed.slides.length : 0,
-        firstSlide: parsed.slides?.[0]
+        argsLen: claudeRes.rawArgsLen,
+        slidesIn: parsed.slides.length,
+        firstSlide: parsed.slides[0]
           ? {
               titleLen: (parsed.slides[0].title ?? "").length,
               bodyLen: (parsed.slides[0].body ?? "").length,
@@ -515,6 +509,7 @@ REGRAS DE ADAPTAÇÃO:
             }
           : null,
       });
+
 
       slides = (parsed.slides ?? []).slice(0, slideCount).map((s: any, idx: number) => {
         // Princípio dita o layout — sobrescreve qualquer sistema/tipo/fundo do modelo.
