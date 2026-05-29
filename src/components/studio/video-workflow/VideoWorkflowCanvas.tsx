@@ -510,8 +510,21 @@ export function VideoWorkflowCanvas() {
           onPointerMove={onPointerMove("video")}
           onPointerUp={onPointerUp}
         >
-          {state.videoUrl ? (
             <div className="space-y-2">
+              <div
+                className="mx-auto overflow-hidden rounded-md bg-black"
+                style={{ aspectRatio: videoAspect ?? 9 / 16, maxHeight: 360, width: videoAspect && videoAspect > 1 ? "100%" : "auto", height: videoAspect && videoAspect <= 1 ? 360 : undefined }}
+              >
+                <video
+                  src={state.videoUrl}
+                  controls
+                  className="h-full w-full object-contain"
+                  onLoadedMetadata={(e) => {
+                    const v = e.currentTarget;
+                    if (v.videoWidth && v.videoHeight) setVideoAspect(v.videoWidth / v.videoHeight);
+                  }}
+                />
+              </div>
               <video src={state.videoUrl} controls className="h-28 w-full rounded-md bg-black object-contain" />
               <div className="flex items-center justify-between text-xs">
                 <span className="truncate text-muted-foreground">{state.videoFile?.name}</span>
