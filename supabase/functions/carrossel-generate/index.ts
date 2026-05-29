@@ -163,12 +163,15 @@ Deno.serve(async (req) => {
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_PUBLISHABLE_KEY =
       Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
-    if (!Deno.env.get("ANTHROPIC_API_KEY")) {
-      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY não configurada." }), {
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY não configurada." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    // ANTHROPIC_API_KEY é opcional — usada só para a direção criativa via Claude.
+
 
     let briefing: any | null = null;
     let clientName: string | null = null;
