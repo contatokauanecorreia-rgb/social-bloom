@@ -389,7 +389,9 @@ REGRAS DE ADAPTAÇÃO:
 - Respeite a SEQUÊNCIA de princípios definida acima — cada slide tem seu layout fixo.
 ` : "";
 
-    const finalSystemPrompt = systemPrompt + principleAppendix + plannerAppendix;
+    const finalSystemPromptBase = systemPrompt + principleAppendix + plannerAppendix;
+
+    const hasReference = !!referenceImageDataUrl;
 
     const slideItemProperties: any = {
       title: { type: "string" },
@@ -400,20 +402,30 @@ REGRAS DE ADAPTAÇÃO:
       sistema: { type: "string", enum: ["minimalista", "criativo"] },
       tipo: { type: "string", enum: ["M1", "M2", "M3", "M4", "M5", "C1", "C2", "C3", "C4", "C5"] },
       fundo: { type: "string", enum: ["off-white", "bege-texturizado", "foto", "branco"] },
-      label: { type: "string" },
-      tags: { type: "array", items: { type: "string" } },
-      elemento_decorativo: {
-        type: "string",
-        enum: ["seta", "asterisco", "triangulo", "seta-circular", "nenhum"],
-      },
-      palavra_destaque: { type: "string" },
-      ticker_texto: { type: "string" },
-      elemento_grafico: {
-        type: "string",
-        enum: ["circulo", "seta-curva", "ticker", "seta-vertical", "toggle"],
-      },
       nota_visual: { type: "string" },
     };
+
+    // Elementos gráficos decorativos só são oferecidos ao modelo quando o
+    // usuário anexa uma referência visual — caso contrário, Claude só produz copy.
+    if (hasReference) {
+      slideItemProperties.label = { type: "string" };
+      slideItemProperties.tags = { type: "array", items: { type: "string" } };
+      slideItemProperties.elemento_decorativo = {
+        type: "string",
+        enum: ["seta", "asterisco", "triangulo", "seta-circular", "nenhum"],
+      };
+      slideItemProperties.palavra_destaque = { type: "string" };
+      slideItemProperties.ticker_texto = { type: "string" };
+      slideItemProperties.elemento_grafico = {
+        type: "string",
+        enum: ["circulo", "seta-curva", "ticker", "seta-vertical", "toggle"],
+      };
+    }
+
+    const graphicsAppendix = hasReference
+      ? `\n\n---\n\nELEMENTOS GRÁFICOS (REFERÊNCIA ANEXADA)\n\nO usuário anexou uma referência visual. Observe-a e, quando fizer sentido com o estilo dela, sugira elementos gráficos decorativos por slide (\`elemento_decorativo\`, \`elemento_grafico\`, \`palavra_destaque\`, \`ticker_texto\`, \`label\`, \`tags\`). Esses elementos devem combinar com o DNA da marca e com a estética da referência. Não force: se a referência for limpa/minimalista, use \`nenhum\`.`
+      : `\n\n---\n\nSEM ELEMENTOS GRÁFICOS\n\nO usuário NÃO anexou referência visual. NÃO sugira nenhum elemento gráfico decorativo (setas, linhas, asteriscos, tickers, labels, tags, palavras de destaque). Foque exclusivamente em copy: \`title\`, \`subtitle\`, \`body\`. Mantenha o layout limpo conforme os presets.`;
+
 
     const tools = [
       {
@@ -458,7 +470,7 @@ REGRAS DE ADAPTAÇÃO:
     }
 
     const claudeRes = await callClaudeTool<{ slides: any[] }>({
-      system: finalSystemPrompt,
+      system: finalSystemPromptBase + graphicsAppendix,
       user: userBlocks,
       tool: {
         name: "build_carousel",
@@ -528,14 +540,17 @@ REGRAS DE ADAPTAÇÃO:
         out.fundo = layout.fundo as any;
         out.imageFrame = layout.imageFrame;
 
-        if (layout.sistema === "minimalista") {
-          if (typeof s.label === "string") out.label = s.label;
-          if (Array.isArray(s.tags)) out.tags = s.tags.filter((x: any) => typeof x === "string");
-          if (s.elemento_decorativo) out.elemento_decorativo = s.elemento_decorativo;
-        } else {
-          if (typeof s.palavra_destaque === "string") out.palavra_destaque = s.palavra_destaque;
-          if (typeof s.ticker_texto === "string") out.ticker_texto = s.ticker_texto;
-          if (s.elemento_grafico) out.elemento_grafico = s.elemento_grafico;
+        // Elementos gráficos decorativos só passam se o usuário anexou referência.
+        if (hasReference) {
+          if (layout.sistema === "minimalista") {
+            if (typeof s.label === "string") out.label = s.label;
+            if (Array.isArray(s.tags)) out.tags = s.tags.filter((x: any) => typeof x === "string");
+            if (s.elemento_decorativo) out.elemento_decorativo = s.elemento_decorativo;
+          } else {
+            if (typeof s.palavra_destaque === "string") out.palavra_destaque = s.palavra_destaque;
+            if (typeof s.ticker_texto === "string") out.ticker_texto = s.ticker_texto;
+            if (s.elemento_grafico) out.elemento_grafico = s.elemento_grafico;
+          }
         }
 
         // Imagem: presente apenas se o princípio pede.

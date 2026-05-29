@@ -1,9 +1,21 @@
-import { callClaudeTool } from "../_shared/claude.ts";
-import { loadClientDNA } from "../_shared/client-dna.ts";
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const ARCHETYPE_TONE: Record<string, string> = {
+  inocente: "linguagem acolhedora, otimista e sem pressão",
+  cuidador: "linguagem acolhedora, empática e sem pressão",
+  heroi: "linguagem provocadora, desafiadora e motivacional",
+  "fora-da-lei": "linguagem provocadora, disruptiva e direta",
+  sabio: "linguagem de autoridade, premium e fundamentada",
+  governante: "linguagem de autoridade, sofisticada e premium",
+  bobo: "linguagem leve, próxima e com bom humor",
+  "cara-comum": "linguagem leve, próxima e cotidiana",
+  explorador: "linguagem aventureira, curiosa e independente",
+  amante: "linguagem sensual, íntima e emocional",
+  mago: "linguagem visionária, transformadora e inspiradora",
+  criador: "linguagem criativa, imaginativa e original",
 };
 
 Deno.serve(async (req) => {
@@ -18,12 +30,13 @@ Deno.serve(async (req) => {
       });
     }
 
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_PUBLISHABLE_KEY =
       Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    if (!Deno.env.get("ANTHROPIC_API_KEY")) {
-      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY não configurada." }), {
+    if (!LOVABLE_API_KEY) {
+      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY não configurada." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -35,52 +48,85 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const dna = await loadClientDNA(supabase, clientId);
+    const [{ data: briefing }, { data: client }] = await Promise.all([
+      supabase
+        .from("client_briefings")
+        .select("archetype, tone_of_voice, target_audience, content_pillars, business_description")
+        .eq("client_id", clientId)
+        .maybeSingle(),
+      supabase.from("clients").select("name").eq("id", clientId).maybeSingle(),
+    ]);
+
+    const parts: string[] = [];
+    if (client?.name) parts.push(`Cliente: ${client.name}.`);
+    if (briefing?.business_description) parts.push(`Negócio: ${briefing.business_description}.`);
+    if (briefing?.archetype) {
+      parts.push(`Arquétipo: ${briefing.archetype}.`);
+      const tone = ARCHETYPE_TONE[briefing.archetype as string];
+      if (tone) parts.push(`Tom de linguagem: ${tone}.`);
+    }
+    if (briefing?.tone_of_voice) parts.push(`Tom de voz: ${briefing.tone_of_voice}.`);
+    if (briefing?.target_audience) parts.push(`Público-alvo: ${briefing.target_audience}.`);
+    if (Array.isArray(briefing?.content_pillars) && briefing.content_pillars.length)
+      parts.push(`Pilares de conteúdo: ${(briefing.content_pillars as string[]).join(", ")}.`);
+
+    const context = parts.length > 0 ? parts.join(" ") + " " : "";
 
     const systemPrompt =
       `Você é um estrategista de conteúdo brasileiro especialista em redes sociais. ` +
-      `Use o DNA da marca abaixo para criar ideias específicas para o nicho do cliente — ` +
-      `nada genérico, nada copy-paste.\n\n${dna.prompt}\n\n` +
-      `Gere exatamente 5 ideias de post originais e alinhadas ao nicho, tom e objetivos do cliente.`;
+      context +
+      `Gere exatamente 5 ideias de post para este cliente. Cada ideia deve ter:\n` +
+      `- "title": título curto e direto para o post (máx. 80 caracteres)\n` +
+      `- "description": descrição curta explicando o ângulo do conteúdo (máx. 150 caracteres)\n\n` +
+      `Responda APENAS com um array JSON válido, sem markdown, sem explicação, sem código. ` +
+      `Formato exato: [{"title":"...","description":"..."},{"title":"...","description":"..."}]`;
 
-    const res = await callClaudeTool<{ ideas: { title: string; description: string }[] }>({
-      system: systemPrompt,
-      user: "Gere as 5 ideias agora.",
-      maxTokens: 2048,
-      temperature: 0.8,
-      tool: {
-        name: "emit_ideas",
-        description: "Retorna 5 ideias de post.",
-        input_schema: {
-          type: "object",
-          properties: {
-            ideas: {
-              type: "array",
-              minItems: 5,
-              maxItems: 5,
-              items: {
-                type: "object",
-                properties: {
-                  title: { type: "string", description: "Título curto e direto (máx. 80 caracteres)" },
-                  description: { type: "string", description: "Ângulo do conteúdo (máx. 150 caracteres)" },
-                },
-                required: ["title", "description"],
-              },
-            },
-          },
-          required: ["ideas"],
-        },
+    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: "Gere as 5 ideias agora." },
+        ],
+      }),
     });
 
-    if (!res.ok) {
-      return new Response(JSON.stringify({ error: res.error }), {
-        status: res.status,
+    if (!aiResp.ok) {
+      if (aiResp.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Muitas requisições. Aguarde alguns segundos e tente de novo." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      const t = await aiResp.text();
+      console.error("AI gateway error:", aiResp.status, t);
+      return new Response(JSON.stringify({ error: "Erro ao gerar ideias." }), {
+        status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const ideas = Array.isArray(res.data?.ideas) ? res.data.ideas.slice(0, 5) : [];
+    const data = await aiResp.json();
+    const raw: string = data?.choices?.[0]?.message?.content ?? "[]";
+
+    let ideas: { title: string; description: string }[] = [];
+    try {
+      const clean = raw.replace(/```json?\n?/g, "").replace(/```/g, "").trim();
+      const parsed = JSON.parse(clean);
+      ideas = Array.isArray(parsed) ? parsed.slice(0, 5) : [];
+    } catch {
+      console.error("Failed to parse ideas JSON:", raw);
+      return new Response(JSON.stringify({ error: "Falha ao interpretar resposta da IA." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     return new Response(JSON.stringify({ ideas }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
