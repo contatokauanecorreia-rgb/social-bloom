@@ -118,6 +118,8 @@ export function VideoWorkflowCanvas() {
   const createUploadFn = useServerFn(createSignedUploadUrl);
   const startTranscriptionFn = useServerFn(startTranscription);
   const getStatusFn = useServerFn(getTranscriptionStatus);
+  const startLumaFn = useServerFn(startLumaGeneration);
+  const getLumaStatusFn = useServerFn(getLumaStatus);
 
   const [layout, setLayout] = useState<Layout>(DEFAULT_LAYOUT);
   const [dragging, setDragging] = useState<BlockId | null>(null);
@@ -125,7 +127,11 @@ export function VideoWorkflowCanvas() {
   const [generating, setGenerating] = useState(false);
   const [stageLabel, setStageLabel] = useState<string>("");
   const [done, setDone] = useState(false);
+  const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const generationPollRef = useRef<number | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
+
 
   // Load saved layout
   useEffect(() => {
