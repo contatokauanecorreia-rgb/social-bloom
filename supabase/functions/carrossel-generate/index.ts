@@ -540,14 +540,17 @@ REGRAS DE ADAPTAÇÃO:
         out.fundo = layout.fundo as any;
         out.imageFrame = layout.imageFrame;
 
-        if (layout.sistema === "minimalista") {
-          if (typeof s.label === "string") out.label = s.label;
-          if (Array.isArray(s.tags)) out.tags = s.tags.filter((x: any) => typeof x === "string");
-          if (s.elemento_decorativo) out.elemento_decorativo = s.elemento_decorativo;
-        } else {
-          if (typeof s.palavra_destaque === "string") out.palavra_destaque = s.palavra_destaque;
-          if (typeof s.ticker_texto === "string") out.ticker_texto = s.ticker_texto;
-          if (s.elemento_grafico) out.elemento_grafico = s.elemento_grafico;
+        // Elementos gráficos decorativos só passam se o usuário anexou referência.
+        if (hasReference) {
+          if (layout.sistema === "minimalista") {
+            if (typeof s.label === "string") out.label = s.label;
+            if (Array.isArray(s.tags)) out.tags = s.tags.filter((x: any) => typeof x === "string");
+            if (s.elemento_decorativo) out.elemento_decorativo = s.elemento_decorativo;
+          } else {
+            if (typeof s.palavra_destaque === "string") out.palavra_destaque = s.palavra_destaque;
+            if (typeof s.ticker_texto === "string") out.ticker_texto = s.ticker_texto;
+            if (s.elemento_grafico) out.elemento_grafico = s.elemento_grafico;
+          }
         }
 
         // Imagem: presente apenas se o princípio pede.
