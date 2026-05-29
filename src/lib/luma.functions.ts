@@ -99,13 +99,13 @@ export const startLumaGeneration = createServerFn({ method: 'POST' })
     if (!res.ok) {
       const txt = await res.text().catch(() => '');
       throw new Error(`FAL recusou o pedido (${res.status}): ${txt.slice(0, 300)}`);
+    }
+
     const json = (await res.json()) as { request_id?: string; status_url?: string; response_url?: string };
     if (!json.request_id || !json.status_url || !json.response_url) {
       throw new Error('FAL não retornou request_id/status_url.');
     }
     return { requestId: json.request_id, statusUrl: json.status_url, responseUrl: json.response_url };
-  });
-    return { requestId: json.request_id };
   });
 
 export const getLumaStatus = createServerFn({ method: 'POST' })
@@ -115,11 +115,11 @@ export const getLumaStatus = createServerFn({ method: 'POST' })
     const apiKey = process.env.FAL_API_KEY;
     if (!apiKey) throw new Error('FAL_API_KEY não configurada.');
 
-    const base = `${FAL_QUEUE}/${MODIFY_ENDPOINT}/requests/${encodeURIComponent(data.requestId)}`;
-    const statusRes = await fetch(`${base}/status?logs=1`, {
+    const statusUrl = data.statusUrl.includes('?')
+      ? `${data.statusUrl}&logs=1`
+      : `${data.statusUrl}?logs=1`;
+    const statusRes = await fetch(statusUrl, {
       headers: { authorization: `Key ${apiKey}` },
-    });
-    if (!statusRes.ok) {
       const txt = await statusRes.text().catch(() => '');
       throw new Error(`Status FAL falhou (${statusRes.status}): ${txt.slice(0, 200)}`);
     }
