@@ -147,12 +147,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_PUBLISHABLE_KEY =
       Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY não configurada." }), {
+    if (!Deno.env.get("ANTHROPIC_API_KEY")) {
+      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY não configurada." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -161,24 +160,19 @@ Deno.serve(async (req) => {
     let briefing: any | null = null;
     let clientName: string | null = null;
     let segment: string | null = null;
+    let dnaPrompt = "Sem briefing específico — escreva de forma profissional em português do Brasil.";
     if (clientId) {
       const authHeader = req.headers.get("Authorization") ?? "";
       const sb = await import("https://esm.sh/@supabase/supabase-js@2.45.0");
       const supabase = sb.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
         global: { headers: { Authorization: authHeader } },
       });
-      const [{ data: bData }, { data: cData }] = await Promise.all([
-        supabase
-          .from("client_briefings")
-          .select("tone_of_voice, target_audience, content_pillars, goals, dos, donts, archetype, palette")
-          .eq("client_id", clientId)
-          .maybeSingle(),
-        supabase.from("clients").select("name, company").eq("id", clientId).maybeSingle(),
-      ]);
-      briefing = bData;
-      clientName = cData?.name ?? null;
+      const dna = await loadClientDNA(supabase, clientId);
+      briefing = dna.raw;
+      clientName = dna.clientName;
       clientNameForFallback = clientName;
-      segment = cData?.company ?? null;
+      segment = dna.segment;
+      dnaPrompt = dna.prompt;
     }
 
     const briefingCtx = buildBriefingContext(briefing, clientName);
