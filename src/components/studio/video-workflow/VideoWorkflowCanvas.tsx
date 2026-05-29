@@ -510,6 +510,7 @@ export function VideoWorkflowCanvas() {
           onPointerMove={onPointerMove("video")}
           onPointerUp={onPointerUp}
         >
+          {state.videoUrl ? (
             <div className="space-y-2">
               <div
                 className="mx-auto overflow-hidden rounded-md bg-black"
