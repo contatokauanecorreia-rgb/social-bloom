@@ -83,7 +83,7 @@ export const startTranscription = createServerFn({ method: 'POST' })
       },
       body: JSON.stringify({
         audio_url: signed.signedUrl,
-        speech_model: 'universal-2',
+        speech_models: ['universal-2'],
 
         language_detection: true,
         punctuate: true,
