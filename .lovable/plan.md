@@ -1,16 +1,23 @@
 ## Causa
 
-O endpoint `https://queue.fal.run/fal-ai/luma-dream-machine/ray-2/modify/requests/<id>/status` responde 405. O FAL Queue espera o app id base (`fal-ai/luma-dream-machine`) — não o subpath `/ray-2/modify`. A resposta do submit já entrega `status_url` e `response_url` corretos.
+O tempo de geração do Luma Ray2 (minutos) é inerente ao modelo. Mas o loop de status no frontend adiciona latência desnecessária:
 
-## Mudanças
+- `setInterval(..., 3000)` espera 3s antes da **primeira** checagem (mesmo quando o FAL já está pronto).
+- 3s entre ciclos é conservador demais — atrasa a detecção de `COMPLETED` e do progresso intermediário.
 
-**`src/lib/luma.functions.ts`**
-- `statusSchema`: aceitar `requestId`, `statusUrl`, `responseUrl` (validar `https://queue.fal.run/` prefix, max 500).
-- `startLumaGeneration`: ler `status_url` e `response_url` da resposta do submit e retornar `{ requestId, statusUrl, responseUrl }`.
-- `getLumaStatus`: usar `data.statusUrl` (com `?logs=1`) e `data.responseUrl` em vez de reconstruir a partir de `MODIFY_ENDPOINT`.
+## Mudanças (somente frontend)
 
-**`src/components/studio/video-workflow/VideoWorkflowCanvas.tsx`**
-- Capturar `statusUrl` e `responseUrl` no destructuring de `startLumaFn(...)`.
-- Passar os três campos em cada `getLumaStatusFn({ data: { requestId, statusUrl, responseUrl } })`.
+**`src/components/studio/video-workflow/VideoWorkflowCanvas.tsx`** (linhas ~399–424):
 
-Sem migrations, sem novos pacotes.
+- Extrair o corpo do poll para uma função `tick()` async.
+- Chamar `tick()` **imediatamente** após `startLumaFn` retornar.
+- Substituir `setInterval` por `setTimeout` recursivo, reagendado ao final de cada `tick` com **1500 ms** — evita sobreposição de chamadas e mantém ritmo responsivo.
+- `stopGenerationPolling()` passa a cancelar o timeout pendente (`clearTimeout`).
+
+Sem mudanças em `src/lib/luma.functions.ts`, schemas, banco ou pacotes.
+
+## Resultado
+
+- Detecção de conclusão ~1,5–3s mais rápida.
+- UI de progresso/estágio atualiza com mais fluidez.
+- Tempo real do FAL/Luma permanece igual.
