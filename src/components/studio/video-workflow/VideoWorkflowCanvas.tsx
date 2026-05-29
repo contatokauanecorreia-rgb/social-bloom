@@ -129,6 +129,7 @@ export function VideoWorkflowCanvas() {
   const [done, setDone] = useState(false);
   const [generatedVideoUrl, setGeneratedVideoUrl] = useState<string | null>(null);
   const [generationError, setGenerationError] = useState<string | null>(null);
+  const [videoAspect, setVideoAspect] = useState<number | null>(null);
   const generationPollRef = useRef<number | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
 
