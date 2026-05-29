@@ -99,10 +99,12 @@ export const startLumaGeneration = createServerFn({ method: 'POST' })
     if (!res.ok) {
       const txt = await res.text().catch(() => '');
       throw new Error(`FAL recusou o pedido (${res.status}): ${txt.slice(0, 300)}`);
+    const json = (await res.json()) as { request_id?: string; status_url?: string; response_url?: string };
+    if (!json.request_id || !json.status_url || !json.response_url) {
+      throw new Error('FAL não retornou request_id/status_url.');
     }
-
-    const json = (await res.json()) as { request_id?: string };
-    if (!json.request_id) throw new Error('FAL não retornou request_id.');
+    return { requestId: json.request_id, statusUrl: json.status_url, responseUrl: json.response_url };
+  });
     return { requestId: json.request_id };
   });
 
