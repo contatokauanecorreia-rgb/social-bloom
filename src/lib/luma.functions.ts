@@ -120,6 +120,8 @@ export const getLumaStatus = createServerFn({ method: 'POST' })
       : `${data.statusUrl}?logs=1`;
     const statusRes = await fetch(statusUrl, {
       headers: { authorization: `Key ${apiKey}` },
+    });
+    if (!statusRes.ok) {
       const txt = await statusRes.text().catch(() => '');
       throw new Error(`Status FAL falhou (${statusRes.status}): ${txt.slice(0, 200)}`);
     }
