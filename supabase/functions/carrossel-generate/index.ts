@@ -5,6 +5,8 @@ import {
   looksLikeCopyNotImagePrompt,
   sanitizeImageNote,
 } from "../_shared/fal-image.ts";
+import { callClaudeTool, dataUrlToImageBlock, type ClaudeContentBlock } from "../_shared/claude.ts";
+import { loadClientDNA } from "../_shared/client-dna.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
