@@ -761,22 +761,26 @@ export function VideoWorkflowCanvas() {
           onPointerUp={onPointerUp}
         >
           <div className="space-y-3">
-            <p className="text-xs text-muted-foreground">
-              Confirme as etapas anteriores e inicie a geração do vídeo final.
-            </p>
-            <Button onClick={handleGenerate} disabled={!canGenerate} className="w-full">
-              {generating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Gerando…
-                </>
-              ) : (
-                <>
-                  <Play className="mr-2 h-4 w-4" />
-                  Gerar vídeo
-                </>
-              )}
-            </Button>
+            {!done && (
+              <p className="text-xs text-muted-foreground">
+                Confirme as etapas anteriores e inicie a geração com Luma Ray2.
+              </p>
+            )}
+            {!done && (
+              <Button onClick={handleGenerate} disabled={!canGenerate} className="w-full">
+                {generating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Gerando…
+                  </>
+                ) : (
+                  <>
+                    <Play className="mr-2 h-4 w-4" />
+                    Gerar vídeo
+                  </>
+                )}
+              </Button>
+            )}
             {(generating || done) && (
               <div className="space-y-1">
                 <Progress value={progress} className="h-2" />
@@ -786,12 +790,69 @@ export function VideoWorkflowCanvas() {
                 </div>
               </div>
             )}
-            {done && (
-              <p className="text-[11px] text-muted-foreground">
-                Em breve: integração com os modelos selecionados.
-              </p>
+            {generationError && (
+              <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-[11px] text-destructive">
+                <AlertCircle className="mt-0.5 h-3 w-3 flex-shrink-0" />
+                <span className="flex-1">{generationError}</span>
+              </div>
+            )}
+            {done && generatedVideoUrl && (
+              <div className="space-y-2">
+                <video
+                  src={generatedVideoUrl}
+                  controls
+                  className="h-32 w-full rounded-md bg-black object-contain"
+                />
+                <div className="grid grid-cols-1 gap-1.5">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="h-8 text-xs"
+                  >
+                    <a href={generatedVideoUrl} download="video-gerado.mp4" target="_blank" rel="noreferrer">
+                      <Download className="mr-1.5 h-3 w-3" />
+                      Baixar MP4
+                    </a>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => {
+                      const url = `/studio/video-editor?src=${encodeURIComponent(generatedVideoUrl)}`;
+                      window.open(url, "_blank", "noopener,noreferrer");
+                    }}
+                  >
+                    <Scissors className="mr-1.5 h-3 w-3" />
+                    Editar cortes e legendas
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 text-xs"
+                    onClick={() => toast.info("Envio ao cliente: em breve.")}
+                  >
+                    <Send className="mr-1.5 h-3 w-3" />
+                    Enviar ao cliente
+                  </Button>
+                </div>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 w-full text-[11px]"
+                  onClick={() => {
+                    setDone(false);
+                    setGeneratedVideoUrl(null);
+                    setProgress(0);
+                    setStageLabel("");
+                  }}
+                >
+                  Gerar novamente
+                </Button>
+              </div>
             )}
           </div>
+
         </BlockShell>
       </div>
     </div>
