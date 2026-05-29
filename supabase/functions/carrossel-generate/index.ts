@@ -5,6 +5,8 @@ import {
   looksLikeCopyNotImagePrompt,
   sanitizeImageNote,
 } from "../_shared/fal-image.ts";
+import { callClaudeTool, dataUrlToImageBlock, type ClaudeContentBlock } from "../_shared/claude.ts";
+import { loadClientDNA } from "../_shared/client-dna.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -75,16 +77,8 @@ function buildBriefingContext(b: any | null, clientName: string | null) {
   return parts.join(" ");
 }
 
-async function callAI(payload: unknown, apiKey: string) {
-  return await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
-}
+// AI call now goes through ../_shared/claude.ts (callClaudeTool).
+
 
 function fallbackSlides(topic: string, clientName: string | null, n: number) {
   const who = clientName ? ` para ${clientName}` : "";
@@ -153,12 +147,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
     const SUPABASE_PUBLISHABLE_KEY =
       Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? Deno.env.get("SUPABASE_ANON_KEY")!;
-    if (!LOVABLE_API_KEY) {
-      return new Response(JSON.stringify({ error: "LOVABLE_API_KEY não configurada." }), {
+    if (!Deno.env.get("ANTHROPIC_API_KEY")) {
+      return new Response(JSON.stringify({ error: "ANTHROPIC_API_KEY não configurada." }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -167,24 +160,19 @@ Deno.serve(async (req) => {
     let briefing: any | null = null;
     let clientName: string | null = null;
     let segment: string | null = null;
+    let dnaPrompt = "Sem briefing específico — escreva de forma profissional em português do Brasil.";
     if (clientId) {
       const authHeader = req.headers.get("Authorization") ?? "";
       const sb = await import("https://esm.sh/@supabase/supabase-js@2.45.0");
       const supabase = sb.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
         global: { headers: { Authorization: authHeader } },
       });
-      const [{ data: bData }, { data: cData }] = await Promise.all([
-        supabase
-          .from("client_briefings")
-          .select("tone_of_voice, target_audience, content_pillars, goals, dos, donts, archetype, palette")
-          .eq("client_id", clientId)
-          .maybeSingle(),
-        supabase.from("clients").select("name, company").eq("id", clientId).maybeSingle(),
-      ]);
-      briefing = bData;
-      clientName = cData?.name ?? null;
+      const dna = await loadClientDNA(supabase, clientId);
+      briefing = dna.raw;
+      clientName = dna.clientName;
       clientNameForFallback = clientName;
-      segment = cData?.company ?? null;
+      segment = dna.segment;
+      dnaPrompt = dna.prompt;
     }
 
     const briefingCtx = buildBriefingContext(briefing, clientName);
@@ -460,25 +448,26 @@ REGRAS DE ADAPTAÇÃO:
           .join("\n")
       : "";
 
-    const userContent: any = referenceImageDataUrl
-      ? [
-          { type: "text", text: `Tema/contexto: ${topic.trim()}${plannerBlock}` },
-          { type: "image_url", image_url: { url: referenceImageDataUrl } },
-        ]
-      : `Tema/contexto: ${topic.trim()}${plannerBlock}`;
+    // Claude (Anthropic) call: forced tool-use for structured JSON.
+    const userBlocks: ClaudeContentBlock[] = [
+      { type: "text", text: `${dnaPrompt}\n\nTema/contexto: ${topic.trim()}${plannerBlock}` },
+    ];
+    if (referenceImageDataUrl) {
+      const imgBlock = dataUrlToImageBlock(referenceImageDataUrl);
+      if (imgBlock) userBlocks.push(imgBlock);
+    }
 
-    const aiResp = await callAI(
-      {
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: finalSystemPrompt },
-          { role: "user", content: userContent },
-        ],
-        tools,
-        tool_choice: { type: "function", function: { name: "build_carousel" } },
+    const claudeRes = await callClaudeTool<{ slides: any[] }>({
+      system: finalSystemPrompt,
+      user: userBlocks,
+      tool: {
+        name: "build_carousel",
+        description: "Retorna os slides do carrossel.",
+        input_schema: tools[0].function.parameters as Record<string, unknown>,
       },
-      LOVABLE_API_KEY,
-    );
+      maxTokens: 4096,
+      temperature: 0.7,
+    });
 
     let textFallback = false;
     type SlideOut = {
@@ -501,25 +490,18 @@ REGRAS DE ADAPTAÇÃO:
     };
     let slides: SlideOut[] = [];
 
-    if (!aiResp.ok) {
-      const t = await aiResp.text();
-      console.error("[carrossel-generate] AI text error", aiResp.status, t);
+    if (!claudeRes.ok) {
+      console.error("[carrossel-generate] claude_error", claudeRes.status, claudeRes.error);
       slides = fallbackSlides(topic.trim(), clientName, slideCount);
       textFallback = true;
     } else {
-      const data = await aiResp.json();
-      const toolCall = data?.choices?.[0]?.message?.tool_calls?.[0];
-      const rawArgs = toolCall?.function?.arguments ?? "{}";
-      let parsed: { slides: any[] } = { slides: [] };
-      try {
-        parsed = JSON.parse(rawArgs);
-      } catch (e) {
-        console.error("[carrossel-generate] parse tool call failed", e);
-      }
+      const parsed = {
+        slides: Array.isArray((claudeRes.data as any)?.slides) ? (claudeRes.data as any).slides : [],
+      };
       console.log("[carrossel-generate] ai_raw", {
-        argsLen: typeof rawArgs === "string" ? rawArgs.length : 0,
-        slidesIn: Array.isArray(parsed.slides) ? parsed.slides.length : 0,
-        firstSlide: parsed.slides?.[0]
+        argsLen: claudeRes.rawArgsLen,
+        slidesIn: parsed.slides.length,
+        firstSlide: parsed.slides[0]
           ? {
               titleLen: (parsed.slides[0].title ?? "").length,
               bodyLen: (parsed.slides[0].body ?? "").length,
@@ -527,6 +509,7 @@ REGRAS DE ADAPTAÇÃO:
             }
           : null,
       });
+
 
       slides = (parsed.slides ?? []).slice(0, slideCount).map((s: any, idx: number) => {
         // Princípio dita o layout — sobrescreve qualquer sistema/tipo/fundo do modelo.
