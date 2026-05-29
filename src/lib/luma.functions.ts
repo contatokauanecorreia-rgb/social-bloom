@@ -26,11 +26,11 @@ const startSchema = z.object({
 
 const statusSchema = z.object({
   requestId: z.string().min(1).max(200),
-const statusSchema = z.object({
-  requestId: z.string().min(1).max(200),
   statusUrl: z.string().url().startsWith('https://queue.fal.run/').max(500),
   responseUrl: z.string().url().startsWith('https://queue.fal.run/').max(500),
 });
+
+function buildPrompt(input: z.infer<typeof startSchema>): string {
   const parts: string[] = [];
   if (input.sceneMode === 'prompt' && input.scenePrompt.trim()) {
     parts.push(input.scenePrompt.trim());
