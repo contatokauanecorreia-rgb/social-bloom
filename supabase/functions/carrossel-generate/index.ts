@@ -77,7 +77,20 @@ function buildBriefingContext(b: any | null, clientName: string | null) {
   return parts.join(" ");
 }
 
-// AI call now goes through ../_shared/claude.ts (callClaudeTool).
+// Copy generation goes through the Lovable AI Gateway (Gemini).
+// Claude (Anthropic) is used only as the "creative director" — typography +
+// graphic elements based on the client DNA, see callClaudeTool below.
+async function callAI(payload: unknown, apiKey: string) {
+  return await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+}
+
 
 
 function fallbackSlides(topic: string, clientName: string | null, n: number) {
