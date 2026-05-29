@@ -159,7 +159,7 @@ export const getLumaStatus = createServerFn({ method: 'POST' })
       };
     }
 
-    const resultRes = await fetch(base, {
+    const resultRes = await fetch(data.responseUrl, {
       headers: { authorization: `Key ${apiKey}` },
     });
     if (!resultRes.ok) {
