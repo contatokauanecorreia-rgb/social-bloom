@@ -1,77 +1,51 @@
 ## Objetivo
 
-Substituir o provedor de IA atual (Lovable AI Gateway / Gemini) por **Claude Sonnet 4** nas funções de geração de carrossel e de ideias do planner, sempre injetando o **DNA do cliente** (briefing completo) no prompt. A chave fica como secret no backend, nunca no frontend.
+Desfazer a parte da última solicitação que envolveu o **planner**, mantendo o **Claude (Anthropic)** apenas onde faz sentido: a **geração de carrosséis**. Lá ele atua como mente criativa para títulos, subtítulos e — só quando o usuário anexa referências — também propõe elementos gráficos (setas, linhas, asteriscos etc.). Tudo continua puxando o **DNA do cliente**.
 
 ## O que muda
 
-### 1. Secret `ANTHROPIC_API_KEY`
-- Adicionar via `add_secret` (você cola o valor no popup seguro).
-- Lida apenas dentro das edge functions com `Deno.env.get("ANTHROPIC_API_KEY")`.
-- Nada vai pro `.env`, nada vai pro client.
+### 1. `supabase/functions/planner-ideas/index.ts` — REVERTER
+- Voltar para a versão anterior (commit `08f8ec5`), que usa `LOVABLE_API_KEY` + `google/gemini-3-flash-preview` via `ai.gateway.lovable.dev`.
+- Remove imports de `claude.ts` e `client-dna.ts` deste arquivo.
+- DNA continua sendo lido inline (briefing + cliente), como já era antes.
+- Resultado: planner não consome mais a chave Anthropic.
 
-### 2. Helper compartilhado `supabase/functions/_shared/claude.ts`
-- Wrapper para `https://api.anthropic.com/v1/messages` com:
-  - headers `x-api-key`, `anthropic-version: 2023-06-01`, `content-type`.
-  - modelo fixo `claude-sonnet-4-20250514`.
-  - suporte a **tool use** (equivalente ao `tool_choice` da OpenAI) para extrair JSON estruturado de slides/ideias de forma confiável.
-  - tratamento de erros 401 / 429 / 529 devolvendo mensagens claras ao cliente.
+### 2. `supabase/functions/carrossel-generate/index.ts` — AJUSTAR
+- **Manter** a chamada via `callClaudeTool` + `loadClientDNA` (Claude segue como cérebro criativo).
+- **Elementos gráficos condicionais ao anexo de referência**:
+  - Criar uma flag `hasReference = !!referenceImageDataUrl`.
+  - **Sem referência anexada**: remover do `slideItemProperties` (input_schema enviado ao Claude) os campos `elemento_decorativo`, `elemento_grafico`, `palavra_destaque`, `ticker_texto`, `label`, `tags`. E no system prompt, instruir explicitamente: "NÃO sugira elementos gráficos decorativos (setas, linhas, asteriscos, tickers). Foque só em copy: título, subtítulo, corpo."
+  - **Com referência anexada**: manter o schema completo atual e adicionar no prompt: "Use a referência anexa como inspiração para propor elementos gráficos (setas, linhas, asteriscos, tickers) que combinem com o estilo dela. Estes elementos só podem aparecer se a referência sugerir."
+- No pós-processamento dos slides (linhas ~531–539), só copiar `elemento_decorativo`/`elemento_grafico`/`palavra_destaque`/`ticker_texto`/`label`/`tags` para o output quando `hasReference` for true. Sem referência, esses campos saem `undefined` (o frontend já lida com isso).
 
-### 3. Helper compartilhado `supabase/functions/_shared/client-dna.ts`
-- Função `loadClientDNA(supabaseClient, clientId)` que busca de `clients` + `client_briefings`:
-  - nome, segmento/company
-  - `tone_of_voice`, `target_audience`, `business_description`
-  - `goals`, `content_pillars`, `dos`, `donts`, `archetype`, `palette`, `references`
-- Retorna um bloco de texto formatado pronto para virar `system prompt` ("DNA da marca").
-- Usado tanto por `carrossel-generate` quanto por `planner-ideas`, garantindo contexto idêntico nas duas superfícies.
+### 3. `supabase/functions/_shared/client-dna.ts` — MANTER
+- Continua sendo usado pelo `carrossel-generate`. Nada muda.
 
-### 4. `supabase/functions/carrossel-generate/index.ts`
-- Substituir a chamada para `ai.gateway.lovable.dev` (linhas ~79 e ~470) por `callClaude(...)` do helper.
-- Antes de montar o prompt: chamar `loadClientDNA(clientId)` e prefixar o system prompt com:
-  - "Você é um copywriter especializado no nicho **X**, tom **Y**, falando com **Z**…"
-  - listar pilares, dos/donts, referências.
-- Manter o schema atual de slides (`title`, `subtitle`, `body`, `sistema`, `tipo`, `fundo`, `imageFrame`), mas declarar via `tools` do Anthropic (input_schema) em vez de `tool_choice` OpenAI.
-- Manter a detecção `allEmpty` → fallback existente, e os logs de diagnóstico.
-- O campo "referências de conteúdo / alinhamento / estilo de textos e títulos" enviado pela UI do wizard é repassado como bloco adicional no user message ("Configurações do usuário para esta geração: …").
+### 4. `supabase/functions/_shared/claude.ts` — MANTER
+- Continua sendo usado pelo `carrossel-generate`. Nada muda.
 
-### 5. `supabase/functions/planner-ideas/index.ts`
-- Mesma troca: ler `clientId` do body (já existe), carregar DNA, chamar Claude com tool use que devolve `{ ideas: [{ title, hook, format, pillar }] }`.
-- Sem mudança de contrato no client.
+### 5. Secret `ANTHROPIC_API_KEY` — MANTER
+- Permanece no backend. Só o `carrossel-generate` lê.
 
-### 6. Frontend
-- **Nenhuma mudança de fluxo.** O wizard de carrossel e o planner continuam invocando as mesmas edge functions (`carrossel-generate`, `planner-ideas`) com o mesmo payload, então `CarouselAIWizard.tsx` e a tela do planner não precisam ser alterados.
-- Só ajuste cosmético: trocar textos de erro genéricos ("IA indisponível") para refletir mensagens vindas do helper Claude (rate limit / créditos / chave inválida).
-
-## Detalhes técnicos
-
-- **Modelo:** `claude-sonnet-4-20250514` (hardcoded no helper — fácil de trocar em um único lugar).
-- **max_tokens:** 4096 para carrossel, 2048 para planner.
-- **Tool use shape (Anthropic):**
-  ```json
-  {
-    "tools": [{
-      "name": "emit_slides",
-      "description": "Retorna os slides do carrossel",
-      "input_schema": { "type": "object", "properties": { "slides": {...} }, "required": ["slides"] }
-    }],
-    "tool_choice": { "type": "tool", "name": "emit_slides" }
-  }
-  ```
-- **Segurança:** secret só em edge function; client nunca recebe a key. `config.toml` mantém `verify_jwt = true` para ambas as funções (já está).
-- **Sem migração de banco** — o DNA já está em `client_briefings`.
+### 6. Frontend — SEM mudanças
+- O wizard de carrossel já envia `referenceImageDataUrl` quando o usuário anexa uma imagem. Nenhum ajuste de UI necessário.
+- A tela do planner volta a funcionar com o gateway Lovable (Gemini), como antes.
 
 ## Arquivos tocados
 
 ```
-supabase/functions/_shared/claude.ts          (novo)
-supabase/functions/_shared/client-dna.ts      (novo)
-supabase/functions/carrossel-generate/index.ts (editado: troca de provider + DNA)
-supabase/functions/planner-ideas/index.ts      (editado: troca de provider + DNA)
+supabase/functions/planner-ideas/index.ts          (revertido p/ versão Gemini)
+supabase/functions/carrossel-generate/index.ts     (elementos gráficos condicionais)
 ```
 
-## O que **não** vai mudar
-- UI do wizard, UI do planner, estrutura dos slides, fluxo de créditos, geração de imagens (continua FAL/`carrossel-image`), score, RLS, tabelas.
+Não tocar: `_shared/claude.ts`, `_shared/client-dna.ts`, frontend, banco, RLS, config.toml.
 
-## Próximo passo após aprovação
-1. Pedir o secret `ANTHROPIC_API_KEY` via `add_secret`.
-2. Implementar os 4 arquivos acima.
-3. Deploy das duas funções e teste rápido via `curl_edge_functions` com um cliente real.
+## Deploy
+
+Após as edições, redeployar as duas funções (`planner-ideas` e `carrossel-generate`) e fazer um teste rápido via curl em cada uma.
+
+## O que **não** muda
+
+- DNA continua sendo injetado nos dois lugares.
+- Modelo Claude no carrossel segue `claude-sonnet-4-20250514`.
+- Geração de imagens FAL, créditos, score, fallback, schema dos slides no editor — tudo intacto.
