@@ -1,44 +1,29 @@
-## Bloco 5 — Geração com Luma Ray2
+## Mudança no Bloco 1 (Upload de vídeo)
 
-### O que vai acontecer quando o usuário clicar em "Gerar vídeo"
+Hoje o `<video>` do preview está com `h-28 w-full ... object-contain`, o que força altura fixa de 112px e cria as faixas pretas laterais para um vídeo vertical (9:16 / 4:5).
 
-1. O Bloco 5 envia ao backend:
-   - O vídeo do Bloco 1 (caminho no storage `video-workflow-inputs/...` já existente)
-   - O prompt do Bloco 2 (se em modo "prompt") ou a imagem do Bloco 2 (modo "image")
-   - O modelo selecionado no Bloco 3 (`luma-flex`, `luma-reimagine` ou `kling`)
-   - Os ajustes do Bloco 4 (LUT + contraste/saturação/temperatura) concatenados ao prompt
-2. O backend chama a API do FAL (Luma Ray 2) e retorna um `requestId`.
-3. O frontend faz polling do status e atualiza a barra de progresso real (0 → 100%) com rótulos de etapa.
-4. Quando termina, o vídeo gerado aparece dentro do bloco com 3 botões:
-   - **Baixar MP4** — download direto do arquivo
-   - **Editar cortes e legendas** — abre editor (placeholder navegando para `/studio/video-editor?src=...`, a ser implementado depois)
-   - **Enviar ao cliente** — placeholder (toast "em breve") até o fluxo de envio existir
+### O que fazer
 
-### Arquivos novos
+Em `src/components/studio/video-workflow/VideoWorkflowCanvas.tsx`, no bloco de preview do vídeo:
 
-- `src/lib/luma.functions.ts` — server functions TanStack:
-  - `startLumaGeneration({ storagePath, sceneMode, scenePrompt, sceneImagePath, model, color })` → gera signed URL do vídeo de entrada, monta prompt final (incluindo LUT/ajustes), chama FAL `queue.submit` e retorna `{ requestId, endpoint }`.
-  - `getLumaStatus({ requestId, endpoint })` → consulta `queue.status`; quando `COMPLETED`, busca `queue.result` e retorna `{ status, progress, videoUrl }`.
-- (Reusa `FAL_API_KEY` já configurado.)
+1. Remover `h-28` e `object-contain` do elemento `<video>`.
+2. Detectar a proporção real do arquivo via evento `onLoadedMetadata` (usar `videoWidth / videoHeight`) e guardar em estado local `videoAspect`.
+3. Envolver o `<video>` em um container com:
+   - `width: 100%`
+   - `aspect-ratio: var(--video-aspect)` (default `9 / 16` enquanto carrega)
+   - `max-height: 360px` para não estourar o card do canvas
+   - `mx-auto` para centralizar quando o vídeo for mais estreito que o card
+4. Aplicar `aspect-ratio` dinamicamente via `style={{ aspectRatio: videoAspect ?? "9 / 16" }}` no container; o `<video>` interno fica `h-full w-full object-cover` (sem letterbox) ou `object-contain` se preferirmos preservar 100% do frame — recomendo `object-cover` já que o container já segue a proporção real do vídeo, então não haverá corte.
+5. Manter `bg-black` e `rounded-md` no container.
 
-### Arquivos editados
+### Resultado
 
-- `src/components/studio/video-workflow/VideoWorkflowCanvas.tsx`:
-  - Substitui o `handleGenerate` simulado por chamada real às server functions + polling a cada 3s.
-  - Estados novos: `generatedVideoUrl`, `lumaRequestId`, `lumaEndpoint`.
-  - Bloco 5 renderiza `<video>` + 3 botões após `done`.
-  - Se imagem do Bloco 2 estiver em modo "image", faz upload prévio para `video-workflow-inputs` (reusa `createSignedUploadUrl`) antes de chamar `startLumaGeneration`.
+- Vídeo vertical 9:16 → preview vertical, sem barras pretas laterais.
+- Vídeo 1080×1350 (4:5) → preview 4:5.
+- Vídeo horizontal 16:9 → preview horizontal.
+- O card do bloco continua com a mesma largura; só a altura do preview se adapta (limitada a 360px).
 
-### Mapeamento de modelos para endpoints FAL
+### Fora de escopo
 
-- `luma-flex` → `fal-ai/luma-dream-machine/ray-2-flash/image-to-video` (ou `video-to-video` quando aplicável)
-- `luma-reimagine` → `fal-ai/luma-dream-machine/ray-2/modify`
-- `kling` → `fal-ai/kling-video/v2/master/image-to-video` (mantido como opção alternativa via mesma camada)
-
-### O que NÃO faz parte deste passo
-
-- Editor de cortes/legendas (botão só navega para rota placeholder).
-- Fluxo "Enviar ao cliente" (mostra toast "em breve").
-- Persistência do vídeo gerado em uma tabela de histórico.
-
-Confirme se posso prosseguir, ou se quer ajustar o mapeamento de modelos / comportamento dos botões pós-geração.
+- Mudar o tamanho do card do bloco no canvas.
+- Alterar o preview do vídeo gerado (Bloco 5).
