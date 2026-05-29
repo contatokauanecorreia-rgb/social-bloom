@@ -880,6 +880,9 @@ REGRAS DE ADAPTAÇÃO:
           textAlign: ALINHAMENTO,
           bgKinds: validBgKinds,
           presetsPerSlide: sequence,
+          typography: typographyMeta,
+          creativeDirector,
+
         },
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
