@@ -187,6 +187,12 @@ function CarrosselEditorPage() {
         done: boolean;
       }
   >(jobId ? null : "skip");
+  // Estado separado para "ainda gerando as variantes" — quando temos jobId
+  // running mas o bootstrap ainda não foi salvo no banco.
+  const [jobWaiting, setJobWaiting] = useState<
+    | null
+    | { status: "running" | "error"; progress: number; error: string | null }
+  >(null);
 
   const [format, setFormat] = useState<Format>(FORMATS[0]);
 
