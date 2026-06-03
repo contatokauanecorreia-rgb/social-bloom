@@ -685,10 +685,31 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
   };
 
 
-  const pickVariant = (kind: "minimalista" | "criativo") => {
-    const variant = variants[kind];
-    const ctx = generationCtxRef.current;
-    if (!variant || !ctx) return;
+  // Escolhe automaticamente qual variante usar com base na intenção do
+  // usuário (aiImages ligado → criativo; senão minimalista). Faz fallback
+  // para a outra se a preferida tiver falhado.
+  const pickAutoKind = (
+    mins: VariantData,
+    cre: VariantData,
+    aiImagesOn: boolean,
+  ): "minimalista" | "criativo" | null => {
+    const prefer: "minimalista" | "criativo" = aiImagesOn ? "criativo" : "minimalista";
+    const preferred = prefer === "criativo" ? cre : mins;
+    if (preferred) return prefer;
+    if (cre) return "criativo";
+    if (mins) return "minimalista";
+    return null;
+  };
+
+  const commitVariant = (
+    kind: "minimalista" | "criativo",
+    variant: NonNullable<VariantData>,
+    ctxOverride?: NonNullable<typeof generationCtxRef.current>,
+    textAlignOverride?: TextAlignChoice,
+  ) => {
+    const ctx = ctxOverride ?? generationCtxRef.current;
+    if (!ctx) return;
+    const align = textAlignOverride ?? textAlignChoice;
 
     const trimmedStyle = ctx.imageStyle.trim() || null;
     const deriveVisualSeed = (s: { title?: string; body?: string; subtitle?: string }) => {
@@ -727,7 +748,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
       fontPair: ctx.fontPair,
       palette: ctx.palette,
       imageMode: shouldGenImages ? ctx.imageMode : ("none" as ImageMode),
-      textAlign: textAlignChoice,
+      textAlign: align,
       bgKinds: kind === "minimalista" ? ["texto"] : ["foto"],
       signature: ctx.signature,
       imageJobs,
@@ -760,7 +781,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
           imagesDone: 0,
           imagesTotal: imageJobs.length,
           ctx,
-          textAlign: textAlignChoice,
+          textAlign: align,
         } as unknown as Record<string, unknown>,
       });
       if (imageJobs.length === 0) {
@@ -779,6 +800,12 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
       to: "/dashboard/studio/carrossel",
       search: jobId ? { jobId } : undefined,
     } as never);
+  };
+
+  const pickVariant = (kind: "minimalista" | "criativo") => {
+    const variant = variants[kind];
+    if (!variant) return;
+    commitVariant(kind, variant);
   };
 
 
