@@ -63,7 +63,7 @@ export async function updateStudioJob(
 }
 
 export async function fetchStudioJob(jobId: string): Promise<StudioJob | null> {
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("studio_jobs")
     .select("*")
     .eq("id", jobId)
@@ -76,7 +76,7 @@ export async function fetchStudioJob(jobId: string): Promise<StudioJob | null> {
 }
 
 export async function deleteStudioJob(jobId: string) {
-  await supabase.from("studio_jobs").delete().eq("id", jobId);
+  await (supabase as any).from("studio_jobs").delete().eq("id", jobId);
 }
 
 /**
