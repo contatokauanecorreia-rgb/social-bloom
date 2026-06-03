@@ -517,14 +517,18 @@ function CarrosselEditorPage() {
     }
   }, []);
 
-  // Background image generation loop — consumes imageJobs from bootstrap
+  // Background image generation loop — consumes imageJobs from bootstrap.
+  // Quando entramos via jobId, o worker global cuida disso — pulamos aqui
+  // para evitar geração duplicada.
   const imageGenStartedRef = useRef(false);
   useEffect(() => {
+    if (jobId) return;
     if (imageGenStartedRef.current) return;
     const jobs = bootstrapRef.current?.imageJobs;
     if (!jobs || jobs.length === 0) return;
     if (slides.length === 0) return;
     imageGenStartedRef.current = true;
+
 
     const palette = bootstrapRef.current?.palette ?? dna.palette;
     const archetype = bootstrapRef.current?.archetype ?? null;
