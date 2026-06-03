@@ -453,7 +453,25 @@ function CarrosselEditorPage() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "studio_jobs", filter: `id=eq.${jobId}` },
         (payload) => {
-          const row = payload.new as { status?: string; result?: { images?: Record<string, string>; imagesDone?: number; imagesTotal?: number } } | undefined;
+          const row = payload.new as { status?: string; progress?: number; error?: string | null; result?: { bootstrap?: unknown; images?: Record<string, string>; imagesDone?: number; imagesTotal?: number } } | undefined;
+          // Se ainda estávamos esperando o bootstrap e ele acabou de chegar,
+          // re-hidrata o editor com os dados completos.
+          if (row?.result?.bootstrap) {
+            setJobWaiting((prev) => {
+              if (prev) void hydrateFromJob();
+              return null;
+            });
+          } else if (row?.status === "error") {
+            setJobWaiting({ status: "error", progress: row.progress ?? 0, error: row.error ?? null });
+            return;
+          } else if (row?.status === "running" && !row?.result?.bootstrap) {
+            setJobWaiting((prev) =>
+              prev
+                ? { ...prev, progress: Math.max(prev.progress, Number(row.progress ?? prev.progress)) }
+                : prev,
+            );
+            return;
+          }
           const images = row?.result?.images ?? {};
           const total = row?.result?.imagesTotal ?? 0;
           const done = row?.result?.imagesDone ?? Object.keys(images).length;
