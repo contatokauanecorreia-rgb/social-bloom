@@ -30,7 +30,7 @@ export async function createStudioJob(args: {
   const { data: sess } = await supabase.auth.getSession();
   const uid = sess.session?.user?.id;
   if (!uid) return null;
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from("studio_jobs")
     .insert({
       user_id: uid,
@@ -47,7 +47,7 @@ export async function createStudioJob(args: {
     console.warn("createStudioJob failed", error);
     return null;
   }
-  return data?.id ?? null;
+  return (data?.id as string | undefined) ?? null;
 }
 
 export async function updateStudioJob(
@@ -58,7 +58,7 @@ export async function updateStudioJob(
   if (patch.status && patch.status !== "running") {
     next.finished_at = new Date().toISOString();
   }
-  const { error } = await supabase.from("studio_jobs").update(next).eq("id", jobId);
+  const { error } = await (supabase as any).from("studio_jobs").update(next).eq("id", jobId);
   if (error) console.warn("updateStudioJob failed", error);
 }
 
