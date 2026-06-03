@@ -10,7 +10,9 @@ import { CreditsBadge } from "@/components/studio/CreditsBadge";
 import { CreditsExhaustedBanner } from "@/components/studio/CreditsExhaustedBanner";
 import { ModeCard } from "@/components/studio/ModeCard";
 import { CarouselAIWizard } from "@/components/studio/CarouselAIWizard";
+import { StudioJobsPanel } from "@/components/studio/StudioJobsPanel";
 import { fetchCredits, MODE_COST, type CreditsState } from "@/lib/credits";
+import { useStudioJobs, type StudioJob } from "@/lib/studio-jobs";
 import { ACTIVE_CLIENT_STORAGE_KEY } from "@/lib/client-context";
 
 export const Route = createFileRoute("/dashboard/studio")({
