@@ -795,6 +795,15 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
           onOpenChange(false);
           return;
         }
+        if (!o && step === "choose") {
+          // Fechou sem escolher uma versão — limpa o job pendente para não
+          // ficar pendurado em "em andamento" para sempre.
+          const pendingJobId = currentJobIdRef.current;
+          if (pendingJobId) {
+            void deleteStudioJob(pendingJobId);
+            currentJobIdRef.current = null;
+          }
+        }
         onOpenChange(o);
       }}
     >
