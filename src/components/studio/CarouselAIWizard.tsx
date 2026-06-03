@@ -43,7 +43,7 @@ import {
   type GoogleFontItem,
 } from "@/lib/google-fonts";
 import { cn } from "@/lib/utils";
-import { createStudioJob, fetchStudioJob, updateStudioJob } from "@/lib/studio-jobs";
+import { createStudioJob, deleteStudioJob, fetchStudioJob, updateStudioJob } from "@/lib/studio-jobs";
 
 export type CarouselAIWizardProps = {
   open: boolean;
@@ -254,7 +254,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
     }
   }, [open, initialTopic]);
 
-  // Hydrate from an existing job (reopening a finished/in-progress carousel)
+  // Hydrate from an existing job (reopening an in-progress carousel)
   useEffect(() => {
     if (!open || !initialJobId) return;
     let cancelled = false;
@@ -262,11 +262,22 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
       if (cancelled || !job) return;
       currentJobIdRef.current = job.id;
       const result = job.result as {
+        phase?: "variants" | "images" | "done";
         variants?: { minimalista: VariantData; criativo: VariantData };
         ctx?: typeof generationCtxRef.current;
         textAlign?: TextAlignChoice;
       } | null;
-      if (job.status === "done" && result?.variants) {
+      const phase = result?.phase;
+
+      // O wizard só lida com a fase de variantes. Para images/done o
+      // dashboard navega direto pro editor — aqui só ignoramos.
+      if (phase === "images" || phase === "done") {
+        onOpenChange(false);
+        return;
+      }
+
+      if (job.status === "running" && result?.variants && (phase === "variants" || phase == null)) {
+        // Variantes prontas, aguardando o usuário escolher.
         if (result.ctx) generationCtxRef.current = result.ctx;
         if (result.textAlign) setTextAlignChoice(result.textAlign);
         setVariants(result.variants);
@@ -283,7 +294,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
     return () => {
       cancelled = true;
     };
-  }, [open, initialJobId]);
+  }, [open, initialJobId, onOpenChange]);
 
 
   // Carregar DNA + nome do cliente quando entra no passo 2
@@ -631,12 +642,14 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
         throw new Error("A IA não conseguiu gerar nenhuma versão. Tente de novo.");
       }
 
-      // Persiste resultado no job (para reabrir depois)
+      // Persiste resultado no job mantendo status=running enquanto o usuário
+      // ainda não escolheu uma variante. O job só vira "done" quando o worker
+      // global terminar a geração de imagens da variante escolhida.
       if (jobId) {
         updateStudioJob(jobId, {
-          status: "done",
-          progress: 100,
+          progress: 30,
           result: {
+            phase: "variants",
             variants: { minimalista, criativo },
             ctx: generationCtxRef.current,
             textAlign: textAlignChoice,
@@ -731,9 +744,36 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
       console.warn("bootstrap sessionStorage failed", e);
     }
 
+    // Persiste no job para que o worker global continue a geração
+    // mesmo se o usuário sair do editor.
+    const jobId = currentJobIdRef.current;
+    if (jobId) {
+      void updateStudioJob(jobId, {
+        progress: 35,
+        result: {
+          phase: imageJobs.length > 0 ? "images" : "done",
+          variant: kind,
+          bootstrap,
+          imageJobs,
+          images: {},
+          imagesDone: 0,
+          imagesTotal: imageJobs.length,
+          ctx,
+          textAlign: textAlignChoice,
+        } as unknown as Record<string, unknown>,
+      });
+      if (imageJobs.length === 0) {
+        // Sem imagens a gerar — marca como concluído imediatamente.
+        void updateStudioJob(jobId, { status: "done", progress: 100 });
+      }
+    }
+
     loadingPersistRef.current = true;
     onOpenChange(false);
-    navigate({ to: "/dashboard/studio/carrossel" });
+    navigate({
+      to: "/dashboard/studio/carrossel",
+      search: jobId ? { jobId } : undefined,
+    } as never);
   };
 
 
@@ -754,6 +794,15 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
           });
           onOpenChange(false);
           return;
+        }
+        if (!o && step === "choose") {
+          // Fechou sem escolher uma versão — limpa o job pendente para não
+          // ficar pendurado em "em andamento" para sempre.
+          const pendingJobId = currentJobIdRef.current;
+          if (pendingJobId) {
+            void deleteStudioJob(pendingJobId);
+            currentJobIdRef.current = null;
+          }
         }
         onOpenChange(o);
       }}

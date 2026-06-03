@@ -62,6 +62,9 @@ import { markPlannerHasDraft } from "@/lib/planner-notification";
 
 export const Route = createFileRoute("/dashboard/studio/carrossel")({
   head: () => ({ meta: [{ title: "Editor de carrossel — Postly" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    jobId: typeof search.jobId === "string" ? search.jobId : undefined,
+  }),
   component: CarrosselEditorPage,
 });
 
@@ -159,6 +162,7 @@ const makeSlide = (template?: Slide, paletteColor?: string): Slide => ({
 
 function CarrosselEditorPage() {
   const navigate = useNavigate();
+  const { jobId } = Route.useSearch();
   const [userId, setUserId] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
   const [clientName, setClientName] = useState<string>("");
@@ -167,6 +171,21 @@ function CarrosselEditorPage() {
     brandFont: null,
     brandFontUrl: null,
   });
+  // Hidratação a partir do studio_job (quando o usuário abre via painel).
+  // - null = ainda carregando (não monta os slides padrão).
+  // - "skip" = sem jobId, usa fluxo normal (sessionStorage / template).
+  // - objeto = job carregado, vai injetar como bootstrap.
+  const [jobHydration, setJobHydration] = useState<
+    | null
+    | "skip"
+    | {
+        bootstrap: Record<string, unknown>;
+        images: Record<string, string>;
+        imagesDone: number;
+        imagesTotal: number;
+        done: boolean;
+      }
+  >(jobId ? null : "skip");
 
   const [format, setFormat] = useState<Format>(FORMATS[0]);
 
@@ -238,117 +257,238 @@ function CarrosselEditorPage() {
     if (slides.length > 0 && !activeId) setActiveId(slides[0].id);
   }, [slides, activeId]);
 
-  // Consume bootstrap from AI wizard (sessionStorage) on mount
+  // Constrói os slides a partir do bootstrap (mesmo formato vindo do wizard).
+  // Funciona tanto pra sessionStorage quanto pra hidratação via studio_jobs.
+  const applyBootstrap = (data: any) => {
+    bootstrapRef.current = data;
+    setFormat(FORMATS[0]);
+
+    const aiSlides = Array.isArray(data.slides) ? data.slides : [];
+    const sigBase = data.signature ?? null;
+    const palette: [string, string, string] | undefined = data.palette;
+
+    const built: Slide[] = aiSlides.map((s: any) => {
+      const slide = makeSlide(undefined, palette?.[0]);
+      slide.text = {
+        title: s.title ?? "",
+        subtitle: s.subtitle ?? "",
+        body: s.body ?? "",
+      };
+      const frame = (s.imageFrame ?? null) as Slide["imageFrame"];
+      slide.imageFrame = frame;
+      const hasFramedImage = frame !== null;
+      if (s.imageDataUrl && (s.fundo === "foto" || hasFramedImage)) slide.bgImage = s.imageDataUrl;
+      if (sigBase) slide.signature = { ...sigBase };
+
+      const align = (s.alignment === "left" || s.alignment === "right" || s.alignment === "center")
+        ? s.alignment
+        : null;
+      if (align) {
+        slide.textAlign = { title: align, subtitle: align, body: align };
+      }
+
+      const textOverImage = frame === "full";
+
+      if (s.sistema === "minimalista") {
+        slide.system = "minimalista";
+        slide.slideType = s.tipo;
+        slide.bgKind = s.fundo;
+        slide.label = s.label;
+        slide.tags = Array.isArray(s.tags) ? s.tags : undefined;
+        slide.decor = s.elemento_decorativo;
+
+        if (textOverImage) {
+          slide.textColor = { title: "#FFFFFF", subtitle: "#F5F5F5", body: "#F5F5F5" };
+          slide.overlay = { enabled: true, intensity: 30, type: "dark" };
+        } else {
+          slide.textColor = { title: "#1A1714", subtitle: "#3D3B40", body: "#3D3B40" };
+          slide.overlay = { enabled: false, intensity: 0, type: "dark" };
+        }
+      } else if (s.sistema === "criativo") {
+        slide.system = "criativo";
+        slide.slideType = s.tipo;
+        slide.bgKind = s.fundo;
+        slide.highlightWord = s.palavra_destaque;
+        slide.tickerText = s.ticker_texto;
+        slide.graphic = s.elemento_grafico;
+        slide.accentColor = palette?.[0] ?? DEFAULT_PALETTE[0];
+
+        const accent = slide.accentColor!;
+        if (textOverImage) {
+          slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
+          slide.overlay = s.tipo === "C1"
+            ? { enabled: false, intensity: 0, type: "dark" }
+            : { enabled: true, intensity: 25, type: "dark" };
+        } else if (s.tipo === "C2") {
+          slide.textColor = { title: accent, subtitle: "#0A0A0A", body: "#1A1A1A" };
+          slide.overlay = { enabled: false, intensity: 0, type: "dark" };
+        } else if (s.tipo === "C5") {
+          slide.textColor = { title: accent, subtitle: accent, body: accent };
+          slide.overlay = { enabled: false, intensity: 0, type: "dark" };
+        } else {
+          slide.textColor = { title: "#0A0A0A", subtitle: "#1A1A1A", body: "#1A1A1A" };
+          slide.overlay = { enabled: false, intensity: 0, type: "dark" };
+        }
+        slide.fontWeight = { title: 900, subtitle: 700, body: 400 };
+      } else if (s.imageDataUrl) {
+        slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
+        slide.overlay = { enabled: true, intensity: 40, type: "dark" };
+      }
+      return slide;
+    });
+    if (built.length > 0) {
+      const withWeight = data.fontWeightOverride
+        ? built.map((s) => ({ ...s, fontWeight: { ...data.fontWeightOverride! } }))
+        : built;
+      setSlides(withWeight);
+      setActiveId(withWeight[0].id);
+    }
+
+    if (data.fontPair?.heading) {
+      loadGoogleFont(data.fontPair.heading);
+      loadGoogleFont(data.fontPair.body);
+      setPageFontPair(data.fontPair);
+    }
+  };
+
+  // Caminho 1 — sessionStorage (fluxo legado, sem jobId).
   useEffect(() => {
+    if (jobHydration !== "skip") return;
     if (typeof window === "undefined") return;
     const raw = window.sessionStorage.getItem("studio:carrossel:bootstrap");
     if (!raw) return;
     try {
       const data = JSON.parse(raw);
-      bootstrapRef.current = data;
       window.sessionStorage.removeItem("studio:carrossel:bootstrap");
-
-      // Auto-pick default format (carrossel 4:5) when arriving from AI flow
-      setFormat(FORMATS[0]);
-
-      const aiSlides = Array.isArray(data.slides) ? data.slides : [];
-      const sigBase = data.signature ?? null;
-      const palette: [string, string, string] | undefined = data.palette;
-
-      const built: Slide[] = aiSlides.map((s: any) => {
-        const slide = makeSlide(undefined, palette?.[0]);
-        slide.text = {
-          title: s.title ?? "",
-          subtitle: s.subtitle ?? "",
-          body: s.body ?? "",
-        };
-        // Aplica bgImage se o slide tem foto (fundo === "foto") OU
-        // tem um frame definido (top-60, half-left, etc.) — assim a imagem
-        // pode aparecer como zona dentro de um fundo sólido.
-        const frame = (s.imageFrame ?? null) as Slide["imageFrame"];
-        slide.imageFrame = frame;
-        const hasFramedImage = frame !== null;
-        if (s.imageDataUrl && (s.fundo === "foto" || hasFramedImage)) slide.bgImage = s.imageDataUrl;
-        if (sigBase) slide.signature = { ...sigBase };
-
-        // Alinhamento global escolhido no wizard
-        const align = (s.alignment === "left" || s.alignment === "right" || s.alignment === "center")
-          ? s.alignment
-          : null;
-        if (align) {
-          slide.textAlign = { title: align, subtitle: align, body: align };
-        }
-
-        // Texto sobre imagem só quando o frame ocupa toda a área (full).
-        const textOverImage = frame === "full";
-
-        // Sistema minimalista
-        if (s.sistema === "minimalista") {
-          slide.system = "minimalista";
-          slide.slideType = s.tipo;
-          slide.bgKind = s.fundo;
-          slide.label = s.label;
-          slide.tags = Array.isArray(s.tags) ? s.tags : undefined;
-          slide.decor = s.elemento_decorativo;
-
-          if (textOverImage) {
-            slide.textColor = { title: "#FFFFFF", subtitle: "#F5F5F5", body: "#F5F5F5" };
-            slide.overlay = { enabled: true, intensity: 30, type: "dark" };
-          } else {
-            slide.textColor = { title: "#1A1714", subtitle: "#3D3B40", body: "#3D3B40" };
-            slide.overlay = { enabled: false, intensity: 0, type: "dark" };
-          }
-        } else if (s.sistema === "criativo") {
-          slide.system = "criativo";
-          slide.slideType = s.tipo;
-          slide.bgKind = s.fundo;
-          slide.highlightWord = s.palavra_destaque;
-          slide.tickerText = s.ticker_texto;
-          slide.graphic = s.elemento_grafico;
-          slide.accentColor = palette?.[0] ?? DEFAULT_PALETTE[0];
-
-          const accent = slide.accentColor!;
-          if (textOverImage) {
-            slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
-            slide.overlay = s.tipo === "C1"
-              ? { enabled: false, intensity: 0, type: "dark" }
-              : { enabled: true, intensity: 25, type: "dark" };
-          } else if (s.tipo === "C2") {
-            slide.textColor = { title: accent, subtitle: "#0A0A0A", body: "#1A1A1A" };
-            slide.overlay = { enabled: false, intensity: 0, type: "dark" };
-          } else if (s.tipo === "C5") {
-            slide.textColor = { title: accent, subtitle: accent, body: accent };
-            slide.overlay = { enabled: false, intensity: 0, type: "dark" };
-          } else {
-            slide.textColor = { title: "#0A0A0A", subtitle: "#1A1A1A", body: "#1A1A1A" };
-            slide.overlay = { enabled: false, intensity: 0, type: "dark" };
-          }
-          // Pesos mais fortes
-          slide.fontWeight = { title: 900, subtitle: 700, body: 400 };
-        } else if (s.imageDataUrl) {
-          // Comportamento legacy
-          slide.textColor = { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" };
-          slide.overlay = { enabled: true, intensity: 40, type: "dark" };
-        }
-        return slide;
-      });
-      if (built.length > 0) {
-        const withWeight = data.fontWeightOverride
-          ? built.map((s) => ({ ...s, fontWeight: { ...data.fontWeightOverride! } }))
-          : built;
-        setSlides(withWeight);
-        setActiveId(withWeight[0].id);
-      }
-
-      if (data.fontPair?.heading) {
-        loadGoogleFont(data.fontPair.heading);
-        loadGoogleFont(data.fontPair.body);
-        setPageFontPair(data.fontPair);
-      }
+      applyBootstrap(data);
     } catch (e) {
       console.warn("bootstrap parse error", e);
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobHydration]);
+
+  // Caminho 2 — hidratar a partir de um studio_job (vindo do painel).
+  useEffect(() => {
+    if (!jobId) return;
+    let cancelled = false;
+    (async () => {
+      const { data: row } = await (supabase as any)
+        .from("studio_jobs")
+        .select("id, status, result")
+        .eq("id", jobId)
+        .maybeSingle();
+      if (cancelled || !row) {
+        setJobHydration("skip");
+        return;
+      }
+      const result = (row.result ?? {}) as {
+        bootstrap?: { slides?: { imageDataUrl?: string | null }[] } & Record<string, unknown>;
+        images?: Record<string, string>;
+        imagesDone?: number;
+        imagesTotal?: number;
+      };
+      if (!result.bootstrap) {
+        setJobHydration("skip");
+        return;
+      }
+      // Mescla as imagens já geradas (result.images) nos slides.
+      const images = result.images ?? {};
+      const slidesWithImages = (result.bootstrap.slides ?? []).map((s, i) => ({
+        ...s,
+        imageDataUrl: images[String(i)] ?? s.imageDataUrl ?? null,
+      }));
+      const merged = { ...result.bootstrap, slides: slidesWithImages };
+      applyBootstrap(merged);
+      const total = result.imagesTotal ?? 0;
+      const done = result.imagesDone ?? Object.keys(images).length;
+      setJobHydration({
+        bootstrap: merged as Record<string, unknown>,
+        images: { ...images },
+        imagesDone: done,
+        imagesTotal: total,
+        done: row.status === "done" || total === 0 || done >= total,
+      });
+      if (total > 0 && done < total) {
+        setImageProgress({ current: done, total, percent: Math.round((done / total) * 100) });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [jobId]);
+
+  // Caminho 2b — Realtime: aplica novas imagens que o worker global gerar.
+  useEffect(() => {
+    if (!jobId) return;
+    const uid =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2);
+    const channel = supabase
+      .channel("carrossel-editor-" + jobId + "-" + uid)
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "studio_jobs", filter: `id=eq.${jobId}` },
+        (payload) => {
+          const row = payload.new as { status?: string; result?: { images?: Record<string, string>; imagesDone?: number; imagesTotal?: number } } | undefined;
+          const images = row?.result?.images ?? {};
+          const total = row?.result?.imagesTotal ?? 0;
+          const done = row?.result?.imagesDone ?? Object.keys(images).length;
+          setSlides((prev) =>
+            prev.map((s, i) => {
+              const url = images[String(i)];
+              if (!url || s.bgImage === url) return s;
+              const allowed = s.bgKind === "foto" || (s.imageFrame ?? null) !== null;
+              if (!allowed) return s;
+              const isFull = s.bgKind === "foto" && (s.imageFrame ?? "full") === "full";
+              return {
+                ...s,
+                bgImage: url,
+                textColor: isFull
+                  ? { title: "#FFFFFF", subtitle: "#FFFFFF", body: "#F5F5F5" }
+                  : s.textColor,
+                overlay: isFull
+                  ? { ...s.overlay, enabled: true, intensity: 40, type: "dark" }
+                  : s.overlay,
+              };
+            }),
+          );
+          if (total > 0 && done < total) {
+            setImageProgress({ current: done, total, percent: Math.round((done / total) * 100) });
+          } else {
+            setImageProgress(null);
+          }
+          if (row?.status === "done") {
+            setImageProgress(null);
+          }
+        },
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [jobId]);
+
+  // Quando o usuário sai do editor com a geração ainda rolando, avisa que
+  // continua em background.
+  const imageProgressRef = useRef<typeof imageProgress>(null);
+  useEffect(() => {
+    imageProgressRef.current = imageProgress;
+  }, [imageProgress]);
+  useEffect(() => {
+    return () => {
+      if (jobId && imageProgressRef.current && imageProgressRef.current.percent < 100) {
+        toast.message("Geração em andamento", {
+          description: "Continuamos gerando as imagens em segundo plano — avisaremos quando ficar pronto.",
+        });
+      }
+    };
+  }, [jobId]);
+
+
+
+
 
   // Consume saved template from sessionStorage (when user came from "Templates salvos" card)
   const templateAppliedRef = useRef(false);
@@ -395,14 +535,18 @@ function CarrosselEditorPage() {
     }
   }, []);
 
-  // Background image generation loop — consumes imageJobs from bootstrap
+  // Background image generation loop — consumes imageJobs from bootstrap.
+  // Quando entramos via jobId, o worker global cuida disso — pulamos aqui
+  // para evitar geração duplicada.
   const imageGenStartedRef = useRef(false);
   useEffect(() => {
+    if (jobId) return;
     if (imageGenStartedRef.current) return;
     const jobs = bootstrapRef.current?.imageJobs;
     if (!jobs || jobs.length === 0) return;
     if (slides.length === 0) return;
     imageGenStartedRef.current = true;
+
 
     const palette = bootstrapRef.current?.palette ?? dna.palette;
     const archetype = bootstrapRef.current?.archetype ?? null;
