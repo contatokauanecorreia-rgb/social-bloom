@@ -1,7 +1,7 @@
 // Shared Anthropic Claude helper.
 // Uses tool-use to coerce structured JSON output reliably.
 
-export const CLAUDE_MODEL = "claude-sonnet-4-20250514";
+export const CLAUDE_MODEL = "claude-sonnet-4-5-20250929";
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 
 export type ClaudeContentBlock =
