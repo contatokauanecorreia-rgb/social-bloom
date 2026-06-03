@@ -29,6 +29,8 @@ function StudioPage() {
   const [clientId, setClientId] = useState<string | null>(null);
   const [credits, setCredits] = useState<CreditsState | null>(null);
   const [carouselOpen, setCarouselOpen] = useState(false);
+  const [carouselJobId, setCarouselJobId] = useState<string | null>(null);
+  const { running, recent } = useStudioJobs(userId);
 
   useEffect(() => {
     let active = true;
