@@ -44,6 +44,7 @@ import {
 } from "@/lib/google-fonts";
 import { cn } from "@/lib/utils";
 import { createStudioJob, deleteStudioJob, fetchStudioJob, updateStudioJob } from "@/lib/studio-jobs";
+import { kickCarouselJobRunner } from "@/lib/carousel-job-runner";
 
 export type CarouselAIWizardProps = {
   open: boolean;
@@ -765,6 +766,10 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
       if (imageJobs.length === 0) {
         // Sem imagens a gerar — marca como concluído imediatamente.
         void updateStudioJob(jobId, { status: "done", progress: 100 });
+      } else {
+        // Aciona o runner em background: roda no servidor mesmo se o
+        // usuário fechar a aba.
+        void kickCarouselJobRunner(jobId);
       }
     }
 

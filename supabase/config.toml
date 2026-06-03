@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.carrossel-score]
 verify_jwt = true
+
+[functions.carrossel-run-job]
+verify_jwt = true

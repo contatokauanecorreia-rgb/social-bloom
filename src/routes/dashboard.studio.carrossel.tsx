@@ -59,6 +59,7 @@ import { ACTIVE_CLIENT_STORAGE_KEY } from "@/lib/client-context";
 import { cn } from "@/lib/utils";
 import { ensureBrandFont, brandFontFamily, loadGoogleFont } from "@/lib/brand-font";
 import { markPlannerHasDraft } from "@/lib/planner-notification";
+import { kickCarouselJobRunner } from "@/lib/carousel-job-runner";
 
 export const Route = createFileRoute("/dashboard/studio/carrossel")({
   head: () => ({ meta: [{ title: "Editor de carrossel — Postly" }] }),
@@ -410,6 +411,11 @@ function CarrosselEditorPage() {
       });
       if (total > 0 && done < total) {
         setImageProgress({ current: done, total, percent: Math.round((done / total) * 100) });
+        // Retoma o processamento server-side caso tenha sido interrompido
+        // (refresh, queda de conexão, etc.). Idempotente.
+        if (row.status === "running") {
+          void kickCarouselJobRunner(jobId);
+        }
       }
     })();
     return () => {
