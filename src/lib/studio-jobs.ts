@@ -108,8 +108,12 @@ export function useStudioJobs(userId: string | null) {
     };
     load();
 
+    const uid =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : Math.random().toString(36).slice(2);
     const channel = supabase
-      .channel("studio_jobs-" + userId)
+      .channel("studio_jobs-" + userId + "-" + uid)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "studio_jobs", filter: `user_id=eq.${userId}` },
