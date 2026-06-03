@@ -142,10 +142,16 @@ function StudioPage() {
             setCarouselJobId(job.id);
             setCarouselOpen(true);
           } else {
-            navigate({ to: "/dashboard/studio/video-workflow", search: { jobId: job.id } as any });
+            const url = (job.result as { videoUrl?: string } | null)?.videoUrl;
+            if (url) {
+              window.open(url, "_blank", "noopener,noreferrer");
+            } else {
+              navigate({ to: "/dashboard/studio/video-workflow" });
+            }
           }
         }}
       />
+
 
       <div className="grid gap-4 sm:grid-cols-2">
         <ModeCard
