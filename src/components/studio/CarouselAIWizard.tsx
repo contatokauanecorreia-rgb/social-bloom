@@ -1417,54 +1417,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
           </div>
         )}
 
-        {step === "choose" && (
-          <>
-            <DialogHeader>
-              <DialogTitle>Escolha a versão</DialogTitle>
-              <DialogDescription>
-                Geramos duas versões do seu carrossel. Escolha qual vai para o editor — você poderá ajustar tudo depois.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="grid gap-4 py-4 sm:grid-cols-2">
-              <VariantPreviewCard
-                kind="minimalista"
-                title="Minimalista"
-                subtitle="Tipografia limpa, sem foto. Foco no texto."
-                variant={variants.minimalista}
-                palette={generationCtxRef.current?.palette ?? palette}
-                fontPair={generationCtxRef.current?.fontPair ?? fontPairForOutput}
-                onPick={() => pickVariant("minimalista")}
-              />
-              <VariantPreviewCard
-                kind="criativo"
-                title="Criativo"
-                subtitle="Foto editorial cobrindo o slide, texto sobreposto."
-                variant={variants.criativo}
-                palette={generationCtxRef.current?.palette ?? palette}
-                fontPair={generationCtxRef.current?.fontPair ?? fontPairForOutput}
-                onPick={() => pickVariant("criativo")}
-              />
-            </div>
-
-            <div className="flex items-center justify-between border-t pt-3">
-              <p className="text-xs text-muted-foreground">
-                As imagens da versão criativa são geradas no editor depois de escolher.
-              </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setVariants({ minimalista: null, criativo: null });
-                  setStep(2);
-                  setProgress(0);
-                }}
-              >
-                Gerar de novo
-              </Button>
-            </div>
-          </>
-        )}
+        {/* etapa "choose" removida — variante é escolhida automaticamente */}
 
       </DialogContent>
     </Dialog>
