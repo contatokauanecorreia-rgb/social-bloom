@@ -254,6 +254,38 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
     }
   }, [open, initialTopic]);
 
+  // Hydrate from an existing job (reopening a finished/in-progress carousel)
+  useEffect(() => {
+    if (!open || !initialJobId) return;
+    let cancelled = false;
+    fetchStudioJob(initialJobId).then((job) => {
+      if (cancelled || !job) return;
+      currentJobIdRef.current = job.id;
+      const result = job.result as {
+        variants?: { minimalista: VariantData; criativo: VariantData };
+        ctx?: typeof generationCtxRef.current;
+        textAlign?: TextAlignChoice;
+      } | null;
+      if (job.status === "done" && result?.variants) {
+        if (result.ctx) generationCtxRef.current = result.ctx;
+        if (result.textAlign) setTextAlignChoice(result.textAlign);
+        setVariants(result.variants);
+        setStep("choose");
+        setProgress(100);
+      } else if (job.status === "running") {
+        setStep("loading");
+        setProgress(Math.max(10, job.progress));
+      } else if (job.status === "error") {
+        toast.error(job.error ?? "Erro na geração.");
+        setStep(2);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, initialJobId]);
+
+
   // Carregar DNA + nome do cliente quando entra no passo 2
   useEffect(() => {
     if (step !== 2 || !clientId) return;
