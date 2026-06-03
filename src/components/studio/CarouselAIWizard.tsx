@@ -749,7 +749,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
     // mesmo se o usuário sair do editor.
     const jobId = currentJobIdRef.current;
     if (jobId) {
-      await updateStudioJob(jobId, {
+      void updateStudioJob(jobId, {
         progress: 35,
         result: {
           phase: imageJobs.length > 0 ? "images" : "done",
