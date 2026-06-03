@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { NotificationsBell } from "@/components/dashboard/NotificationsBell";
 import { useStudioJobs } from "@/lib/studio-jobs";
-import { useCarouselImageWorker } from "@/lib/carousel-image-worker";
+import { kickCarouselJobRunner } from "@/lib/carousel-job-runner";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -55,10 +55,18 @@ function DashboardLayout() {
 
   // Subscribe to studio_jobs globally so toasts fire when jobs finish,
   // mesmo se o usuário estiver em outra página do dashboard.
-  useStudioJobs(user?.id ?? null);
-  // Worker em background que termina a geração das imagens do carrossel
-  // mesmo que o usuário saia do editor.
-  useCarouselImageWorker(user?.id ?? null);
+  const { running } = useStudioJobs(user?.id ?? null);
+
+  // Sempre que vemos um carrossel em fase "images" rodando, pingamos o runner
+  // server-side para garantir que ele esteja processando (idempotente).
+  useEffect(() => {
+    if (!user) return;
+    for (const job of running) {
+      if (job.kind !== "carrossel") continue;
+      const phase = (job.result as { phase?: string } | null)?.phase;
+      if (phase === "images") void kickCarouselJobRunner(job.id);
+    }
+  }, [user, running]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
