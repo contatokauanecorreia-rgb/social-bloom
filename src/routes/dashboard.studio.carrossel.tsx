@@ -374,6 +374,64 @@ function CarrosselEditorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobHydration]);
 
+  // Constrói bootstrap + imageJobs a partir de uma variante (mesmo formato
+  // usado pelo wizard em commitVariant). Usado tanto na hidratação normal
+  // quanto na recuperação de jobs presos em "variants".
+  const buildBootstrapFromVariant = (
+    kind: "minimalista" | "criativo",
+    variant: { slides: any[]; archetype: string | null },
+    ctx: {
+      aiImages: boolean;
+      imageMode: "none" | "bg" | "grid" | "mixed";
+      imageStyle: string;
+      palette: [string, string, string];
+      fontPair: { heading: string; body: string } | null;
+      signature: { enabled: boolean; handle: string; position: SignaturePos; color: string } | null;
+      selectedSource: "dna" | "suggestion" | "custom" | null;
+    },
+    textAlign: "left" | "center",
+  ) => {
+    const trimmedStyle = (ctx.imageStyle ?? "").trim() || null;
+    const deriveVisualSeed = (s: { title?: string; body?: string; subtitle?: string }) => {
+      const t = (s.title ?? "").trim();
+      const b = (s.body ?? s.subtitle ?? "").trim();
+      const seed = [t, b].filter(Boolean).join(". ").slice(0, 200);
+      return seed
+        ? `editorial lifestyle photograph evoking the mood of: ${seed}`
+        : `editorial lifestyle photograph, calm and emotionally resonant scene`;
+    };
+    const shouldGenImages = ctx.aiImages && kind === "criativo";
+    const imageJobs = shouldGenImages
+      ? variant.slides
+          .map((s: any, i: number) => {
+            const explicit = typeof s.imagePrompt === "string" ? s.imagePrompt.trim() : "";
+            const wantsPhoto =
+              s.fundo === "foto" || (s.imageFrame ?? null) !== null || explicit.length > 0;
+            if (!wantsPhoto) return null;
+            const promptText = explicit.length > 0 ? explicit : deriveVisualSeed(s);
+            return { slideIndex: i, imagePrompt: promptText, imageStyle: trimmedStyle };
+          })
+          .filter((j: any) => j !== null)
+      : [];
+    const bootstrap = {
+      slides: variant.slides,
+      fontPair: ctx.fontPair,
+      palette: ctx.palette,
+      imageMode: shouldGenImages ? ctx.imageMode : ("none" as const),
+      textAlign,
+      bgKinds: kind === "minimalista" ? ["texto"] : ["foto"],
+      signature: ctx.signature,
+      imageJobs,
+      archetype: variant.archetype,
+      imageStyle: trimmedStyle,
+      fontWeightOverride:
+        ctx.selectedSource && ctx.selectedSource !== "dna"
+          ? { title: 700, subtitle: 500, body: 300 }
+          : null,
+    };
+    return { bootstrap, imageJobs };
+  };
+
   // Caminho 2 — hidratar a partir de um studio_job (vindo do painel).
   const hydrateFromJob = async () => {
     if (!jobId) return;
@@ -387,14 +445,83 @@ function CarrosselEditorPage() {
       return;
     }
     const result = (row.result ?? {}) as {
+      phase?: "variants" | "images" | "done";
+      variants?: {
+        minimalista: { slides: any[]; archetype: string | null } | null;
+        criativo: { slides: any[]; archetype: string | null } | null;
+      };
+      ctx?: any;
+      textAlign?: "left" | "center";
       bootstrap?: { slides?: { imageDataUrl?: string | null }[] } & Record<string, unknown>;
       images?: Record<string, string>;
       imagesDone?: number;
       imagesTotal?: number;
     };
+
+    // RECUPERAÇÃO: job preso em "variants" com variantes já geradas.
+    // Acontece quando o wizard não conseguiu chamar commitVariant (refresh,
+    // crash, navegação cancelada). Aqui consolidamos a escolha automática
+    // diretamente do editor.
+    if (!result.bootstrap && result.phase === "variants" && result.variants && result.ctx) {
+      const mins = result.variants.minimalista ?? null;
+      const cre = result.variants.criativo ?? null;
+      const aiImagesOn = !!result.ctx.aiImages;
+      const prefer: "minimalista" | "criativo" = aiImagesOn ? "criativo" : "minimalista";
+      const preferred = prefer === "criativo" ? cre : mins;
+      const kind: "minimalista" | "criativo" | null = preferred
+        ? prefer
+        : cre
+          ? "criativo"
+          : mins
+            ? "minimalista"
+            : null;
+      const variant = kind ? (kind === "minimalista" ? mins : cre) : null;
+      if (kind && variant) {
+        const align = result.textAlign ?? "left";
+        const { bootstrap, imageJobs } = buildBootstrapFromVariant(
+          kind,
+          variant,
+          result.ctx,
+          align,
+        );
+        const newResult: Record<string, unknown> = {
+          ...result,
+          phase: imageJobs.length > 0 ? "images" : "done",
+          variant: kind,
+          bootstrap,
+          imageJobs,
+          images: {},
+          imagesDone: 0,
+          imagesTotal: imageJobs.length,
+        };
+        await (supabase as any)
+          .from("studio_jobs")
+          .update({
+            progress: imageJobs.length > 0 ? 35 : 100,
+            status: imageJobs.length > 0 ? "running" : "done",
+            finished_at: imageJobs.length > 0 ? null : new Date().toISOString(),
+            result: newResult,
+          })
+          .eq("id", jobId);
+        setJobWaiting(null);
+        applyBootstrap(bootstrap);
+        setJobHydration({
+          bootstrap: bootstrap as Record<string, unknown>,
+          images: {},
+          imagesDone: 0,
+          imagesTotal: imageJobs.length,
+          done: imageJobs.length === 0,
+        });
+        if (imageJobs.length > 0) {
+          setImageProgress({ current: 0, total: imageJobs.length, percent: 0 });
+          void kickCarouselJobRunner(jobId);
+        }
+        return;
+      }
+    }
+
     if (!result.bootstrap) {
-      // Ainda gerando variantes — mostra tela de andamento e segue ouvindo
-      // por realtime até o bootstrap aparecer.
+      // Ainda gerando variantes (ou estado inválido) — mostra tela de andamento.
       if (row.status === "error") {
         setJobWaiting({ status: "error", progress: row.progress ?? 0, error: row.error ?? null });
       } else {
