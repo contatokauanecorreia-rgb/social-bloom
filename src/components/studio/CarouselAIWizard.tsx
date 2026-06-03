@@ -642,12 +642,14 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
         throw new Error("A IA não conseguiu gerar nenhuma versão. Tente de novo.");
       }
 
-      // Persiste resultado no job (para reabrir depois)
+      // Persiste resultado no job mantendo status=running enquanto o usuário
+      // ainda não escolheu uma variante. O job só vira "done" quando o worker
+      // global terminar a geração de imagens da variante escolhida.
       if (jobId) {
         updateStudioJob(jobId, {
-          status: "done",
-          progress: 100,
+          progress: 30,
           result: {
+            phase: "variants",
             variants: { minimalista, criativo },
             ctx: generationCtxRef.current,
             textAlign: textAlignChoice,
