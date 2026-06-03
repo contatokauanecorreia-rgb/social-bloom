@@ -956,6 +956,61 @@ function CarrosselEditorPage() {
     );
   }
 
+  // Aguardando o bootstrap do job (variantes ainda sendo geradas no servidor).
+  if (jobWaiting) {
+    const pct = Math.min(95, Math.max(5, jobWaiting.progress));
+    return (
+      <div className="flex h-screen flex-col bg-muted/30">
+        <header className="flex items-center gap-3 border-b bg-card px-4 py-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate({ to: "/dashboard/studio" })}
+            className="gap-1.5"
+          >
+            <ArrowLeft className="h-4 w-4" /> Voltar
+          </Button>
+          <span className="text-sm font-semibold">Carrossel em geração</span>
+        </header>
+        <div className="flex flex-1 items-center justify-center px-6">
+          <div className="w-full max-w-md rounded-2xl border bg-card p-8 text-center shadow-sm">
+            {jobWaiting.status === "error" ? (
+              <>
+                <h2 className="text-lg font-semibold text-destructive">Falha ao gerar</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {jobWaiting.error ?? "A IA não conseguiu gerar o carrossel. Tente novamente."}
+                </p>
+                <Button
+                  className="mt-6"
+                  onClick={() => navigate({ to: "/dashboard/studio" })}
+                >
+                  Voltar para o Studio
+                </Button>
+              </>
+            ) : (
+              <>
+                <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
+                <h2 className="mt-4 text-lg font-semibold">Gerando o seu carrossel…</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  A IA está escrevendo os slides. Você pode aguardar aqui ou voltar — a geração
+                  continua em segundo plano e avisaremos quando ficar pronto.
+                </p>
+                <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-primary transition-all"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">{pct}%</p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+
   return (
     <div className="flex h-screen flex-col bg-muted/30 overflow-hidden">
       {/* Header */}
