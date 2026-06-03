@@ -56,6 +56,9 @@ function DashboardLayout() {
   // Subscribe to studio_jobs globally so toasts fire when jobs finish,
   // mesmo se o usuário estiver em outra página do dashboard.
   useStudioJobs(user?.id ?? null);
+  // Worker em background que termina a geração das imagens do carrossel
+  // mesmo que o usuário saia do editor.
+  useCarouselImageWorker(user?.id ?? null);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
