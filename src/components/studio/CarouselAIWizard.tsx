@@ -97,9 +97,11 @@ const CATEGORY_OPTIONS: { key: GoogleFontCategory; label: string }[] = [
   { key: "monospace", label: "Monospace" },
 ];
 
-export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }: CarouselAIWizardProps) {
+export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, initialJobId }: CarouselAIWizardProps) {
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | "loading" | "choose">(1);
+  const currentJobIdRef = useRef<string | null>(null);
+  const backgroundedRef = useRef(false);
 
   type VariantSlide = {
     title: string;
