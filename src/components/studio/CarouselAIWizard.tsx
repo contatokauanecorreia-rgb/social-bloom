@@ -744,9 +744,36 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
       console.warn("bootstrap sessionStorage failed", e);
     }
 
+    // Persiste no job para que o worker global continue a geração
+    // mesmo se o usuário sair do editor.
+    const jobId = currentJobIdRef.current;
+    if (jobId) {
+      void updateStudioJob(jobId, {
+        progress: 35,
+        result: {
+          phase: imageJobs.length > 0 ? "images" : "done",
+          variant: kind,
+          bootstrap,
+          imageJobs,
+          images: {},
+          imagesDone: 0,
+          imagesTotal: imageJobs.length,
+          ctx,
+          textAlign: textAlignChoice,
+        } as unknown as Record<string, unknown>,
+      });
+      if (imageJobs.length === 0) {
+        // Sem imagens a gerar — marca como concluído imediatamente.
+        void updateStudioJob(jobId, { status: "done", progress: 100 });
+      }
+    }
+
     loadingPersistRef.current = true;
     onOpenChange(false);
-    navigate({ to: "/dashboard/studio/carrossel" });
+    navigate({
+      to: "/dashboard/studio/carrossel",
+      search: jobId ? { jobId } : undefined,
+    } as never);
   };
 
 
