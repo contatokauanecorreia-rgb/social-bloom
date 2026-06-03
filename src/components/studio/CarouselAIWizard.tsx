@@ -818,6 +818,9 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
       }
     }
 
+    // Se o wizard foi mandado pro background, não puxa o usuário pro editor.
+    if (backgroundedRef.current) return;
+
     loadingPersistRef.current = true;
     onOpenChange(false);
     navigate({
