@@ -470,8 +470,7 @@ function CarrosselEditorPage() {
     };
   }, [jobId]);
 
-    }
-  }, []);
+
 
   // Consume saved template from sessionStorage (when user came from "Templates salvos" card)
   const templateAppliedRef = useRef(false);
