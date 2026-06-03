@@ -374,6 +374,20 @@ export function VideoWorkflowCanvas() {
     setGeneratedVideoUrl(null);
     setGenerationError(null);
 
+    const jobTitle = (state.scenePrompt?.trim() || "Vídeo IA").slice(0, 80);
+    const jobId = await createStudioJob({
+      kind: "video",
+      clientId: null,
+      title: jobTitle,
+      input: {
+        model: state.model,
+        lut: state.lut,
+        sceneMode: state.sceneMode,
+      } as Record<string, unknown>,
+    });
+    currentJobIdRef.current = jobId;
+
+
     try {
       // If scene mode is image, upload the image to storage first.
       let sceneImagePath: string | null = null;
