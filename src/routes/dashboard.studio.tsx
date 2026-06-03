@@ -139,8 +139,18 @@ function StudioPage() {
         recent={recent}
         onOpen={(job: StudioJob) => {
           if (job.kind === "carrossel") {
-            setCarouselJobId(job.id);
-            setCarouselOpen(true);
+            const phase = (job.result as { phase?: string } | null)?.phase;
+            if (phase === "images" || phase === "done") {
+              // Job já passou da escolha de versão — abre direto no editor.
+              navigate({
+                to: "/dashboard/studio/carrossel",
+                search: { jobId: job.id },
+              } as never);
+            } else {
+              // Variantes prontas, ainda sem escolha — reabre o wizard.
+              setCarouselJobId(job.id);
+              setCarouselOpen(true);
+            }
           } else {
             const url = (job.result as { videoUrl?: string } | null)?.videoUrl;
             if (url) {
