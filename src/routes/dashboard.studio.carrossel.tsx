@@ -162,6 +162,7 @@ const makeSlide = (template?: Slide, paletteColor?: string): Slide => ({
 
 function CarrosselEditorPage() {
   const navigate = useNavigate();
+  const { jobId } = Route.useSearch();
   const [userId, setUserId] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
   const [clientName, setClientName] = useState<string>("");
@@ -170,6 +171,21 @@ function CarrosselEditorPage() {
     brandFont: null,
     brandFontUrl: null,
   });
+  // Hidratação a partir do studio_job (quando o usuário abre via painel).
+  // - null = ainda carregando (não monta os slides padrão).
+  // - "skip" = sem jobId, usa fluxo normal (sessionStorage / template).
+  // - objeto = job carregado, vai injetar como bootstrap.
+  const [jobHydration, setJobHydration] = useState<
+    | null
+    | "skip"
+    | {
+        bootstrap: Record<string, unknown>;
+        images: Record<string, string>;
+        imagesDone: number;
+        imagesTotal: number;
+        done: boolean;
+      }
+  >(jobId ? null : "skip");
 
   const [format, setFormat] = useState<Format>(FORMATS[0]);
 
