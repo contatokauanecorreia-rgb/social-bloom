@@ -745,7 +745,16 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (step === "loading") return;
+        if (!o && step === "loading") {
+          // Permite fechar enquanto gera: roda em segundo plano e avisa quando pronto.
+          backgroundedRef.current = true;
+          loadingPersistRef.current = true;
+          toast.message("Geração em andamento", {
+            description: "Você pode continuar trabalhando — avisaremos quando ficar pronto.",
+          });
+          onOpenChange(false);
+          return;
+        }
         onOpenChange(o);
       }}
     >
