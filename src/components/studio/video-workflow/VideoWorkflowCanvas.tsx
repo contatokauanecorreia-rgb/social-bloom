@@ -133,6 +133,19 @@ export function VideoWorkflowCanvas() {
   const [videoAspect, setVideoAspect] = useState<number | null>(null);
   const generationPollRef = useRef<number | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const currentJobIdRef = useRef<string | null>(null);
+
+  // Avisa quando o usuário sai da página com geração em andamento
+  useEffect(() => {
+    return () => {
+      if (currentJobIdRef.current && generating) {
+        toast.message("Geração em andamento", {
+          description: "Você pode continuar trabalhando — avisaremos quando ficar pronto.",
+        });
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   // Load saved layout
