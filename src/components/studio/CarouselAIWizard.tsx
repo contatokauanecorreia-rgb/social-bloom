@@ -254,7 +254,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
     }
   }, [open, initialTopic]);
 
-  // Hydrate from an existing job (reopening a finished/in-progress carousel)
+  // Hydrate from an existing job (reopening an in-progress carousel)
   useEffect(() => {
     if (!open || !initialJobId) return;
     let cancelled = false;
@@ -262,11 +262,22 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
       if (cancelled || !job) return;
       currentJobIdRef.current = job.id;
       const result = job.result as {
+        phase?: "variants" | "images" | "done";
         variants?: { minimalista: VariantData; criativo: VariantData };
         ctx?: typeof generationCtxRef.current;
         textAlign?: TextAlignChoice;
       } | null;
-      if (job.status === "done" && result?.variants) {
+      const phase = result?.phase;
+
+      // O wizard só lida com a fase de variantes. Para images/done o
+      // dashboard navega direto pro editor — aqui só ignoramos.
+      if (phase === "images" || phase === "done") {
+        onOpenChange(false);
+        return;
+      }
+
+      if (job.status === "running" && result?.variants && (phase === "variants" || phase == null)) {
+        // Variantes prontas, aguardando o usuário escolher.
         if (result.ctx) generationCtxRef.current = result.ctx;
         if (result.textAlign) setTextAlignChoice(result.textAlign);
         setVariants(result.variants);
@@ -283,7 +294,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
     return () => {
       cancelled = true;
     };
-  }, [open, initialJobId]);
+  }, [open, initialJobId, onOpenChange]);
 
 
   // Carregar DNA + nome do cliente quando entra no passo 2
