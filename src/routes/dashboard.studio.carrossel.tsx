@@ -470,6 +470,24 @@ function CarrosselEditorPage() {
     };
   }, [jobId]);
 
+  // Quando o usuário sai do editor com a geração ainda rolando, avisa que
+  // continua em background.
+  const imageProgressRef = useRef<typeof imageProgress>(null);
+  useEffect(() => {
+    imageProgressRef.current = imageProgress;
+  }, [imageProgress]);
+  useEffect(() => {
+    return () => {
+      if (jobId && imageProgressRef.current && imageProgressRef.current.percent < 100) {
+        toast.message("Geração em andamento", {
+          description: "Continuamos gerando as imagens em segundo plano — avisaremos quando ficar pronto.",
+        });
+      }
+    };
+  }, [jobId]);
+
+
+
 
 
   // Consume saved template from sessionStorage (when user came from "Templates salvos" card)
