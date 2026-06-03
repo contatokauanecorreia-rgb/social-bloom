@@ -375,58 +375,68 @@ function CarrosselEditorPage() {
   }, [jobHydration]);
 
   // Caminho 2 — hidratar a partir de um studio_job (vindo do painel).
+  const hydrateFromJob = async () => {
+    if (!jobId) return;
+    const { data: row } = await (supabase as any)
+      .from("studio_jobs")
+      .select("id, status, progress, error, result")
+      .eq("id", jobId)
+      .maybeSingle();
+    if (!row) {
+      setJobHydration("skip");
+      return;
+    }
+    const result = (row.result ?? {}) as {
+      bootstrap?: { slides?: { imageDataUrl?: string | null }[] } & Record<string, unknown>;
+      images?: Record<string, string>;
+      imagesDone?: number;
+      imagesTotal?: number;
+    };
+    if (!result.bootstrap) {
+      // Ainda gerando variantes — mostra tela de andamento e segue ouvindo
+      // por realtime até o bootstrap aparecer.
+      if (row.status === "error") {
+        setJobWaiting({ status: "error", progress: row.progress ?? 0, error: row.error ?? null });
+      } else {
+        setJobWaiting({
+          status: "running",
+          progress: Math.max(10, Number(row.progress ?? 10)),
+          error: null,
+        });
+      }
+      return;
+    }
+    setJobWaiting(null);
+    // Mescla as imagens já geradas (result.images) nos slides.
+    const images = result.images ?? {};
+    const slidesWithImages = (result.bootstrap.slides ?? []).map((s, i) => ({
+      ...s,
+      imageDataUrl: images[String(i)] ?? s.imageDataUrl ?? null,
+    }));
+    const merged = { ...result.bootstrap, slides: slidesWithImages };
+    applyBootstrap(merged);
+    const total = result.imagesTotal ?? 0;
+    const done = result.imagesDone ?? Object.keys(images).length;
+    setJobHydration({
+      bootstrap: merged as Record<string, unknown>,
+      images: { ...images },
+      imagesDone: done,
+      imagesTotal: total,
+      done: row.status === "done" || total === 0 || done >= total,
+    });
+    if (total > 0 && done < total) {
+      setImageProgress({ current: done, total, percent: Math.round((done / total) * 100) });
+      // Retoma o processamento server-side caso tenha sido interrompido
+      // (refresh, queda de conexão, etc.). Idempotente.
+      if (row.status === "running") {
+        void kickCarouselJobRunner(jobId);
+      }
+    }
+  };
+
   useEffect(() => {
     if (!jobId) return;
-    let cancelled = false;
-    (async () => {
-      const { data: row } = await (supabase as any)
-        .from("studio_jobs")
-        .select("id, status, result")
-        .eq("id", jobId)
-        .maybeSingle();
-      if (cancelled || !row) {
-        setJobHydration("skip");
-        return;
-      }
-      const result = (row.result ?? {}) as {
-        bootstrap?: { slides?: { imageDataUrl?: string | null }[] } & Record<string, unknown>;
-        images?: Record<string, string>;
-        imagesDone?: number;
-        imagesTotal?: number;
-      };
-      if (!result.bootstrap) {
-        setJobHydration("skip");
-        return;
-      }
-      // Mescla as imagens já geradas (result.images) nos slides.
-      const images = result.images ?? {};
-      const slidesWithImages = (result.bootstrap.slides ?? []).map((s, i) => ({
-        ...s,
-        imageDataUrl: images[String(i)] ?? s.imageDataUrl ?? null,
-      }));
-      const merged = { ...result.bootstrap, slides: slidesWithImages };
-      applyBootstrap(merged);
-      const total = result.imagesTotal ?? 0;
-      const done = result.imagesDone ?? Object.keys(images).length;
-      setJobHydration({
-        bootstrap: merged as Record<string, unknown>,
-        images: { ...images },
-        imagesDone: done,
-        imagesTotal: total,
-        done: row.status === "done" || total === 0 || done >= total,
-      });
-      if (total > 0 && done < total) {
-        setImageProgress({ current: done, total, percent: Math.round((done / total) * 100) });
-        // Retoma o processamento server-side caso tenha sido interrompido
-        // (refresh, queda de conexão, etc.). Idempotente.
-        if (row.status === "running") {
-          void kickCarouselJobRunner(jobId);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    void hydrateFromJob();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
