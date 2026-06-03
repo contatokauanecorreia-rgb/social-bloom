@@ -43,12 +43,14 @@ import {
   type GoogleFontItem,
 } from "@/lib/google-fonts";
 import { cn } from "@/lib/utils";
+import { createStudioJob, fetchStudioJob, updateStudioJob } from "@/lib/studio-jobs";
 
 export type CarouselAIWizardProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clientId: string | null;
   initialTopic?: string;
+  initialJobId?: string | null;
 };
 
 type ImageMode = "none" | "bg" | "grid" | "mixed";
