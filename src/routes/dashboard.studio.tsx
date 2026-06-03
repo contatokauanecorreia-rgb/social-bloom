@@ -10,7 +10,9 @@ import { CreditsBadge } from "@/components/studio/CreditsBadge";
 import { CreditsExhaustedBanner } from "@/components/studio/CreditsExhaustedBanner";
 import { ModeCard } from "@/components/studio/ModeCard";
 import { CarouselAIWizard } from "@/components/studio/CarouselAIWizard";
+import { StudioJobsPanel } from "@/components/studio/StudioJobsPanel";
 import { fetchCredits, MODE_COST, type CreditsState } from "@/lib/credits";
+import { useStudioJobs, type StudioJob } from "@/lib/studio-jobs";
 import { ACTIVE_CLIENT_STORAGE_KEY } from "@/lib/client-context";
 
 export const Route = createFileRoute("/dashboard/studio")({
@@ -27,6 +29,8 @@ function StudioPage() {
   const [clientId, setClientId] = useState<string | null>(null);
   const [credits, setCredits] = useState<CreditsState | null>(null);
   const [carouselOpen, setCarouselOpen] = useState(false);
+  const [carouselJobId, setCarouselJobId] = useState<string | null>(null);
+  const { running, recent } = useStudioJobs(userId);
 
   useEffect(() => {
     let active = true;
@@ -130,6 +134,25 @@ function StudioPage() {
         <ClientPicker value={clientId} onChange={handleClientChange} clients={clients} />
       </div>
 
+      <StudioJobsPanel
+        running={running}
+        recent={recent}
+        onOpen={(job: StudioJob) => {
+          if (job.kind === "carrossel") {
+            setCarouselJobId(job.id);
+            setCarouselOpen(true);
+          } else {
+            const url = (job.result as { videoUrl?: string } | null)?.videoUrl;
+            if (url) {
+              window.open(url, "_blank", "noopener,noreferrer");
+            } else {
+              navigate({ to: "/dashboard/studio/video-workflow" });
+            }
+          }
+        }}
+      />
+
+
       <div className="grid gap-4 sm:grid-cols-2">
         <ModeCard
           icon={Layers}
@@ -142,6 +165,7 @@ function StudioPage() {
               toast.error("Selecione um cliente antes de criar um carrossel.");
               return;
             }
+            setCarouselJobId(null);
             setCarouselOpen(true);
           }}
         />
@@ -157,8 +181,12 @@ function StudioPage() {
 
       <CarouselAIWizard
         open={carouselOpen}
-        onOpenChange={setCarouselOpen}
+        onOpenChange={(o) => {
+          setCarouselOpen(o);
+          if (!o) setCarouselJobId(null);
+        }}
         clientId={clientId}
+        initialJobId={carouselJobId}
       />
     </PageContainer>
   );

@@ -7,6 +7,7 @@ import { Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { NotificationsBell } from "@/components/dashboard/NotificationsBell";
+import { useStudioJobs } from "@/lib/studio-jobs";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
@@ -50,6 +51,10 @@ function DashboardLayout() {
       sub.subscription.unsubscribe();
     };
   }, [navigate]);
+
+  // Subscribe to studio_jobs globally so toasts fire when jobs finish,
+  // mesmo se o usuário estiver em outra página do dashboard.
+  useStudioJobs(user?.id ?? null);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

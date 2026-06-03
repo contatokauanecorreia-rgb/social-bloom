@@ -43,12 +43,14 @@ import {
   type GoogleFontItem,
 } from "@/lib/google-fonts";
 import { cn } from "@/lib/utils";
+import { createStudioJob, fetchStudioJob, updateStudioJob } from "@/lib/studio-jobs";
 
 export type CarouselAIWizardProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   clientId: string | null;
   initialTopic?: string;
+  initialJobId?: string | null;
 };
 
 type ImageMode = "none" | "bg" | "grid" | "mixed";
@@ -95,9 +97,11 @@ const CATEGORY_OPTIONS: { key: GoogleFontCategory; label: string }[] = [
   { key: "monospace", label: "Monospace" },
 ];
 
-export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }: CarouselAIWizardProps) {
+export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, initialJobId }: CarouselAIWizardProps) {
   const navigate = useNavigate();
   const [step, setStep] = useState<1 | 2 | "loading" | "choose">(1);
+  const currentJobIdRef = useRef<string | null>(null);
+  const backgroundedRef = useRef(false);
 
   type VariantSlide = {
     title: string;
@@ -249,6 +253,38 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
       setStep(1);
     }
   }, [open, initialTopic]);
+
+  // Hydrate from an existing job (reopening a finished/in-progress carousel)
+  useEffect(() => {
+    if (!open || !initialJobId) return;
+    let cancelled = false;
+    fetchStudioJob(initialJobId).then((job) => {
+      if (cancelled || !job) return;
+      currentJobIdRef.current = job.id;
+      const result = job.result as {
+        variants?: { minimalista: VariantData; criativo: VariantData };
+        ctx?: typeof generationCtxRef.current;
+        textAlign?: TextAlignChoice;
+      } | null;
+      if (job.status === "done" && result?.variants) {
+        if (result.ctx) generationCtxRef.current = result.ctx;
+        if (result.textAlign) setTextAlignChoice(result.textAlign);
+        setVariants(result.variants);
+        setStep("choose");
+        setProgress(100);
+      } else if (job.status === "running") {
+        setStep("loading");
+        setProgress(Math.max(10, job.progress));
+      } else if (job.status === "error") {
+        toast.error(job.error ?? "Erro na geração.");
+        setStep(2);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, initialJobId]);
+
 
   // Carregar DNA + nome do cliente quando entra no passo 2
   useEffect(() => {
@@ -508,57 +544,65 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
     }
     setStep("loading");
     startProgress();
+    backgroundedRef.current = false;
+
+    // Monta o "topic" enviado ao backend conforme a fonte de conteúdo
+    let effectiveTopic = topic.trim();
+    let plannerSource: { posts: { title: string; tags: string[]; notes: string | null }[] } | null = null;
+    if (contentSource === "planner") {
+      const picked = plannerPosts.filter((p) => selectedPostIds.includes(p.id));
+      plannerSource = {
+        posts: picked.map((p) => ({ title: p.title, tags: p.tags, notes: p.notes })),
+      };
+      effectiveTopic = picked.map((p) => p.title).join(" / ") || "Conteúdo do Planner";
+    }
+
+    const commonBody = {
+      clientId,
+      topic: effectiveTopic,
+      slideCount,
+      imageMode: "none" as ImageMode,
+      aiImages: false,
+      fontPair: fontPairForOutput,
+      palette,
+      instagram: instagram.trim() || null,
+      textOnly: true,
+      referenceImageDataUrl: referenceImageDataUrl ?? null,
+      plannerSource,
+      designPrinciples: null,
+      textAlign: textAlignChoice,
+    };
+
+    generationCtxRef.current = {
+      aiImages,
+      imageMode,
+      imageStyle,
+      palette,
+      fontPair: fontPairForOutput,
+      signature:
+        signatureEnabled && instagram.trim()
+          ? {
+              enabled: true,
+              handle: instagram.trim().startsWith("@") ? instagram.trim() : `@${instagram.trim()}`,
+              position: signaturePos,
+              color: palette[0],
+            }
+          : null,
+      selectedSource: selected?.source ?? null,
+    };
+
+    // Cria job no banco para rastrear em background
+    const jobTitle = (effectiveTopic || "Carrossel").slice(0, 80);
+    const jobId = await createStudioJob({
+      kind: "carrossel",
+      clientId,
+      title: jobTitle,
+      input: {} as Record<string, unknown>,
+    });
+    currentJobIdRef.current = jobId;
+    if (jobId) updateStudioJob(jobId, { progress: 20 });
+
     try {
-      // Monta o "topic" enviado ao backend conforme a fonte de conteúdo
-      let effectiveTopic = topic.trim();
-      let plannerSource: { posts: { title: string; tags: string[]; notes: string | null }[] } | null = null;
-      if (contentSource === "planner") {
-        const picked = plannerPosts.filter((p) => selectedPostIds.includes(p.id));
-        plannerSource = {
-          posts: picked.map((p) => ({ title: p.title, tags: p.tags, notes: p.notes })),
-        };
-        effectiveTopic = picked.map((p) => p.title).join(" / ") || "Conteúdo do Planner";
-      }
-
-      const commonBody = {
-        clientId,
-        topic: effectiveTopic,
-        slideCount,
-        // Sempre desligamos imagens nessa etapa — vamos gerar 2 variantes só de
-        // copy/layout. As imagens da escolhida são geradas no editor depois.
-        imageMode: "none" as ImageMode,
-        aiImages: false,
-        fontPair: fontPairForOutput,
-        palette,
-        instagram: instagram.trim() || null,
-        textOnly: true,
-        referenceImageDataUrl: referenceImageDataUrl ?? null,
-        plannerSource,
-        designPrinciples: null,
-        textAlign: textAlignChoice,
-      };
-
-      // Captura snapshot do contexto da geração para usar ao montar bootstrap
-      // depois que o usuário escolher uma das versões.
-      generationCtxRef.current = {
-        aiImages,
-        imageMode,
-        imageStyle,
-        palette,
-        fontPair: fontPairForOutput,
-        signature:
-          signatureEnabled && instagram.trim()
-            ? {
-                enabled: true,
-                handle: instagram.trim().startsWith("@") ? instagram.trim() : `@${instagram.trim()}`,
-                position: signaturePos,
-                color: palette[0],
-              }
-            : null,
-        selectedSource: selected?.source ?? null,
-      };
-
-      // Duas chamadas em paralelo: minimalista (texto) + criativo (foto).
       const [minRes, creRes] = await Promise.all([
         supabase.functions.invoke("carrossel-generate", {
           body: { ...commonBody, bgKinds: ["texto"] },
@@ -569,7 +613,6 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
       ]);
 
       stopProgress();
-      setProgress(100);
 
       const parseVariant = (res: typeof minRes): VariantData => {
         if (res.error) {
@@ -587,23 +630,46 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
       if (!minimalista && !criativo) {
         throw new Error("A IA não conseguiu gerar nenhuma versão. Tente de novo.");
       }
+
+      // Persiste resultado no job (para reabrir depois)
+      if (jobId) {
+        updateStudioJob(jobId, {
+          status: "done",
+          progress: 100,
+          result: {
+            variants: { minimalista, criativo },
+            ctx: generationCtxRef.current,
+            textAlign: textAlignChoice,
+          } as unknown as Record<string, unknown>,
+        });
+      }
+
+      // Se o modal foi fechado, não atualizamos o state local; o toast global
+      // do useStudioJobs avisa o usuário e ele pode reabrir pelo painel.
+      if (backgroundedRef.current) {
+        return;
+      }
+
+      setProgress(100);
       if (!minimalista || !criativo) {
         toast.message(
           "Uma das versões falhou. Você ainda pode escolher a versão gerada ou tentar de novo.",
         );
       }
-
       setVariants({ minimalista, criativo });
       setStep("choose");
     } catch (err) {
       console.error(err);
       stopProgress();
       const msg = err instanceof Error ? err.message : "Erro ao gerar carrossel.";
+      if (jobId) updateStudioJob(jobId, { status: "error", error: msg });
+      if (backgroundedRef.current) return;
       toast.error(msg);
       setStep(2);
       setProgress(0);
     }
   };
+
 
   const pickVariant = (kind: "minimalista" | "criativo") => {
     const variant = variants[kind];
@@ -679,7 +745,16 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic }:
     <Dialog
       open={open}
       onOpenChange={(o) => {
-        if (step === "loading") return;
+        if (!o && step === "loading") {
+          // Permite fechar enquanto gera: roda em segundo plano e avisa quando pronto.
+          backgroundedRef.current = true;
+          loadingPersistRef.current = true;
+          toast.message("Geração em andamento", {
+            description: "Você pode continuar trabalhando — avisaremos quando ficar pronto.",
+          });
+          onOpenChange(false);
+          return;
+        }
         onOpenChange(o);
       }}
     >

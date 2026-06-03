@@ -34,6 +34,7 @@ import {
 } from "@/lib/assemblyai.functions";
 import { startLumaGeneration, getLumaStatus } from "@/lib/luma.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { createStudioJob, updateStudioJob } from "@/lib/studio-jobs";
 
 
 
@@ -132,6 +133,19 @@ export function VideoWorkflowCanvas() {
   const [videoAspect, setVideoAspect] = useState<number | null>(null);
   const generationPollRef = useRef<number | null>(null);
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const currentJobIdRef = useRef<string | null>(null);
+
+  // Avisa quando o usuário sai da página com geração em andamento
+  useEffect(() => {
+    return () => {
+      if (currentJobIdRef.current && generating) {
+        toast.message("Geração em andamento", {
+          description: "Você pode continuar trabalhando — avisaremos quando ficar pronto.",
+        });
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
 
   // Load saved layout
@@ -360,6 +374,20 @@ export function VideoWorkflowCanvas() {
     setGeneratedVideoUrl(null);
     setGenerationError(null);
 
+    const jobTitle = (state.scenePrompt?.trim() || "Vídeo IA").slice(0, 80);
+    const jobId = await createStudioJob({
+      kind: "video",
+      clientId: null,
+      title: jobTitle,
+      input: {
+        model: state.model,
+        lut: state.lut,
+        sceneMode: state.sceneMode,
+      } as Record<string, unknown>,
+    });
+    currentJobIdRef.current = jobId;
+
+
     try {
       // If scene mode is image, upload the image to storage first.
       let sceneImagePath: string | null = null;
@@ -403,6 +431,7 @@ export function VideoWorkflowCanvas() {
         try {
           const s = await getLumaStatusFn({ data: { requestId, statusUrl, responseUrl } });
           setProgress(s.progress);
+          if (jobId) updateStudioJob(jobId, { progress: s.progress });
           if (s.status === "IN_QUEUE") setStageLabel("Na fila…");
           else if (s.status === "IN_PROGRESS") setStageLabel("Processando vídeo…");
           if (s.status === "COMPLETED" && s.videoUrl) {
@@ -412,6 +441,13 @@ export function VideoWorkflowCanvas() {
             setProgress(100);
             setDone(true);
             setGenerating(false);
+            if (jobId)
+              updateStudioJob(jobId, {
+                status: "done",
+                progress: 100,
+                result: { videoUrl: s.videoUrl } as Record<string, unknown>,
+              });
+            currentJobIdRef.current = null;
             toast.success("Vídeo gerado com sucesso.");
             return;
           }
@@ -422,6 +458,8 @@ export function VideoWorkflowCanvas() {
           setGenerationError(msg);
           setStageLabel("Falhou");
           setGenerating(false);
+          if (jobId) updateStudioJob(jobId, { status: "error", error: msg });
+          currentJobIdRef.current = null;
           toast.error(msg);
         }
       };
@@ -433,6 +471,8 @@ export function VideoWorkflowCanvas() {
       setGenerationError(msg);
       setStageLabel("Falhou");
       setGenerating(false);
+      if (jobId) updateStudioJob(jobId, { status: "error", error: msg });
+      currentJobIdRef.current = null;
       toast.error(msg);
     }
   }, [
@@ -444,6 +484,7 @@ export function VideoWorkflowCanvas() {
     getLumaStatusFn,
     stopGenerationPolling,
   ]);
+
 
 
 
