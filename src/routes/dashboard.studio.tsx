@@ -134,6 +134,19 @@ function StudioPage() {
         <ClientPicker value={clientId} onChange={handleClientChange} clients={clients} />
       </div>
 
+      <StudioJobsPanel
+        running={running}
+        recent={recent}
+        onOpen={(job: StudioJob) => {
+          if (job.kind === "carrossel") {
+            setCarouselJobId(job.id);
+            setCarouselOpen(true);
+          } else {
+            navigate({ to: "/dashboard/studio/video-workflow", search: { jobId: job.id } as any });
+          }
+        }}
+      />
+
       <div className="grid gap-4 sm:grid-cols-2">
         <ModeCard
           icon={Layers}
@@ -146,6 +159,7 @@ function StudioPage() {
               toast.error("Selecione um cliente antes de criar um carrossel.");
               return;
             }
+            setCarouselJobId(null);
             setCarouselOpen(true);
           }}
         />
@@ -161,8 +175,12 @@ function StudioPage() {
 
       <CarouselAIWizard
         open={carouselOpen}
-        onOpenChange={setCarouselOpen}
+        onOpenChange={(o) => {
+          setCarouselOpen(o);
+          if (!o) setCarouselJobId(null);
+        }}
         clientId={clientId}
+        initialJobId={carouselJobId}
       />
     </PageContainer>
   );
