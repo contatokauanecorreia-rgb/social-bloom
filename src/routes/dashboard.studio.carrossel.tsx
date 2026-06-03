@@ -411,6 +411,11 @@ function CarrosselEditorPage() {
       });
       if (total > 0 && done < total) {
         setImageProgress({ current: done, total, percent: Math.round((done / total) * 100) });
+        // Retoma o processamento server-side caso tenha sido interrompido
+        // (refresh, queda de conexão, etc.). Idempotente.
+        if (row.status === "running") {
+          void kickCarouselJobRunner(jobId);
+        }
       }
     })();
     return () => {
