@@ -661,17 +661,31 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
       // Se o modal foi fechado, não atualizamos o state local; o toast global
       // do useStudioJobs avisa o usuário e ele pode reabrir pelo painel.
       if (backgroundedRef.current) {
+        // Mesmo em background, escolhemos a variante automaticamente para
+        // que o runner de imagens dispare e o job conclua sozinho.
+        const kind = pickAutoKind(minimalista, criativo, aiImages);
+        if (kind) {
+          const v = kind === "minimalista" ? minimalista : criativo;
+          if (v) commitVariant(kind, v);
+        }
         return;
       }
 
       setProgress(100);
       if (!minimalista || !criativo) {
         toast.message(
-          "Uma das versões falhou. Você ainda pode escolher a versão gerada ou tentar de novo.",
+          "Uma das versões falhou. Seguindo com a que ficou pronta.",
         );
       }
+      // Escolha automática — sem etapa manual de "escolher a versão".
+      const kind = pickAutoKind(minimalista, criativo, aiImages);
+      if (!kind) {
+        throw new Error("Nenhuma variante válida foi gerada.");
+      }
+      const chosen = kind === "minimalista" ? minimalista : criativo;
+      if (!chosen) throw new Error("Variante escolhida está vazia.");
       setVariants({ minimalista, criativo });
-      setStep("choose");
+      commitVariant(kind, chosen);
     } catch (err) {
       console.error(err);
       stopProgress();
