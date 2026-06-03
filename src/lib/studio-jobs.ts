@@ -95,7 +95,7 @@ export function useStudioJobs(userId: string | null) {
     const prevStatusById = new Map<string, StudioJobStatus>();
 
     const load = async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("studio_jobs")
         .select("*")
         .order("updated_at", { ascending: false })
