@@ -431,6 +431,7 @@ export function VideoWorkflowCanvas() {
         try {
           const s = await getLumaStatusFn({ data: { requestId, statusUrl, responseUrl } });
           setProgress(s.progress);
+          if (jobId) updateStudioJob(jobId, { progress: s.progress });
           if (s.status === "IN_QUEUE") setStageLabel("Na fila…");
           else if (s.status === "IN_PROGRESS") setStageLabel("Processando vídeo…");
           if (s.status === "COMPLETED" && s.videoUrl) {
@@ -440,6 +441,13 @@ export function VideoWorkflowCanvas() {
             setProgress(100);
             setDone(true);
             setGenerating(false);
+            if (jobId)
+              updateStudioJob(jobId, {
+                status: "done",
+                progress: 100,
+                result: { videoUrl: s.videoUrl } as Record<string, unknown>,
+              });
+            currentJobIdRef.current = null;
             toast.success("Vídeo gerado com sucesso.");
             return;
           }
@@ -450,6 +458,8 @@ export function VideoWorkflowCanvas() {
           setGenerationError(msg);
           setStageLabel("Falhou");
           setGenerating(false);
+          if (jobId) updateStudioJob(jobId, { status: "error", error: msg });
+          currentJobIdRef.current = null;
           toast.error(msg);
         }
       };
@@ -461,6 +471,8 @@ export function VideoWorkflowCanvas() {
       setGenerationError(msg);
       setStageLabel("Falhou");
       setGenerating(false);
+      if (jobId) updateStudioJob(jobId, { status: "error", error: msg });
+      currentJobIdRef.current = null;
       toast.error(msg);
     }
   }, [
@@ -472,6 +484,7 @@ export function VideoWorkflowCanvas() {
     getLumaStatusFn,
     stopGenerationPolling,
   ]);
+
 
 
 
