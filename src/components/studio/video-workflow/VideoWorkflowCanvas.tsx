@@ -34,6 +34,8 @@ import {
 } from "@/lib/assemblyai.functions";
 import { startLumaGeneration, getLumaStatus } from "@/lib/luma.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { createStudioJob, updateStudioJob } from "@/lib/studio-jobs";
+import { toast as sonner } from "sonner";
 
 
 
