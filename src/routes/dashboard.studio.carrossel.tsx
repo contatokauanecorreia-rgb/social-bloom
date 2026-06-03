@@ -62,6 +62,9 @@ import { markPlannerHasDraft } from "@/lib/planner-notification";
 
 export const Route = createFileRoute("/dashboard/studio/carrossel")({
   head: () => ({ meta: [{ title: "Editor de carrossel — Postly" }] }),
+  validateSearch: (search: Record<string, unknown>) => ({
+    jobId: typeof search.jobId === "string" ? search.jobId : undefined,
+  }),
   component: CarrosselEditorPage,
 });
 
