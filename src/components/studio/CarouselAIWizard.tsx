@@ -278,12 +278,22 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
       }
 
       if (job.status === "running" && result?.variants && (phase === "variants" || phase == null)) {
-        // Variantes prontas, aguardando o usuário escolher.
-        if (result.ctx) generationCtxRef.current = result.ctx;
-        if (result.textAlign) setTextAlignChoice(result.textAlign);
-        setVariants(result.variants);
-        setStep("choose");
-        setProgress(100);
+        // Variantes prontas — escolhe automaticamente e segue pro editor.
+        const ctx = result.ctx ?? generationCtxRef.current;
+        const align = result.textAlign ?? "left";
+        if (ctx) generationCtxRef.current = ctx;
+        const mins = result.variants.minimalista ?? null;
+        const cre = result.variants.criativo ?? null;
+        const kind = pickAutoKind(mins, cre, !!ctx?.aiImages);
+        if (kind && ctx) {
+          const v = kind === "minimalista" ? mins : cre;
+          if (v) {
+            commitVariant(kind, v, ctx, align);
+            return;
+          }
+        }
+        // Sem ctx ou sem variante válida — fecha o wizard (o job ficará no painel).
+        onOpenChange(false);
       } else if (job.status === "running") {
         setStep("loading");
         setProgress(Math.max(10, job.progress));
@@ -661,17 +671,31 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
       // Se o modal foi fechado, não atualizamos o state local; o toast global
       // do useStudioJobs avisa o usuário e ele pode reabrir pelo painel.
       if (backgroundedRef.current) {
+        // Mesmo em background, escolhemos a variante automaticamente para
+        // que o runner de imagens dispare e o job conclua sozinho.
+        const kind = pickAutoKind(minimalista, criativo, aiImages);
+        if (kind) {
+          const v = kind === "minimalista" ? minimalista : criativo;
+          if (v) commitVariant(kind, v);
+        }
         return;
       }
 
       setProgress(100);
       if (!minimalista || !criativo) {
         toast.message(
-          "Uma das versões falhou. Você ainda pode escolher a versão gerada ou tentar de novo.",
+          "Uma das versões falhou. Seguindo com a que ficou pronta.",
         );
       }
+      // Escolha automática — sem etapa manual de "escolher a versão".
+      const kind = pickAutoKind(minimalista, criativo, aiImages);
+      if (!kind) {
+        throw new Error("Nenhuma variante válida foi gerada.");
+      }
+      const chosen = kind === "minimalista" ? minimalista : criativo;
+      if (!chosen) throw new Error("Variante escolhida está vazia.");
       setVariants({ minimalista, criativo });
-      setStep("choose");
+      commitVariant(kind, chosen);
     } catch (err) {
       console.error(err);
       stopProgress();
@@ -685,10 +709,31 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
   };
 
 
-  const pickVariant = (kind: "minimalista" | "criativo") => {
-    const variant = variants[kind];
-    const ctx = generationCtxRef.current;
-    if (!variant || !ctx) return;
+  // Escolhe automaticamente qual variante usar com base na intenção do
+  // usuário (aiImages ligado → criativo; senão minimalista). Faz fallback
+  // para a outra se a preferida tiver falhado.
+  const pickAutoKind = (
+    mins: VariantData,
+    cre: VariantData,
+    aiImagesOn: boolean,
+  ): "minimalista" | "criativo" | null => {
+    const prefer: "minimalista" | "criativo" = aiImagesOn ? "criativo" : "minimalista";
+    const preferred = prefer === "criativo" ? cre : mins;
+    if (preferred) return prefer;
+    if (cre) return "criativo";
+    if (mins) return "minimalista";
+    return null;
+  };
+
+  const commitVariant = (
+    kind: "minimalista" | "criativo",
+    variant: NonNullable<VariantData>,
+    ctxOverride?: NonNullable<typeof generationCtxRef.current>,
+    textAlignOverride?: TextAlignChoice,
+  ) => {
+    const ctx = ctxOverride ?? generationCtxRef.current;
+    if (!ctx) return;
+    const align = textAlignOverride ?? textAlignChoice;
 
     const trimmedStyle = ctx.imageStyle.trim() || null;
     const deriveVisualSeed = (s: { title?: string; body?: string; subtitle?: string }) => {
@@ -727,7 +772,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
       fontPair: ctx.fontPair,
       palette: ctx.palette,
       imageMode: shouldGenImages ? ctx.imageMode : ("none" as ImageMode),
-      textAlign: textAlignChoice,
+      textAlign: align,
       bgKinds: kind === "minimalista" ? ["texto"] : ["foto"],
       signature: ctx.signature,
       imageJobs,
@@ -760,7 +805,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
           imagesDone: 0,
           imagesTotal: imageJobs.length,
           ctx,
-          textAlign: textAlignChoice,
+          textAlign: align,
         } as unknown as Record<string, unknown>,
       });
       if (imageJobs.length === 0) {
@@ -773,12 +818,21 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
       }
     }
 
+    // Se o wizard foi mandado pro background, não puxa o usuário pro editor.
+    if (backgroundedRef.current) return;
+
     loadingPersistRef.current = true;
     onOpenChange(false);
     navigate({
       to: "/dashboard/studio/carrossel",
       search: jobId ? { jobId } : undefined,
     } as never);
+  };
+
+  const pickVariant = (kind: "minimalista" | "criativo") => {
+    const variant = variants[kind];
+    if (!variant) return;
+    commitVariant(kind, variant);
   };
 
 
@@ -800,15 +854,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
           onOpenChange(false);
           return;
         }
-        if (!o && step === "choose") {
-          // Fechou sem escolher uma versão — limpa o job pendente para não
-          // ficar pendurado em "em andamento" para sempre.
-          const pendingJobId = currentJobIdRef.current;
-          if (pendingJobId) {
-            void deleteStudioJob(pendingJobId);
-            currentJobIdRef.current = null;
-          }
-        }
+        // (sem mais etapa "choose" — variante é escolhida automaticamente)
         onOpenChange(o);
       }}
     >
@@ -1374,54 +1420,7 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
           </div>
         )}
 
-        {step === "choose" && (
-          <>
-            <DialogHeader>
-              <DialogTitle>Escolha a versão</DialogTitle>
-              <DialogDescription>
-                Geramos duas versões do seu carrossel. Escolha qual vai para o editor — você poderá ajustar tudo depois.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="grid gap-4 py-4 sm:grid-cols-2">
-              <VariantPreviewCard
-                kind="minimalista"
-                title="Minimalista"
-                subtitle="Tipografia limpa, sem foto. Foco no texto."
-                variant={variants.minimalista}
-                palette={generationCtxRef.current?.palette ?? palette}
-                fontPair={generationCtxRef.current?.fontPair ?? fontPairForOutput}
-                onPick={() => pickVariant("minimalista")}
-              />
-              <VariantPreviewCard
-                kind="criativo"
-                title="Criativo"
-                subtitle="Foto editorial cobrindo o slide, texto sobreposto."
-                variant={variants.criativo}
-                palette={generationCtxRef.current?.palette ?? palette}
-                fontPair={generationCtxRef.current?.fontPair ?? fontPairForOutput}
-                onPick={() => pickVariant("criativo")}
-              />
-            </div>
-
-            <div className="flex items-center justify-between border-t pt-3">
-              <p className="text-xs text-muted-foreground">
-                As imagens da versão criativa são geradas no editor depois de escolher.
-              </p>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setVariants({ minimalista: null, criativo: null });
-                  setStep(2);
-                  setProgress(0);
-                }}
-              >
-                Gerar de novo
-              </Button>
-            </div>
-          </>
-        )}
+        {/* etapa "choose" removida — variante é escolhida automaticamente */}
 
       </DialogContent>
     </Dialog>

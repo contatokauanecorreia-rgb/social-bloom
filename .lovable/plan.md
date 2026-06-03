@@ -1,62 +1,63 @@
-# Plano para corrigir a geração de imagens ao sair e voltar ao editor
+## Problema
 
-## Objetivo
-Fazer a geração de imagens do carrossel continuar de forma confiável mesmo quando o usuário sai da página do editor e, ao voltar, retomar automaticamente o andamento e exibir as imagens já concluídas.
+Ao clicar em **Abrir** em qualquer card do painel do Studio (tanto "Em andamento" quanto "Recentes – Concluído"), o usuário cai na janela **"Configurar carrossel"** (wizard step 1), em vez de ir direto para a tela de andamento / editor com as imagens.
 
-## O que vou mudar
+Isso acontece porque hoje o roteamento do painel decide entre duas coisas:
 
-### 1. Tirar a dependência do worker client-side para a geração principal
-Hoje a continuação depende de `useCarouselImageWorker`, que roda no navegador dentro de `/dashboard`. Isso significa que, ao sair da tela/app, a geração pode parar. Vou mover o processamento real para um fluxo de backend assíncrono, iniciado a partir do job salvo no banco.
+- `phase === "images" | "done"` → vai pro editor
+- caso contrário (`phase === "variants"` ou `null`) → **reabre o wizard** no modo "escolha a versão"
 
-### 2. Criar um endpoint/backend job runner para processar as imagens do carrossel
-Vou criar uma rota/handler server-side que:
-- recebe o `jobId`
-- carrega `studio_jobs.result`
-- processa `imageJobs` pendentes
-- atualiza `result.images`, `imagesDone`, `imagesTotal`, `progress`, `status` e `finished_at`
-- evita processamento duplicado do mesmo job
-- marca erro parcial/final quando necessário
+E o wizard, quando hidratado por `initialJobId` sem `result.variants` ainda prontos, cai no estado default e mostra o step 1 ("Configurar carrossel"). Daí a sensação de que "clicar não faz nada útil".
 
-A ideia é o frontend apenas disparar esse processamento e o backend continuar trabalhando independentemente da tela atual.
+Além disso, no fluxo desejado o usuário **não quer mais ver a tela "Escolha a versão"** – ele quer que a geração siga em background e que abrir o job mostre o **andamento das imagens** dentro do editor.
 
-### 3. Disparar o processamento no momento em que a variante é escolhida
-No `CarouselAIWizard`, ao selecionar a versão do carrossel:
-- persisto o `bootstrap` e `imageJobs` como já está sendo feito
-- inicio imediatamente o processamento server-side do job
-- navego para o editor com `jobId`
+## Solução
 
-Assim, o editor passa a ser consumidor de estado, não o responsável por gerar.
+Eliminar a etapa "Escolha a versão" do fluxo do carrossel e mover **toda** a visualização de jobs (em andamento ou concluídos) para o editor, com um estado de "andamento" próprio.
 
-### 4. Retomar jobs pendentes ao reabrir Studio/editor
-Ao abrir Studio ou o editor com `jobId`, vou adicionar uma retomada segura:
-- se o job estiver em `phase: "images"` e `status: "running"`, o app tenta reacionar o runner server-side
-- isso cobre casos em que a aba foi fechada no meio, o navegador caiu ou houve interrupção no preview
+### 1. Auto-escolha da variante no wizard
 
-### 5. Manter o editor sincronizado só por hidratação + realtime/polling
-No editor de carrossel:
-- continuar carregando `bootstrap` + imagens prontas do job
-- atualizar os slides conforme novas imagens chegarem
-- mostrar progresso real
-- não executar mais geração local quando houver `jobId`
+`CarouselAIWizard.handleGenerate` passa a:
 
-Se necessário, adiciono polling leve como fallback além do realtime, para garantir atualização visual mesmo se o canal não entregar algum evento.
+1. Gerar as duas variantes (`minimalista` + `criativo`) como hoje.
+2. Em vez de `setStep("choose")`, chamar diretamente uma versão refatorada de `pickVariant` com uma regra fixa:
+   - se `aiImages` estiver ligado → `"criativo"` (que é a única que aciona imagens),
+   - caso contrário → `"minimalista"`,
+   - se uma das duas falhar, escolhe a outra automaticamente.
+3. Persistir o job já em `phase: "images"` (ou `"done"` quando não há imagens), disparar `kickCarouselJobRunner` e navegar para o editor com `jobId`.
 
-### 6. Ajustar a navegação de “Em andamento” e “Recentes”
-Vou manter a lógica de abrir direto no editor quando o job estiver em geração de imagens ou concluído, garantindo que o usuário sempre volte para o estado certo, sem cair em “escolha a versão” quando isso já passou.
+O step `"choose"` e a UI de cards de variante deixam de ser renderizados (podem ser removidos para simplificar o componente, mantendo só a hidratação para compatibilidade com jobs antigos: se um job antigo vier em `phase: "variants"`, auto-escolhemos no mesmo critério e seguimos pro editor).
 
-## Resultado esperado
-Depois da correção:
-- o usuário pode sair do editor sem cancelar a geração
-- ao voltar, as imagens continuam aparecendo normalmente
-- jobs em andamento ficam acessíveis na área do Studio
-- ao concluir, o job gera notificação e passa para recentes/concluídos
+### 2. Painel do Studio sempre navega para o editor
 
-## Detalhes técnicos
-- Arquivos mais prováveis de alteração:
-  - `src/components/studio/CarouselAIWizard.tsx`
-  - `src/routes/dashboard.studio.carrossel.tsx`
-  - `src/routes/dashboard.studio.tsx`
-  - `src/lib/carousel-image-worker.ts` (reduzido/removido como origem principal)
-  - nova rota server-side em `src/routes/api/...` ou server function equivalente
-- Vou reaproveitar a tabela `studio_jobs` já criada, sem expandir escopo para novos recursos.
-- Se eu encontrar limitação do ambiente para execução longa no backend atual, adapto o runner para processamento encadeado por reentrada segura do job, mas mantendo a mesma experiência para o usuário.
+Em `src/routes/dashboard.studio.tsx`, o callback `onOpen` do `StudioJobsPanel` para `kind === "carrossel"` passa a **sempre** navegar:
+
+```ts
+navigate({ to: "/dashboard/studio/carrossel", search: { jobId: job.id } })
+```
+
+(sem `as never`, usando tipagem do route validator), independentemente de `phase`. Remove-se o branch que abria o wizard com `initialJobId`.
+
+### 3. Editor mostra "andamento" quando o job ainda não tem imagens
+
+Em `src/routes/dashboard.studio.carrossel.tsx`, quando entramos com `jobId` e o job está `running` e ainda sem `bootstrap` (porque as variantes ainda estão sendo geradas), mostrar um estado de **loading com progresso** baseado em `studio_jobs.progress`, em vez de cair em "skip" + slide padrão. Quando `bootstrap` chega (via realtime/polling), aplicamos `applyBootstrap` normalmente.
+
+Quando o job está em `phase: "images"`, já hidratamos os slides e mostramos o `imageProgress` existente (já implementado).
+
+### 4. Garantir que o painel "Em andamento" só some quando o job realmente terminou
+
+- Confirmar que `useStudioJobs` segue removendo o job do `running` quando `status` muda para `done/error`.
+- Toast global de conclusão continua igual.
+
+### Arquivos a alterar
+
+- `src/components/studio/CarouselAIWizard.tsx` — auto-escolha, remoção do step `"choose"` na UX, refator de `pickVariant` para ser chamado internamente.
+- `src/routes/dashboard.studio.tsx` — `onOpen` simplificado, sempre navega para o editor.
+- `src/routes/dashboard.studio.carrossel.tsx` — estado de "aguardando variantes" quando `jobId` está running sem `bootstrap`, com polling/realtime já existente para hidratar quando chegar.
+- Sem mudanças em `supabase/functions/carrossel-run-job/index.ts` nem em `studio-jobs.ts`.
+
+### Detalhes técnicos
+
+- A navegação com `search: { jobId }` precisa bater com o `validateSearch` de `/dashboard/studio/carrossel` (já aceita `jobId?: string`); remover o cast `as never`.
+- Manter `kickCarouselJobRunner` sendo chamado tanto no `pickVariant` automático quanto na hidratação do editor (já é idempotente).
+- Para jobs antigos persistidos em `phase: "variants"`, o editor, ao hidratar, detecta `result.variants` sem `result.bootstrap`, aplica a mesma regra de auto-escolha, persiste `phase: "images"` e dispara o runner — assim nada quebra ao abrir jobs antigos.

@@ -139,18 +139,12 @@ function StudioPage() {
         recent={recent}
         onOpen={(job: StudioJob) => {
           if (job.kind === "carrossel") {
-            const phase = (job.result as { phase?: string } | null)?.phase;
-            if (phase === "images" || phase === "done") {
-              // Job já passou da escolha de versão — abre direto no editor.
-              navigate({
-                to: "/dashboard/studio/carrossel",
-                search: { jobId: job.id },
-              } as never);
-            } else {
-              // Variantes prontas, ainda sem escolha — reabre o wizard.
-              setCarouselJobId(job.id);
-              setCarouselOpen(true);
-            }
+            // Sempre abre no editor — o editor mostra o andamento da geração
+            // (variantes ou imagens) e o resultado final.
+            navigate({
+              to: "/dashboard/studio/carrossel",
+              search: { jobId: job.id },
+            } as never);
           } else {
             const url = (job.result as { videoUrl?: string } | null)?.videoUrl;
             if (url) {

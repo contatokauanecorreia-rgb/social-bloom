@@ -187,6 +187,12 @@ function CarrosselEditorPage() {
         done: boolean;
       }
   >(jobId ? null : "skip");
+  // Estado separado para "ainda gerando as variantes" — quando temos jobId
+  // running mas o bootstrap ainda não foi salvo no banco.
+  const [jobWaiting, setJobWaiting] = useState<
+    | null
+    | { status: "running" | "error"; progress: number; error: string | null }
+  >(null);
 
   const [format, setFormat] = useState<Format>(FORMATS[0]);
 
@@ -369,58 +375,68 @@ function CarrosselEditorPage() {
   }, [jobHydration]);
 
   // Caminho 2 — hidratar a partir de um studio_job (vindo do painel).
+  const hydrateFromJob = async () => {
+    if (!jobId) return;
+    const { data: row } = await (supabase as any)
+      .from("studio_jobs")
+      .select("id, status, progress, error, result")
+      .eq("id", jobId)
+      .maybeSingle();
+    if (!row) {
+      setJobHydration("skip");
+      return;
+    }
+    const result = (row.result ?? {}) as {
+      bootstrap?: { slides?: { imageDataUrl?: string | null }[] } & Record<string, unknown>;
+      images?: Record<string, string>;
+      imagesDone?: number;
+      imagesTotal?: number;
+    };
+    if (!result.bootstrap) {
+      // Ainda gerando variantes — mostra tela de andamento e segue ouvindo
+      // por realtime até o bootstrap aparecer.
+      if (row.status === "error") {
+        setJobWaiting({ status: "error", progress: row.progress ?? 0, error: row.error ?? null });
+      } else {
+        setJobWaiting({
+          status: "running",
+          progress: Math.max(10, Number(row.progress ?? 10)),
+          error: null,
+        });
+      }
+      return;
+    }
+    setJobWaiting(null);
+    // Mescla as imagens já geradas (result.images) nos slides.
+    const images = result.images ?? {};
+    const slidesWithImages = (result.bootstrap.slides ?? []).map((s, i) => ({
+      ...s,
+      imageDataUrl: images[String(i)] ?? s.imageDataUrl ?? null,
+    }));
+    const merged = { ...result.bootstrap, slides: slidesWithImages };
+    applyBootstrap(merged);
+    const total = result.imagesTotal ?? 0;
+    const done = result.imagesDone ?? Object.keys(images).length;
+    setJobHydration({
+      bootstrap: merged as Record<string, unknown>,
+      images: { ...images },
+      imagesDone: done,
+      imagesTotal: total,
+      done: row.status === "done" || total === 0 || done >= total,
+    });
+    if (total > 0 && done < total) {
+      setImageProgress({ current: done, total, percent: Math.round((done / total) * 100) });
+      // Retoma o processamento server-side caso tenha sido interrompido
+      // (refresh, queda de conexão, etc.). Idempotente.
+      if (row.status === "running") {
+        void kickCarouselJobRunner(jobId);
+      }
+    }
+  };
+
   useEffect(() => {
     if (!jobId) return;
-    let cancelled = false;
-    (async () => {
-      const { data: row } = await (supabase as any)
-        .from("studio_jobs")
-        .select("id, status, result")
-        .eq("id", jobId)
-        .maybeSingle();
-      if (cancelled || !row) {
-        setJobHydration("skip");
-        return;
-      }
-      const result = (row.result ?? {}) as {
-        bootstrap?: { slides?: { imageDataUrl?: string | null }[] } & Record<string, unknown>;
-        images?: Record<string, string>;
-        imagesDone?: number;
-        imagesTotal?: number;
-      };
-      if (!result.bootstrap) {
-        setJobHydration("skip");
-        return;
-      }
-      // Mescla as imagens já geradas (result.images) nos slides.
-      const images = result.images ?? {};
-      const slidesWithImages = (result.bootstrap.slides ?? []).map((s, i) => ({
-        ...s,
-        imageDataUrl: images[String(i)] ?? s.imageDataUrl ?? null,
-      }));
-      const merged = { ...result.bootstrap, slides: slidesWithImages };
-      applyBootstrap(merged);
-      const total = result.imagesTotal ?? 0;
-      const done = result.imagesDone ?? Object.keys(images).length;
-      setJobHydration({
-        bootstrap: merged as Record<string, unknown>,
-        images: { ...images },
-        imagesDone: done,
-        imagesTotal: total,
-        done: row.status === "done" || total === 0 || done >= total,
-      });
-      if (total > 0 && done < total) {
-        setImageProgress({ current: done, total, percent: Math.round((done / total) * 100) });
-        // Retoma o processamento server-side caso tenha sido interrompido
-        // (refresh, queda de conexão, etc.). Idempotente.
-        if (row.status === "running") {
-          void kickCarouselJobRunner(jobId);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+    void hydrateFromJob();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
@@ -437,7 +453,25 @@ function CarrosselEditorPage() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "studio_jobs", filter: `id=eq.${jobId}` },
         (payload) => {
-          const row = payload.new as { status?: string; result?: { images?: Record<string, string>; imagesDone?: number; imagesTotal?: number } } | undefined;
+          const row = payload.new as { status?: string; progress?: number; error?: string | null; result?: { bootstrap?: unknown; images?: Record<string, string>; imagesDone?: number; imagesTotal?: number } } | undefined;
+          // Se ainda estávamos esperando o bootstrap e ele acabou de chegar,
+          // re-hidrata o editor com os dados completos.
+          if (row?.result?.bootstrap) {
+            setJobWaiting((prev) => {
+              if (prev) void hydrateFromJob();
+              return null;
+            });
+          } else if (row?.status === "error") {
+            setJobWaiting({ status: "error", progress: row.progress ?? 0, error: row.error ?? null });
+            return;
+          } else if (row?.status === "running" && !row?.result?.bootstrap) {
+            setJobWaiting((prev) =>
+              prev
+                ? { ...prev, progress: Math.max(prev.progress, Number(row.progress ?? prev.progress)) }
+                : prev,
+            );
+            return;
+          }
           const images = row?.result?.images ?? {};
           const total = row?.result?.imagesTotal ?? 0;
           const done = row?.result?.imagesDone ?? Object.keys(images).length;
@@ -921,6 +955,61 @@ function CarrosselEditorPage() {
       </div>
     );
   }
+
+  // Aguardando o bootstrap do job (variantes ainda sendo geradas no servidor).
+  if (jobWaiting) {
+    const pct = Math.min(95, Math.max(5, jobWaiting.progress));
+    return (
+      <div className="flex h-screen flex-col bg-muted/30">
+        <header className="flex items-center gap-3 border-b bg-card px-4 py-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate({ to: "/dashboard/studio" })}
+            className="gap-1.5"
+          >
+            <ArrowLeft className="h-4 w-4" /> Voltar
+          </Button>
+          <span className="text-sm font-semibold">Carrossel em geração</span>
+        </header>
+        <div className="flex flex-1 items-center justify-center px-6">
+          <div className="w-full max-w-md rounded-2xl border bg-card p-8 text-center shadow-sm">
+            {jobWaiting.status === "error" ? (
+              <>
+                <h2 className="text-lg font-semibold text-destructive">Falha ao gerar</h2>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {jobWaiting.error ?? "A IA não conseguiu gerar o carrossel. Tente novamente."}
+                </p>
+                <Button
+                  className="mt-6"
+                  onClick={() => navigate({ to: "/dashboard/studio" })}
+                >
+                  Voltar para o Studio
+                </Button>
+              </>
+            ) : (
+              <>
+                <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
+                <h2 className="mt-4 text-lg font-semibold">Gerando o seu carrossel…</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  A IA está escrevendo os slides. Você pode aguardar aqui ou voltar — a geração
+                  continua em segundo plano e avisaremos quando ficar pronto.
+                </p>
+                <div className="mt-6 h-2 w-full overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full bg-primary transition-all"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">{pct}%</p>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="flex h-screen flex-col bg-muted/30 overflow-hidden">
