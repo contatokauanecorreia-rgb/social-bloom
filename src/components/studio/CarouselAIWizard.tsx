@@ -43,7 +43,7 @@ import {
   type GoogleFontItem,
 } from "@/lib/google-fonts";
 import { cn } from "@/lib/utils";
-import { createStudioJob, fetchStudioJob, updateStudioJob } from "@/lib/studio-jobs";
+import { createStudioJob, deleteStudioJob, fetchStudioJob, updateStudioJob } from "@/lib/studio-jobs";
 
 export type CarouselAIWizardProps = {
   open: boolean;
