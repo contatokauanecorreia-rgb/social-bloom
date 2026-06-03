@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { NotificationsBell } from "@/components/dashboard/NotificationsBell";
 import { useStudioJobs } from "@/lib/studio-jobs";
+import { useCarouselImageWorker } from "@/lib/carousel-image-worker";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
