@@ -52,6 +52,10 @@ function DashboardLayout() {
     };
   }, [navigate]);
 
+  // Subscribe to studio_jobs globally so toasts fire when jobs finish,
+  // mesmo se o usuário estiver em outra página do dashboard.
+  useStudioJobs(user?.id ?? null);
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success("Sessão encerrada.");
