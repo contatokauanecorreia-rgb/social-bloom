@@ -7,6 +7,7 @@ import { Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { AppSidebar } from "@/components/dashboard/AppSidebar";
 import { NotificationsBell } from "@/components/dashboard/NotificationsBell";
+import { useStudioJobs } from "@/lib/studio-jobs";
 
 export const Route = createFileRoute("/dashboard")({
   head: () => ({
