@@ -278,12 +278,22 @@ export function CarouselAIWizard({ open, onOpenChange, clientId, initialTopic, i
       }
 
       if (job.status === "running" && result?.variants && (phase === "variants" || phase == null)) {
-        // Variantes prontas, aguardando o usuário escolher.
-        if (result.ctx) generationCtxRef.current = result.ctx;
-        if (result.textAlign) setTextAlignChoice(result.textAlign);
-        setVariants(result.variants);
-        setStep("choose");
-        setProgress(100);
+        // Variantes prontas — escolhe automaticamente e segue pro editor.
+        const ctx = result.ctx ?? generationCtxRef.current;
+        const align = result.textAlign ?? "left";
+        if (ctx) generationCtxRef.current = ctx;
+        const mins = result.variants.minimalista ?? null;
+        const cre = result.variants.criativo ?? null;
+        const kind = pickAutoKind(mins, cre, !!ctx?.aiImages);
+        if (kind && ctx) {
+          const v = kind === "minimalista" ? mins : cre;
+          if (v) {
+            commitVariant(kind, v, ctx, align);
+            return;
+          }
+        }
+        // Sem ctx ou sem variante válida — fecha o wizard (o job ficará no painel).
+        onOpenChange(false);
       } else if (job.status === "running") {
         setStep("loading");
         setProgress(Math.max(10, job.progress));
